@@ -69,12 +69,24 @@ jobs:
       matrix:
         include:
           - service: QuestionService
-            dockerfile: QuestionService/Dockerfile
+            dockerfile: Overflow.QuestionService/Dockerfile
             image: overflow-question
             context: .
           - service: SearchService
-            dockerfile: SearchService/Dockerfile
+            dockerfile: Overflow.SearchService/Dockerfile
             image: overflow-search
+            context: .
+          - service: ProfileService
+            dockerfile: Overflow.ProfileService/Dockerfile
+            image: overflow-profile
+            context: .
+          - service: StatsService
+            dockerfile: Overflow.StatsService/Dockerfile
+            image: overflow-stats
+            context: .
+          - service: VoteService
+            dockerfile: Overflow.VoteService/Dockerfile
+            image: overflow-vote
             context: .
           - service: WebApp
             dockerfile: webapp/Dockerfile
@@ -96,10 +108,49 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐳 Build & push ${{ matrix.service }}
+      - name: 🔧 Determine build environment
+        if: matrix.service == 'WebApp'
+        id: webapp_env
         run: |
-          docker build -f ${{ matrix.dockerfile }} -t ${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}:${{ env.IMAGE_TAG }} ${{ matrix.context }}
-          docker push ${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}
+          # Determine environment based on branch
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "build_env=production" >> $GITHUB_OUTPUT
+          else
+            echo "build_env=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🐳 Build & push ${{ matrix.service }} (Backend Services)
+        if: matrix.service != 'WebApp'
+        run: |
+          IMAGE_NAME="${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}"
+          docker build -f ${{ matrix.dockerfile }} -t ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${{ matrix.context }}
+          docker push ${IMAGE_NAME}:${{ env.IMAGE_TAG }}
+          
+          # Also tag and push as 'latest' for production deployments
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${IMAGE_NAME}:latest
+            docker push ${IMAGE_NAME}:latest
+          fi
+
+      - name: 🐳 Build & push WebApp
+        if: matrix.service == 'WebApp'
+        run: |
+          IMAGE_NAME="${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}"
+          # Build with Infisical credentials - all other config loaded from Infisical at build time
+          docker build -f ${{ matrix.dockerfile }} \
+            --build-arg INFISICAL_CLIENT_ID="${{ secrets.INFISICAL_CLIENT_ID }}" \
+            --build-arg INFISICAL_CLIENT_SECRET="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
+            --build-arg INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}" \
+            --build-arg NODE_ENV="${{ steps.webapp_env.outputs.build_env }}" \
+            -t ${IMAGE_NAME}:${{ env.IMAGE_TAG }} \
+            ${{ matrix.context }}
+          docker push ${IMAGE_NAME}:${{ env.IMAGE_TAG }}
+          
+          # Also tag and push as 'latest' for production deployments
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${IMAGE_NAME}:latest
+            docker push ${IMAGE_NAME}:latest
+          fi
 
   # ============================================================================
   # STAGING DEPLOYMENT (development branch → apps-staging namespace)
@@ -144,52 +195,16 @@ jobs:
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
           sed -i "s/GITHUB_USERNAME/${{ steps.setup.outputs.owner_lc }}/g" kustomization.yaml
-          sed -i "s|newTag: latest|newTag: ${{ env.IMAGE_TAG }}|g" kustomization.yaml
-
-      - name: 🔧 Inject webapp config from .env
-        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
-        run: |
-          # Load values from .env.staging using absolute path
-          set -a  # automatically export all variables
-          source ${{ github.workspace }}/webapp/.env.staging
-          set +a
-          
-          # Inject into kustomization.yaml
-          sed -i "s|API_URL=PLACEHOLDER|API_URL=${API_URL}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ID=PLACEHOLDER|AUTH_KEYCLOAK_ID=${AUTH_KEYCLOAK_ID}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ISSUER=PLACEHOLDER|AUTH_KEYCLOAK_ISSUER=${AUTH_KEYCLOAK_ISSUER}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ISSUER_INTERNAL=PLACEHOLDER|AUTH_KEYCLOAK_ISSUER_INTERNAL=${AUTH_KEYCLOAK_ISSUER_INTERNAL}|g" kustomization.yaml
-          sed -i "s|AUTH_URL=PLACEHOLDER|AUTH_URL=${AUTH_URL}|g" kustomization.yaml
-          sed -i "s|AUTH_URL_INTERNAL=PLACEHOLDER|AUTH_URL_INTERNAL=${AUTH_URL_INTERNAL}|g" kustomization.yaml
-          sed -i "s|NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=PLACEHOLDER|NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}|g" kustomization.yaml
-
-      - name: 🔐 Create image pull secret
-        run: |
-          # Delete existing secret if it exists
-          kubectl delete secret ghcr-pull-secret -n ${{ env.NAMESPACE }} 2>/dev/null || echo "Secret doesn't exist, continuing..."
-          
-          # Create new secret from GitHub token
-          kubectl create secret docker-registry ghcr-pull-secret \
-            --docker-server=ghcr.io \
-            --docker-username=${{ github.actor }} \
-            --docker-password=${{ secrets.GITHUB_TOKEN }} \
-            --docker-email=${{ github.actor }}@users.noreply.github.com \
-            -n ${{ env.NAMESPACE }}
-          
-          echo "✅ ghcr-pull-secret created successfully"
+          sed -i "s|newTag: SHA_REPLACED_BY_CICD|newTag: ${{ env.IMAGE_TAG }}|g" kustomization.yaml
 
       - name: 🔐 Inject secrets
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
-          sed -i "s|postgres-connection=.*|postgres-connection=${{ secrets.POSTGRES_QUESTIONS_DB_CONNECTION_STRING }}|g" kustomization.yaml
-          sed -i "s|rabbitmq-connection=.*|rabbitmq-connection=${{ secrets.RABBIT_MQ_AMQP_CONNECTION_STRING }}|g" kustomization.yaml
-          sed -i "s|typesense-api-key=.*|typesense-api-key=${{ secrets.TYPESENSE_API_KEY }}|g" kustomization.yaml
-          sed -i "s|keycloak-client-id=.*|keycloak-client-id=${{ secrets.KEYCLOAK_CLIENT_ID }}|g" kustomization.yaml
-          sed -i "s|keycloak-client-secret=.*|keycloak-client-secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}|g" kustomization.yaml
-          sed -i "s|auth-secret=.*|auth-secret=${{ secrets.AUTH_SECRET }}|g" kustomization.yaml
-          sed -i "s|auth-keycloak-secret=.*|auth-keycloak-secret=${{ secrets.AUTH_KEYCLOAK_SECRET }}|g" kustomization.yaml
-          sed -i "s|cloudinary-api-key=.*|cloudinary-api-key=${{ secrets.NEXT_PUBLIC_CLOUDINARY_API_KEY }}|g" kustomization.yaml
-          sed -i "s|cloudinary-api-secret=.*|cloudinary-api-secret=${{ secrets.CLOUDINARY_API_SECRET }}|g" kustomization.yaml
+          # Inject Infisical credentials (all 3 in one Secret)
+          sed -i "s|INFISICAL_PROJECT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_PROJECT_ID: \"${{ secrets.INFISICAL_PROJECT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_ID: \"${{ secrets.INFISICAL_CLIENT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_SECRET: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_SECRET: \"${{ secrets.INFISICAL_CLIENT_SECRET }}\"|g" ../../base/infisical/secret.yaml
+          
 
       - name: 👀 Preview manifests
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
@@ -203,6 +218,9 @@ jobs:
         run: |
           kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=1m
           kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=1m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=1m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=1m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=1m
           kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=1m
 
       - name: 📊 Deployment status
@@ -213,6 +231,12 @@ jobs:
           kubectl logs -n ${{ env.NAMESPACE }} -l app=question-svc --tail=30 --prefix=true || true
           echo "=== Logs from search-svc ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=search-svc --tail=30 --prefix=true || true
+          echo "=== Logs from profile-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=profile-svc --tail=30 --prefix=true || true
+          echo "=== Logs from stats-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=stats-svc --tail=30 --prefix=true || true
+          echo "=== Logs from vote-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
           echo "=== Logs from overflow-webapp ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=overflow-webapp --tail=30 --prefix=true || true
 
@@ -262,56 +286,21 @@ jobs:
           kubectl config current-context || echo "Using default context"
           kubectl get nodes
 
-      - name: 🏷️ Update image tags
+      - name: 🏷️ Update image tags for production (use latest)
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
           sed -i "s/GITHUB_USERNAME/${{ steps.setup.outputs.owner_lc }}/g" kustomization.yaml
-          sed -i "s|newTag: latest|newTag: ${{ env.IMAGE_TAG }}|g" kustomization.yaml
-
-      - name: 🔧 Inject webapp config from .env
-        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
-        run: |
-          # Load values from .env.production using absolute path
-          set -a  # automatically export all variables
-          source ${{ github.workspace }}/webapp/.env.production
-          set +a
-          
-          # Inject into kustomization.yaml
-          sed -i "s|API_URL=PLACEHOLDER|API_URL=${API_URL}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ID=PLACEHOLDER|AUTH_KEYCLOAK_ID=${AUTH_KEYCLOAK_ID}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ISSUER=PLACEHOLDER|AUTH_KEYCLOAK_ISSUER=${AUTH_KEYCLOAK_ISSUER}|g" kustomization.yaml
-          sed -i "s|AUTH_KEYCLOAK_ISSUER_INTERNAL=PLACEHOLDER|AUTH_KEYCLOAK_ISSUER_INTERNAL=${AUTH_KEYCLOAK_ISSUER_INTERNAL}|g" kustomization.yaml
-          sed -i "s|AUTH_URL=PLACEHOLDER|AUTH_URL=${AUTH_URL}|g" kustomization.yaml
-          sed -i "s|AUTH_URL_INTERNAL=PLACEHOLDER|AUTH_URL_INTERNAL=${AUTH_URL_INTERNAL}|g" kustomization.yaml
-          sed -i "s|NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=PLACEHOLDER|NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}|g" kustomization.yaml
-
-      - name: 🔐 Create image pull secret
-        run: |
-          # Delete existing secret if it exists
-          kubectl delete secret ghcr-pull-secret -n ${{ env.NAMESPACE }} 2>/dev/null || echo "Secret doesn't exist, continuing..."
-          
-          # Create new secret from GitHub token
-          kubectl create secret docker-registry ghcr-pull-secret \
-            --docker-server=ghcr.io \
-            --docker-username=${{ github.actor }} \
-            --docker-password=${{ secrets.GITHUB_TOKEN }} \
-            --docker-email=${{ github.actor }}@users.noreply.github.com \
-            -n ${{ env.NAMESPACE }}
-          
-          echo "✅ ghcr-pull-secret created successfully"
+          # Production uses 'latest' tag for deployments
+          # Note: latest tag is created during build step for main branch
 
       - name: 🔐 Inject secrets
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
-          sed -i "s|postgres-connection=.*|postgres-connection=${{ secrets.POSTGRES_QUESTIONS_DB_CONNECTION_STRING }}|g" kustomization.yaml
-          sed -i "s|rabbitmq-connection=.*|rabbitmq-connection=${{ secrets.RABBIT_MQ_AMQP_CONNECTION_STRING }}|g" kustomization.yaml
-          sed -i "s|typesense-api-key=.*|typesense-api-key=${{ secrets.TYPESENSE_API_KEY }}|g" kustomization.yaml
-          sed -i "s|keycloak-client-id=.*|keycloak-client-id=${{ secrets.KEYCLOAK_CLIENT_ID }}|g" kustomization.yaml
-          sed -i "s|keycloak-client-secret=.*|keycloak-client-secret=${{ secrets.KEYCLOAK_CLIENT_SECRET }}|g" kustomization.yaml
-          sed -i "s|auth-secret=.*|auth-secret=${{ secrets.AUTH_SECRET }}|g" kustomization.yaml
-          sed -i "s|auth-keycloak-secret=.*|auth-keycloak-secret=${{ secrets.AUTH_KEYCLOAK_SECRET }}|g" kustomization.yaml
-          sed -i "s|cloudinary-api-key=.*|cloudinary-api-key=${{ secrets.NEXT_PUBLIC_CLOUDINARY_API_KEY }}|g" kustomization.yaml
-          sed -i "s|cloudinary-api-secret=.*|cloudinary-api-secret=${{ secrets.CLOUDINARY_API_SECRET }}|g" kustomization.yaml
+          # Inject Infisical credentials (all 3 in one Secret)
+          sed -i "s|INFISICAL_PROJECT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_PROJECT_ID: \"${{ secrets.INFISICAL_PROJECT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_ID: \"${{ secrets.INFISICAL_CLIENT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_SECRET: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_SECRET: \"${{ secrets.INFISICAL_CLIENT_SECRET }}\"|g" ../../base/infisical/secret.yaml
+          
 
       - name: 👀 Preview manifests
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
@@ -325,6 +314,9 @@ jobs:
         run: |
           kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=5m
           kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=5m
           kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=5m
 
       - name: 📊 Deployment status
@@ -335,6 +327,12 @@ jobs:
           kubectl logs -n ${{ env.NAMESPACE }} -l app=question-svc --tail=30 --prefix=true || true
           echo "=== Logs from search-svc ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=search-svc --tail=30 --prefix=true || true
+          echo "=== Logs from profile-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=profile-svc --tail=30 --prefix=true || true
+          echo "=== Logs from stats-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=stats-svc --tail=30 --prefix=true || true
+          echo "=== Logs from vote-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
 
       - name: 🧪 Smoke tests
         run: |
@@ -344,6 +342,12 @@ jobs:
           kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
             curl -f -m 5 http://search-svc:8080/health || echo "⚠️ Health check failed"
           kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://profile-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://stats-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://vote-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
             curl -f -m 5 http://overflow-webapp:3000/ || echo "⚠️ Health check failed"
 
       - name: 🧹 Cleanup old resources
@@ -351,5 +355,5 @@ jobs:
           echo "🧹 Cleaning up old Kubernetes resources..."
           chmod +x k8s/scripts/cleanup-k8s-resources.sh
           ./k8s/scripts/cleanup-k8s-resources.sh ${{ env.NAMESPACE }}
-        continue-on-error: true  # Don't fail deployment if cleanup has issues
+        continue-on-error: false
 

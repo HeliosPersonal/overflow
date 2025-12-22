@@ -16,8 +16,6 @@ spec:
         app: overflow-webapp
         component: frontend
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: overflow-webapp
           image: ghcr.io/placeholder/overflow-webapp:latest
@@ -29,77 +27,26 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+            - name: APP_ENV
+              value: "production"
             - name: PORT
               value: "3000"
-            # API URLs
-            - name: API_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: API_URL
-            - name: NEXT_PUBLIC_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: API_URL
-            # Auth URLs
-            - name: AUTH_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_URL
-            - name: AUTH_URL_INTERNAL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_URL_INTERNAL
-            - name: NEXT_PUBLIC_AUTH_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_URL
-            # Auth/Keycloak configuration
-            - name: AUTH_SECRET
+            # Infisical credentials - all config and secrets loaded from Infisical at build/runtime
+            - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
-                  name: webapp-secrets
-                  key: auth-secret
-            - name: AUTH_KEYCLOAK_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_KEYCLOAK_ID
-            - name: AUTH_KEYCLOAK_SECRET
+                  name: infisical-credentials
+                  key: INFISICAL_PROJECT_ID
+            - name: INFISICAL_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: webapp-secrets
-                  key: auth-keycloak-secret
-            - name: AUTH_KEYCLOAK_ISSUER
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_KEYCLOAK_ISSUER
-            - name: AUTH_KEYCLOAK_ISSUER_INTERNAL
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: AUTH_KEYCLOAK_ISSUER_INTERNAL
-            # Cloudinary configuration
-            - name: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: webapp-config
-                  key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-            - name: NEXT_PUBLIC_CLOUDINARY_API_KEY
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_ID
+            - name: INFISICAL_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: webapp-secrets
-                  key: cloudinary-api-key
-            - name: CLOUDINARY_API_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: webapp-secrets
-                  key: cloudinary-api-secret
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_SECRET
           livenessProbe:
             httpGet:
               path: /

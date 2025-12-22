@@ -1,5 +1,5 @@
 # Staging Application Ingress
-# Routes external traffic to Question and Search services via staging domain
+# Routes external traffic to all services via staging domain
 
 ---
 # Question Service: /api/questions -> question-svc:8080/questions
@@ -90,6 +90,118 @@ spec:
             backend:
               service:
                 name: search-svc
+                port:
+                  number: 8080
+---
+# Stats Service: /stats -> stats-svc:8080/stats
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stats-svc-ingress
+  namespace: apps-staging
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: webapp-staging-tls
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /stats
+            pathType: Prefix
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+    - host: overflow-api-staging.helios
+      http:
+        paths:
+          - path: /stats
+            pathType: Prefix
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+---
+# Vote Service: /api/votes -> vote-svc:8080/votes
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vote-svc-ingress
+  namespace: apps-staging
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: webapp-staging-tls
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+    - host: overflow-api-staging.helios
+      http:
+        paths:
+          - path: /votes
+            pathType: Prefix
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+---
+# Profile Service: /profiles -> profile-svc:8080/profiles
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: profile-svc-ingress
+  namespace: apps-staging
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: webapp-staging-tls
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /profiles
+            pathType: Prefix
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+    - host: overflow-api-staging.helios
+      http:
+        paths:
+          - path: /profiles
+            pathType: Prefix
+            backend:
+              service:
+                name: profile-svc
                 port:
                   number: 8080
 ---

@@ -47,5 +47,29 @@ resource "helm_release" "keycloak" {
     name  = "keycloak.metrics.enabled"
     value = "true"
   }
+
+  # Production mode configuration (based on official chart example)
+  set {
+    name  = "keycloak.production"
+    value = "true"
+  }
+
+  # Set public hostname (this sets BOTH frontend and admin URLs automatically)
+  set {
+    name  = "keycloak.hostname"
+    value = "keycloak.devoverflow.org"
+  }
+
+  # Disable strict hostname checking to allow flexible hostname resolution
+  set {
+    name  = "keycloak.hostnameStrict"
+    value = "false"
+  }
+
+  # CRITICAL: Enable proxy headers to trust X-Forwarded-* headers from nginx
+  set {
+    name  = "keycloak.proxyHeaders"
+    value = "xforwarded"
+  }
 }
 

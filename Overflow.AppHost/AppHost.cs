@@ -2,22 +2,18 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// var compose = builder.AddDockerComposeEnvironment("production")
-//     .WithDashboard(dashboard => dashboard.WithHostPort(8080));
-
 var keycloak = builder.AddKeycloak("keycloak", 6001)
     .WithDataVolume("keycloak-data")
-    //.WithRealmImport("../infra/realms")
+    // .WithRealmImport("../infra/realms")
     .WithEnvironment("KC_HTTP_ENABLED", "true")
     .WithEnvironment("KC_HOSTNAME_STRICT", "false")
+    .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")
     .WithEnvironment("VIRTUAL_HOST", "id.overflow.local")
     .WithEnvironment("VIRTUAL_PORT", "8080");
 
 var postgres = builder.AddPostgres("postgres", port: 5432)
     .WithDataVolume("postgres-data")
-    .WithPgAdmin();
-
-// var typesenseApiKey = builder.AddParameter("typesense-api-key", secret: true);
+    .WithPgWeb();
 
 var typesenseApiKey = builder.Environment.IsDevelopment()
     ? builder.Configuration["Parameters:typesense-api-key"]
@@ -33,12 +29,15 @@ var typesense = builder.AddContainer("typesense", "typesense/typesense", "29.0")
 var typesenseContainer = typesense.GetEndpoint("typesense");
 
 var questionDb = postgres.AddDatabase("questionDb");
+var profileDb = postgres.AddDatabase("profileDb");
+var statDb = postgres.AddDatabase("statDb");
+var voteDb = postgres.AddDatabase("voteDb");
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
     .WithManagementPlugin(port: 15672);
 
-var questionService = builder.AddProject<Projects.QuestionService>("question-svc")
+var questionService = builder.AddProject<Projects.Overflow_QuestionService>("question-svc")
     .WithReference(keycloak)
     .WithReference(questionDb)
     .WithReference(rabbitmq)
@@ -46,12 +45,33 @@ var questionService = builder.AddProject<Projects.QuestionService>("question-svc
     .WaitFor(questionDb)
     .WaitFor(rabbitmq);
 
-
-var searchService = builder.AddProject<Projects.SearchService>("search-svc")
+var searchService = builder.AddProject<Projects.Overflow_SearchService>("search-svc")
     .WithEnvironment("typesense-api-key", typesenseApiKey)
     .WithReference(typesenseContainer)
     .WithReference(rabbitmq)
     .WaitFor(typesense)
+    .WaitFor(rabbitmq);
+
+var profileService = builder.AddProject<Projects.Overflow_ProfileService>("profile-svc")
+    .WithReference(keycloak)
+    .WithReference(profileDb)
+    .WithReference(rabbitmq)
+    .WaitFor(keycloak)
+    .WaitFor(profileDb)
+    .WaitFor(rabbitmq);
+
+var statService = builder.AddProject<Projects.Overflow_StatsService>("stat-svc")
+    .WithReference(statDb)
+    .WithReference(rabbitmq)
+    .WaitFor(statDb)
+    .WaitFor(rabbitmq);
+
+var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
+    .WithReference(keycloak)
+    .WithReference(voteDb)
+    .WithReference(rabbitmq)
+    .WaitFor(keycloak)
+    .WaitFor(voteDb)
     .WaitFor(rabbitmq);
 
 var yarp = builder.AddYarp("gateway")
@@ -61,6 +81,9 @@ var yarp = builder.AddYarp("gateway")
         yarpBuilder.AddRoute("/test/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/tags/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/search/{**catch-all}", searchService);
+        yarpBuilder.AddRoute("/profiles/{**catch-all}", profileService);
+        yarpBuilder.AddRoute("/stats/{**catch-all}", statService);
+        yarpBuilder.AddRoute("/votes/{**catch-all}", voteService);
     })
     .WithEnvironment("ASPNETCORE_URLS", "http://*:8001")
     .WithEndpoint(port: 8001, targetPort: 8001, scheme: "http", name: "gateway", isExternal: true)
@@ -72,12 +95,6 @@ var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")
     .WithHttpEndpoint(env: "PORT", port: 3000, targetPort: 4000)
     .WithEnvironment("VIRTUAL_HOST", "app.overflow.local")
     .WithEnvironment("VIRTUAL_PORT", "4000");
-
-if (!builder.Environment.IsDevelopment())
-{
-    builder.AddContainer("nginx-proxy", "nginxproxy/nginx-proxy", "1.8")
-        .WithEndpoint(80, 80, "nginx", isExternal: true)
-        .WithBindMount("/var/run/docker.sock", "/tmp/docker.sock", true);
-}
+    // .PublishAsDockerFile();
 
 builder.Build().Run();

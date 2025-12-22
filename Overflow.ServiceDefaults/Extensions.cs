@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -8,6 +9,7 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Text.Json;
 
 namespace Overflow.ServiceDefaults;
 
@@ -26,6 +28,7 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();
+        builder.Services.AddOpenTelemetry();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
@@ -149,15 +152,79 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Map health checks in all environments for Kubernetes readiness/liveness probes
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
-        // All health checks must pass for app to be considered ready to accept traffic after starting
-        app.MapHealthChecks(HealthEndpointPath);
-
-        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        // Liveness probe - K8s uses this to determine if pod should be restarted
+        // Fast check, no dependencies, just validates app is responsive
         app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
         {
-            Predicate = r => r.Tags.Contains("live")
+            Predicate = check => check.Tags.Contains("live"),
+            AllowCachingResponses = false
+        });
+
+        // Readiness probe - K8s uses this to determine if pod should receive traffic
+        // Checks all critical dependencies (DB, messaging, cache, etc.)
+        app.MapHealthChecks("/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready"),
+            AllowCachingResponses = false,
+            ResponseWriter = async (context, report) =>
+            {
+                context.Response.ContentType = "application/json";
+                
+                var result = new
+                {
+                    status = report.Status.ToString(),
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        duration = e.Value.Duration.TotalMilliseconds,
+                        exception = e.Value.Exception?.Message
+                    }),
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+
+                context.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result, jsonOptions));
+            }
+        });
+
+        // Full health status - For monitoring, debugging, and comprehensive health view
+        // Includes all registered health checks with detailed information
+        app.MapHealthChecks(HealthEndpointPath, new HealthCheckOptions
+        {
+            AllowCachingResponses = false,
+            ResponseWriter = async (context, report) =>
+            {
+                context.Response.ContentType = "application/json";
+                
+                var result = new
+                {
+                    status = report.Status.ToString(),
+                    timestamp = DateTime.UtcNow,
+                    service = context.Request.Host.Host,
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        duration = e.Value.Duration.TotalMilliseconds,
+                        tags = e.Value.Tags.ToArray(),
+                        data = e.Value.Data,
+                        exception = e.Value.Exception?.Message
+                    }),
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+
+                context.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result, jsonOptions));
+            }
         });
 
         return app;

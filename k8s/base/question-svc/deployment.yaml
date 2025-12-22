@@ -1,4 +1,4 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: question-svc
@@ -16,8 +16,6 @@ spec:
         app: question-svc
         component: api
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: question-svc
           image: ghcr.io/placeholder/overflow-question:latest
@@ -34,17 +32,22 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            # Connection strings from secrets
-            - name: ConnectionStrings__questionDb
+            # Infisical credentials - all other secrets loaded from Infisical
+            - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
-                  key: postgres-connection
-            - name: ConnectionStrings__messaging
+                  name: infisical-credentials
+                  key: INFISICAL_PROJECT_ID
+            - name: INFISICAL_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
-                  key: rabbitmq-connection
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_ID
+            - name: INFISICAL_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_SECRET
             # OpenTelemetry configuration
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://tempo.monitoring.svc.cluster.local:4318"
@@ -52,6 +55,9 @@ spec:
               value: "question-service"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment=$(ASPNETCORE_ENVIRONMENT)"
+            # Disable file watching to avoid inotify limits
+            - name: DOTNET_USE_POLLING_FILE_WATCHER
+              value: "true"
           livenessProbe:
             httpGet:
               path: /alive
@@ -62,7 +68,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /ready
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
@@ -70,7 +76,7 @@ spec:
             failureThreshold: 3
           startupProbe:
             httpGet:
-              path: /health/ready
+              path: /ready
               port: http
             initialDelaySeconds: 10
             periodSeconds: 5

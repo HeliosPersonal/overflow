@@ -1,103 +1,40 @@
 import NextAuth from "next-auth"
 import Keycloak from "next-auth/providers/keycloak"
-import {authConfig} from "@/lib/config";
+import {apiConfig, authConfig} from "@/lib/config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-    trustHost: true,
-    secret: authConfig.secret,
-    debug: true,
     providers: [Keycloak({
-        clientId: authConfig.kcClientId,
-        clientSecret: authConfig.kcSecret,
-        issuer: authConfig.kcIssuer,
         authorization: {
             params: {scope: 'openid profile email offline_access'},
             url: `${authConfig.kcIssuer}/protocol/openid-connect/auth`
         },
-        token: {
-            url: `${authConfig.kcInternal}/protocol/openid-connect/token`,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async request(context: any) {
-                const params = new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    client_id: context.provider.clientId,
-                    client_secret: context.provider.clientSecret,
-                    code: context.params.code,
-                    redirect_uri: context.provider.callbackUrl,
-                });
-
-                console.log('[auth][token-request] URL:', context.provider.token.url);
-                console.log('[auth][token-request] Params:', {
-                    grant_type: 'authorization_code',
-                    client_id: context.provider.clientId,
-                    client_secret: '***',
-                    code: context.params.code?.substring(0, 30) + '...',
-                    redirect_uri: context.provider.callbackUrl,
-                });
-
-                const response = await fetch(context.provider.token.url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: params,
-                });
-
-                const tokens = await response.json();
-
-                console.log('[auth][token-response] Status:', response.status);
-                console.log('[auth][token-response] Body:', {
-                    ...tokens,
-                    access_token: tokens.access_token ? tokens.access_token.substring(0, 30) + '...' : undefined,
-                    refresh_token: tokens.refresh_token ? 'PRESENT' : 'MISSING',
-                    id_token: tokens.id_token ? tokens.id_token.substring(0, 30) + '...' : undefined,
-                });
-
-                if (!response.ok) {
-                    console.error('[auth][token-response] ERROR:', tokens);
-                    throw new Error(`Token exchange failed: ${JSON.stringify(tokens)}`);
-                }
-
-                return { tokens };
-            },
-        },
+        token: `${authConfig.kcInternal}/protocol/openid-connect/token`,
         userinfo: `${authConfig.kcInternal}/protocol/openid-connect/userinfo`,
-        checks: ['state'],
     })],
     callbacks: {
-        async jwt({token, account, profile}) {
+        async jwt({token, account}) {
             const now = Math.floor(Date.now() / 1000);
             
-            if (profile && profile.sub) {
-                token.sub = profile.sub
-            }
-            
-            if (account) {
-                console.log('[auth][jwt] Account received:', {
-                    provider: account.provider,
-                    type: account.type,
-                    hasAccessToken: !!account.access_token,
-                    hasRefreshToken: !!account.refresh_token,
-                    expiresIn: account.expires_in,
-                    scope: account.scope,
-                });
-            }
-
             if (account && account.access_token && account.refresh_token) {
+                const res = await fetch(apiConfig.baseUrl + '/profiles/me', {
+                    headers: {
+                        Authorization: `Bearer ${account.access_token}`,
+                    }
+                })
+                
+                if (res.ok) {
+                    token.user = await res.json()
+                } else {
+                    console.error('Failed to fetch user profile: ', await res.text())
+                }
+                
                 token.accessToken = account.access_token
                 token.refreshToken = account.refresh_token;
                 token.accessTokenExpires = now + account.expires_in!;
                 token.error = undefined;
                 return token;
             }
-
-            if (account && account.access_token && !account.refresh_token) {
-                console.warn('[auth][jwt] No refresh token received - offline_access may not be configured');
-                token.accessToken = account.access_token
-                token.accessTokenExpires = now + account.expires_in!;
-                return token;
-            }
-
+            
             if (token.accessTokenExpires && now < token.accessTokenExpires) {
                 return token;
             }
@@ -113,31 +50,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         refresh_token: token.refreshToken as string
                     })
                 })
-
+                
                 const refreshed = await response.json()
-
+                
                 if (!response.ok) {
-                    console.error('[auth] Failed to refresh token:', {
-                        status: response.status,
-                        error: refreshed
-                    });
+                    console.log('Failed to refresh token', refreshed);
                     token.error = 'RefreshAccessTokenError';
                     return token;
                 }
-
+                
                 token.accessToken = refreshed.access_token;
                 token.refreshToken = refreshed.refresh_token;
                 token.accessTokenExpires = now + refreshed.expires_in!;
             } catch (error) {
-                console.error('[auth] Exception during token refresh:', error);
+                console.log('Failed to refresh token', error);
                 token.error = 'RefreshAccessTokenError';
             }
-
+            
             return token;
         },
         async session({session, token}) {
-            if (token.sub) {
-                session.user.id = token.sub
+            if (token.user) {
+                session.user = token.user
             }
             
             if (token.accessToken) {

@@ -1,4 +1,4 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: search-svc
@@ -16,8 +16,6 @@ spec:
         app: search-svc
         component: api
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: search-svc
           image: ghcr.io/placeholder/overflow-search:latest
@@ -34,22 +32,22 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            # Connection strings from secrets
-            - name: ConnectionStrings__messaging
+            # Infisical credentials - all other secrets loaded from Infisical
+            - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
-                  key: rabbitmq-connection
-            - name: ConnectionStrings__typesense
+                  name: infisical-credentials
+                  key: INFISICAL_PROJECT_ID
+            - name: INFISICAL_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
-                  key: typesense-connection
-            - name: Typesense__ApiKey
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_ID
+            - name: INFISICAL_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
-                  key: typesense-api-key
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_SECRET
             # OpenTelemetry configuration
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://tempo.monitoring.svc.cluster.local:4318"
@@ -57,6 +55,9 @@ spec:
               value: "search-service"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment=$(ASPNETCORE_ENVIRONMENT)"
+            # Disable file watching to avoid inotify limits
+            - name: DOTNET_USE_POLLING_FILE_WATCHER
+              value: "true"
           livenessProbe:
             httpGet:
               path: /alive
@@ -67,15 +68,15 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /ready
               port: http
-            initialDelaySeconds: 15
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           startupProbe:
             httpGet:
-              path: /health/ready
+              path: /ready
               port: http
             initialDelaySeconds: 10
             periodSeconds: 5
@@ -88,3 +89,4 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+

@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+    <PropertyGroup>
+        <UserSecretsId>642e1bac-3ff1-4fd5-9fae-f3b0f76e8859</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj"/>
+        <ProjectReference Include="..\Overflow.Contracts\Overflow.Contracts.csproj"/>
+        <ProjectReference Include="..\Overflow.ServiceDefaults\Overflow.ServiceDefaults.csproj"/>
+    </ItemGroup>
+
+</Project>

@@ -75,7 +75,7 @@ resource "kubernetes_deployment" "cloudflare_ddns" {
             name = "SUBDOMAIN"
             # Comma-separated list of subdomains to update
             # @ represents the root domain
-            value = "@,www,staging,keycloak,keycloak-staging"
+            value = "@,www,staging,keycloak"
           }
 
           env {

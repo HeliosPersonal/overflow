@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+    <PropertyGroup>
+        <UserSecretsId>229ebb6e-8e3f-48b1-a3e3-77375c7d9f71</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+        <PackageReference Include="WolverineFx.Marten"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj"/>
+        <ProjectReference Include="..\Overflow.Contracts\Overflow.Contracts.csproj"/>
+        <ProjectReference Include="..\Overflow.ServiceDefaults\Overflow.ServiceDefaults.csproj"/>
+    </ItemGroup>
+
+</Project>

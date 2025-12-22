@@ -4,8 +4,11 @@
     <Project Path="Overflow.Contracts/Overflow.Contracts.csproj" />
   </Folder>
   <Folder Name="/services/">
-    <Project Path="QuestionService/QuestionService.csproj" />
-    <Project Path="SearchService/SearchService.csproj" />
+    <Project Path="Overflow.ProfileService/Overflow.ProfileService.csproj" />
+    <Project Path="Overflow.QuestionService/Overflow.QuestionService.csproj" />
+    <Project Path="Overflow.SearchService/Overflow.SearchService.csproj" />
+    <Project Path="Overflow.StatsService/Overflow.StatsService.csproj" />
+    <Project Path="Overflow.VoteService/Overflow.VoteService.csproj" />
   </Folder>
   <Project Path="Overflow.AppHost/Overflow.AppHost.csproj" />
   <Project Path="Overflow.ServiceDefaults/Overflow.ServiceDefaults.csproj" />

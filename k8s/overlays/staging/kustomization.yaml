@@ -7,55 +7,43 @@ kind: Kustomization
 namespace: apps-staging
 
 resources:
+  - ../../base/infisical
   - ../../base/question-svc
   - ../../base/search-svc
+  - ../../base/profile-svc
+  - ../../base/stats-svc
+  - ../../base/vote-svc
   - ../../base/overflow-webapp
   - ingress.yaml
 
 # Image tags updated by CI/CD
 images:
   - name: ghcr.io/placeholder/overflow-question
-    newName: ghcr.io/GITHUB_USERNAME/overflow-question
-    newTag: latest
+    newName: ghcr.io/viacheslavmelnichenko/overflow-question
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-search
-    newName: ghcr.io/GITHUB_USERNAME/overflow-search
-    newTag: latest
+    newName: ghcr.io/viacheslavmelnichenko/overflow-search
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-profile
+    newName: ghcr.io/viacheslavmelnichenko/overflow-profile
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-stats
+    newName: ghcr.io/viacheslavmelnichenko/overflow-stats
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-vote
+    newName: ghcr.io/viacheslavmelnichenko/overflow-vote
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-webapp
-    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
-    newTag: latest
+    newName: ghcr.io/viacheslavmelnichenko/overflow-webapp
+    newTag: SHA_REPLACED_BY_CICD
 
 configMapGenerator:
   - name: app-config
     behavior: create
     literals:
       - aspnetcore-environment=Staging
-  - name: webapp-config
-    behavior: create
-    literals:
-      - API_URL=PLACEHOLDER
-      - AUTH_KEYCLOAK_ID=PLACEHOLDER
-      - AUTH_KEYCLOAK_ISSUER=PLACEHOLDER
-      - AUTH_KEYCLOAK_ISSUER_INTERNAL=PLACEHOLDER
-      - AUTH_URL=PLACEHOLDER
-      - AUTH_URL_INTERNAL=PLACEHOLDER
-      - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=PLACEHOLDER
 
-# Secrets replaced by CI/CD with actual values from GitHub Secrets
-secretGenerator:
-  - name: app-secrets
-    behavior: create
-    literals:
-      - postgres-connection=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - rabbitmq-connection=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - typesense-connection=http://typesense.infra-staging.svc.cluster.local:8108
-      - typesense-api-key=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-  - name: webapp-secrets
-    behavior: create
-    literals:
-      - auth-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - auth-keycloak-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - cloudinary-api-key=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - cloudinary-api-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
+# No more secrets needed - all loaded from Infisical
 
 labels:
   - pairs:
@@ -67,7 +55,20 @@ replicas:
     count: 2
   - name: search-svc
     count: 2
+  - name: profile-svc
+    count: 2
+  - name: stats-svc
+    count: 2
+  - name: vote-svc
+    count: 2
   - name: overflow-webapp
     count: 2
 
-
+patches:
+  - target:
+      kind: Deployment
+      name: overflow-webapp
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "staging"

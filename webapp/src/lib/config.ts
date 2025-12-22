@@ -1,29 +1,38 @@
-import {loadEnvConfig} from "@next/env";
+// Check if we're in a build environment (during next build)
+const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
 
-const projectDir = process.cwd();
-loadEnvConfig(projectDir);
-
-function getEnv(name: string) {
+function getEnv(name: keyof NodeJS.ProcessEnv, fallback: string = ''): string {
     const value = process.env[name];
-    if (!value) throw new Error(`Could not find env: ${name}`);
+    
+    // During build, return fallback to prevent errors
+    // The actual values will be available at runtime
+    if (isBuild && !value) {
+        return fallback;
+    }
+    
+    // At runtime, throw error if missing (strict validation)
+    if (!value) {
+        throw new Error(`Could not find env: ${name}`);
+    }
+    
     return value;
 }
 
 export const authConfig = {
-    kcIssuer: getEnv('AUTH_KEYCLOAK_ISSUER'),
-    kcSecret: getEnv('AUTH_KEYCLOAK_SECRET'),
-    kcClientId: getEnv('AUTH_KEYCLOAK_ID'),
-    kcInternal: getEnv('AUTH_KEYCLOAK_ISSUER_INTERNAL'),
-    secret: getEnv('AUTH_SECRET'),
-    authUrl: getEnv('AUTH_URL'),
-}
+    get kcIssuer() { return getEnv('AUTH_KEYCLOAK_ISSUER', 'https://placeholder.local'); },
+    get kcSecret() { return getEnv('AUTH_KEYCLOAK_SECRET', 'placeholder-secret'); },
+    get kcClientId() { return getEnv('AUTH_KEYCLOAK_ID', 'placeholder-client'); },
+    get kcInternal() { return getEnv('AUTH_KEYCLOAK_ISSUER_INTERNAL', 'https://placeholder.local'); },
+    get secret() { return getEnv('AUTH_SECRET', 'placeholder-secret'); },
+    get authUrl() { return getEnv('AUTH_URL', 'https://placeholder.local'); },
+};
 
 export const apiConfig = {
-    baseUrl: getEnv('API_URL'),
-}
+    get baseUrl() { return getEnv('API_URL', 'https://placeholder.local'); },
+};
 
 export const cloudinaryConfig = {
-    cloudName: getEnv('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME'),
-    apiKey: getEnv('NEXT_PUBLIC_CLOUDINARY_API_KEY'),
-    apiSecret: getEnv('CLOUDINARY_API_SECRET'),
-}
+    get cloudName() { return getEnv('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME', 'placeholder'); },
+    get apiKey() { return getEnv('NEXT_PUBLIC_CLOUDINARY_API_KEY', 'placeholder-key'); },
+    get apiSecret() { return getEnv('NEXT_PUBLIC_CLOUDINARY_API_SECRET', 'placeholder-secret'); },
+};

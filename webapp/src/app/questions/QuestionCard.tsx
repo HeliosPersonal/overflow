@@ -51,11 +51,14 @@ export default function QuestionCard({question}: Props) {
                     <div className='flex justify-between pt-2'>
                         <div className='flex gap-2'>
                             {question.tagSlugs.map(slug => (
-                                <Link key={slug} href={`/questions?tag=${slug}`}>
-                                    <Chip variant='bordered'>
+                                <Link href={`/questions?tag=${slug}`} key={slug}>
+                                    <Chip
+                                        variant='bordered'
+                                    >
                                         {slug}
                                     </Chip>
                                 </Link>
+
                             ))}
                         </div>
                         
@@ -63,10 +66,10 @@ export default function QuestionCard({question}: Props) {
                             <Avatar 
                                 className='h-6 w-6'
                                 color='secondary'
-                                name={question.askerDisplayName.charAt(0)}
+                                name={question.author?.displayName?.charAt(0)}
                             />
                             <Link href={`/profiles/${question.askerId}`}>
-                                {question.askerDisplayName}
+                                {question.author?.displayName}
                             </Link>
                             <span>asked {timeAgo(question.createdAt)}</span>
                         </div>

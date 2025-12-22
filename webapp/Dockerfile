@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f package-lock.json ]; then npm install --prefer-offline --no-audit; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
@@ -22,21 +22,17 @@ RUN \
 FROM base AS builder
 WORKDIR /app
 
-# Set dummy environment variables for build time
-# Real values will be provided by Kubernetes at runtime
-ENV AUTH_KEYCLOAK_SECRET=build-time-dummy
-ENV AUTH_SECRET=build-time-dummy-secret-key-at-least-32-characters-long
-ENV NEXT_PUBLIC_API_URL=http://localhost:8080
-ENV NEXT_PUBLIC_AUTH_URL=http://localhost:3000
-ENV API_URL=http://localhost:8080
-ENV AUTH_URL=http://localhost:3000
-ENV AUTH_URL_INTERNAL=http://localhost:3000
-ENV AUTH_KEYCLOAK_ID=nextjs
-ENV AUTH_KEYCLOAK_ISSUER=http://localhost/realms/overflow
-ENV AUTH_KEYCLOAK_ISSUER_INTERNAL=http://localhost/realms/overflow
-ENV NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dummy
-ENV NEXT_PUBLIC_CLOUDINARY_API_KEY=dummy
-ENV CLOUDINARY_API_SECRET=dummy
+# Accept Infisical credentials as build arguments
+ARG INFISICAL_CLIENT_ID
+ARG INFISICAL_CLIENT_SECRET
+ARG INFISICAL_PROJECT_ID
+ARG NODE_ENV=production
+
+# Set Infisical credentials as environment variables for the build
+ENV INFISICAL_CLIENT_ID=$INFISICAL_CLIENT_ID
+ENV INFISICAL_CLIENT_SECRET=$INFISICAL_CLIENT_SECRET
+ENV INFISICAL_PROJECT_ID=$INFISICAL_PROJECT_ID
+ENV NODE_ENV=$NODE_ENV
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -46,6 +42,7 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build - next.config.ts will load secrets from Infisical using the credentials above
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
@@ -70,6 +67,10 @@ COPY --from=builder /app/public ./public
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy environment configuration files
+COPY --from=builder --chown=nextjs:nodejs /app/.env.production ./
+COPY --from=builder --chown=nextjs:nodejs /app/.env.staging ./
 
 USER nextjs
 

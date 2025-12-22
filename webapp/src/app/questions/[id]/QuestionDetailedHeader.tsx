@@ -1,9 +1,9 @@
 import {Question} from "@/lib/types";
 import {Button} from "@heroui/button";
+import Link from "next/link";
 import {fuzzyTimeAgo} from "@/lib/util";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
 import DeleteQuestionButton from "@/app/questions/[id]/DeleteQuestionButton";
-import Link from "next/link";
 
 type Props = {
     question: Question;
@@ -18,14 +18,15 @@ export default async function QuestionDetailedHeader({question}: Props) {
                 <div className='text-3xl font-semibold first-letter:uppercase'>
                     {question.title}
                 </div>
-
                 <Link href='/questions/ask'>
-                    <Button color='secondary'>
+                    <Button
+                        color='secondary'
+                        className='w-[20%]'
+                    >
                         Ask Question
                     </Button>
                 </Link>
             </div>
-
             <div className='flex justify-between items-center'>
                 <div className='flex items-center gap-6'>
                     <div className='flex items-center gap-3'>
@@ -46,7 +47,6 @@ export default async function QuestionDetailedHeader({question}: Props) {
 
                 {currentUser?.id === question.askerId &&
                     <div className='flex items-center gap-3'>
-
                         <Link href={`/questions/${question.id}/edit`}>
                             <Button
                                 size='sm'
@@ -56,11 +56,9 @@ export default async function QuestionDetailedHeader({question}: Props) {
                                 Edit
                             </Button>
                         </Link>
-
                         <DeleteQuestionButton questionId={question.id}/>
                     </div>}
             </div>
-
 
         </div>
     );

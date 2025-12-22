@@ -7,21 +7,34 @@ kind: Kustomization
 namespace: apps-production
 
 resources:
+  - ../../base/infisical
   - ../../base/question-svc
   - ../../base/search-svc
+  - ../../base/profile-svc
+  - ../../base/stats-svc
+  - ../../base/vote-svc
   - ../../base/overflow-webapp
   - ingress.yaml
 
 # Image tags updated by CI/C
 images:
   - name: ghcr.io/placeholder/overflow-question
-    newName: ghcr.io/GITHUB_USERNAME/overflow-question
+    newName: ghcr.io/viacheslavmelnichenko/overflow-question
     newTag: latest
   - name: ghcr.io/placeholder/overflow-search
-    newName: ghcr.io/GITHUB_USERNAME/overflow-search
+    newName: ghcr.io/viacheslavmelnichenko/overflow-search
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-profile
+    newName: ghcr.io/viacheslavmelnichenko/overflow-profile
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-stats
+    newName: ghcr.io/viacheslavmelnichenko/overflow-stats
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-vote
+    newName: ghcr.io/viacheslavmelnichenko/overflow-vote
     newTag: latest
   - name: ghcr.io/placeholder/overflow-webapp
-    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
+    newName: ghcr.io/viacheslavmelnichenko/overflow-webapp
     newTag: latest
 
 configMapGenerator:
@@ -29,35 +42,8 @@ configMapGenerator:
     behavior: create
     literals:
       - aspnetcore-environment=Production
-  - name: webapp-config
-    behavior: create
-    literals:
-      - API_URL=PLACEHOLDER
-      - AUTH_KEYCLOAK_ID=PLACEHOLDER
-      - AUTH_KEYCLOAK_ISSUER=PLACEHOLDER
-      - AUTH_KEYCLOAK_ISSUER_INTERNAL=PLACEHOLDER
-      - AUTH_URL=PLACEHOLDER
-      - AUTH_URL_INTERNAL=PLACEHOLDER
-      - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=PLACEHOLDER
 
-# Secrets replaced by CI/CD with actual values from GitHub Secrets
-secretGenerator:
-  - name: app-secrets
-    behavior: create
-    literals:
-      - postgres-connection=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - rabbitmq-connection=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - typesense-connection=http://typesense.infra-production.svc.cluster.local:8108
-      - typesense-api-key=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - keycloak-client-id=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - keycloak-client-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-  - name: webapp-secrets
-    behavior: create
-    literals:
-      - auth-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - auth-keycloak-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - cloudinary-api-key=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
-      - cloudinary-api-secret=PLACEHOLDER_WILL_BE_REPLACED_BY_CICD
+# No more secrets needed - all loaded from Infisical
 
 labels:
   - pairs:
@@ -68,6 +54,12 @@ replicas:
   - name: question-svc
     count: 2
   - name: search-svc
+    count: 2
+  - name: profile-svc
+    count: 2
+  - name: stats-svc
+    count: 2
+  - name: vote-svc
     count: 2
   - name: overflow-webapp
     count: 2
@@ -123,6 +115,54 @@ patches:
     target:
       kind: Deployment
       name: search-svc
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+    target:
+      kind: Deployment
+      name: profile-svc
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+    target:
+      kind: Deployment
+      name: stats-svc
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+    target:
+      kind: Deployment
+      name: vote-svc
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/memory

@@ -1,7 +1,11 @@
-﻿# Don't copy .env files into Docker image
-# Environment variables will be provided by Kubernetes at runtime
-.env*
-!.env.example
+﻿# Don't copy sensitive .env files into Docker image
+# But allow environment-specific config files (.env.production, .env.staging)
+# Secrets will be provided by Infisical at runtime
+.env
+.env.local
+.env.development
+!.env.production
+!.env.staging
 
 # Development files
 .git

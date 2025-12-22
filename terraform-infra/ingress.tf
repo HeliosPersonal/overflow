@@ -34,7 +34,7 @@ resource "helm_release" "ingress_nginx" {
 # Exposes Keycloak authentication service for the entire cluster.
 # Used by both staging and production environments.
 #
-# Host: keycloak.devoverflow.org (production), keycloak-staging.devoverflow.org (staging)
+# Host: keycloak.devoverflow.org (serves both production and staging realms)
 # Target: keycloak:8080 in infra-production namespace
 
 resource "kubernetes_ingress_v1" "keycloak_global" {
@@ -47,7 +47,16 @@ resource "kubernetes_ingress_v1" "keycloak_global" {
       app = "keycloak"
     }
     annotations = {
-      "cert-manager.io/cluster-issuer" = "letsencrypt-production"
+      "cert-manager.io/cluster-issuer"                      = "letsencrypt-production"
+      "nginx.ingress.kubernetes.io/proxy-buffer-size"       = "128k"
+      "nginx.ingress.kubernetes.io/proxy-buffers-number"    = "4"
+      "nginx.ingress.kubernetes.io/proxy-busy-buffers-size" = "256k"
+      "nginx.ingress.kubernetes.io/ssl-redirect"            = "true"
+      "nginx.ingress.kubernetes.io/force-ssl-redirect"      = "true"
+      # Backend protocol should be HTTP, nginx handles SSL termination
+      "nginx.ingress.kubernetes.io/backend-protocol"        = "HTTP"
+      # Explicitly set X-Forwarded-Proto to https for SSL-terminated connections
+      "nginx.ingress.kubernetes.io/upstream-vhost"          = "$host"
     }
   }
 
@@ -56,8 +65,7 @@ resource "kubernetes_ingress_v1" "keycloak_global" {
 
     tls {
       hosts = [
-        "keycloak.devoverflow.org",
-        "keycloak-staging.devoverflow.org"
+        "keycloak.devoverflow.org"
       ]
       secret_name = "keycloak-tls"
     }
@@ -65,25 +73,6 @@ resource "kubernetes_ingress_v1" "keycloak_global" {
     rule {
       host = "keycloak.devoverflow.org"
 
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-
-          backend {
-            service {
-              name = "keycloak"
-              port {
-                number = 8080
-              }
-            }
-          }
-        }
-      }
-    }
-
-    rule {
-      host = "keycloak-staging.devoverflow.org"
 
       http {
         path {

@@ -1,5 +1,3 @@
-'use client';
-
 import {Editor} from "@tiptap/core";
 import {useEditorState} from "@tiptap/react";
 import {BoldIcon, CodeBracketIcon, ItalicIcon, LinkIcon, PhotoIcon, StrikethroughIcon} from "@heroicons/react/20/solid";

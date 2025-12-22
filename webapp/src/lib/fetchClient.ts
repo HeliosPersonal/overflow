@@ -1,11 +1,12 @@
 import {notFound} from "next/navigation";
 import {auth} from "@/auth";
+import {FetchResponse} from "@/lib/types";
 
 export async function fetchClient<T>(
     url: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE', 
     options: Omit<RequestInit, 'body'> & {body?: unknown} = {}
-): Promise<{data: T | null, error?: {message: string, status: number}}> {
+): Promise<FetchResponse<T>> {
     const {body, ...rest} = options;
     const apiUrl = process.env.API_URL;
     if (!apiUrl) throw new Error('Missing API URL');
@@ -30,8 +31,9 @@ export async function fetchClient<T>(
     const parsed = isJson ? await response.json() : await response.text();
     
     if (!response.ok) {
+        console.log(response);
         if (response.status === 404) return notFound();
-        if (response.status === 500) throw new Error('Server error. Please try again later');
+        // if (response.status === 500) throw new Error('Server error. Please try again later');
         
         let message = '';
         
