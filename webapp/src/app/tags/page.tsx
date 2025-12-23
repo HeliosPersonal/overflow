@@ -14,7 +14,7 @@ export default async function Page({searchParams}: {searchParams: SearchParams }
         <div className='w-full px-6'>
             <TagHeader />
             <div className='grid grid-cols-3 gap-4'>
-                {tags?.map(tag => (
+                {Array.isArray(tags) && tags.map(tag => (
                     <TagCard tag={tag} key={tag.id} />
                 ))}
             </div>

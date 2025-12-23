@@ -14,7 +14,7 @@ export default async function TrendingTags() {
                     <div>Unavailable</div>
                 ) : (
                     <>
-                        {tags && tags.map(tag => (
+                        {Array.isArray(tags) && tags.map(tag => (
                             <Link href={`/questions?tag=${tag.tag}`} key={tag.tag}>
                                 <Chip
                                     variant='solid'

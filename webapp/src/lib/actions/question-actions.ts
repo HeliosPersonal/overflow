@@ -38,7 +38,7 @@ export async function getQuestions(qParams?: QuestionParams): Promise<FetchRespo
     if (profilesError) return {data: null, error: 
             {message: 'Problem getting profiles', status: 500}}
     
-    const profileMap = new Map(profiles?.map(p => [p.userId, p]));
+    const profileMap = new Map(Array.isArray(profiles) ? profiles.map(p => [p.userId, p]) : []);
     
     const enriched = questions.items.map(q => ({
         ...q,
@@ -74,7 +74,7 @@ export async function getQuestionById(id: string): Promise<FetchResponse<Questio
     if (profilesError) return {data: null, error:
             {message: 'Problem getting profiles', status: 500}}
 
-    const profileMap = new Map(profiles?.map(p => [p.userId, p]));
+    const profileMap = new Map(Array.isArray(profiles) ? profiles.map(p => [p.userId, p]) : []);
     
     const session = await auth();
     let voteMap = new Map<string, number>();

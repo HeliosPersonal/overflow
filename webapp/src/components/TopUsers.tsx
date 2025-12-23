@@ -12,7 +12,7 @@ export default async function TopUsers() {
                     <div>Unavailable</div>
                 ) : (
                     <>
-                        {users?.map(u => (
+                        {Array.isArray(users) && users.map(u => (
                             <div className='flex justify-between items-center' key={u.userId}>
                                 <div>{u.profile.displayName}</div>
                                 <div>{u.delta}</div>

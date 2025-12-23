@@ -31,7 +31,7 @@ export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>
     if (error) return {data: null, error: 
             {message: 'Problem getting users', status: 500}}
     
-    const ids = [...new Set(users?.map(u => u.userId))]
+    const ids = Array.isArray(users) ? [...new Set(users.map(u => u.userId))] : [];
     const qs = encodeURIComponent(ids.join(','));
     
     const {data: profiles, error: profilesError} = await fetchClient<Profile[]>(
@@ -43,8 +43,8 @@ export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>
     
     const byId = new Map((profiles ?? []).map(p => [p.userId, p]));
     
-    return {data: users?.map(u => ({
+    return {data: Array.isArray(users) ? users.map(u => ({
             ...u,
             profile: byId.get(u.userId)
-        })) as TopUserWithProfile[]}
+        })) as TopUserWithProfile[] : null}
 }
