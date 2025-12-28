@@ -1,5 +1,5 @@
 # Production Application Ingress
-# Routes external traffic to Question and Search services via main domain
+# Routes external traffic to all services via main domain
 
 ---
 # Question Service: /api/questions -> question-svc:8080/questions
@@ -11,7 +11,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
 spec:
   ingressClassName: nginx
   tls:
@@ -51,6 +51,55 @@ spec:
                 port:
                   number: 8080
 ---
+# Tags endpoint (via Question Service): /api/tags -> question-svc:8080/tags
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tags-ingress
+  namespace: apps-production
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /tags$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: webapp-production-tls
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/tags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/tags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+    - host: overflow-api.helios
+      http:
+        paths:
+          - path: /tags
+            pathType: Prefix
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+---
 # Search Service: /api/search -> search-svc:8080/search
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -60,7 +109,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /search$1$2
 spec:
   ingressClassName: nginx
   tls:
@@ -97,6 +146,153 @@ spec:
             backend:
               service:
                 name: search-svc
+                port:
+                  number: 8080
+---
+# Stats Service: /api/stats -> stats-svc:8080/stats
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stats-svc-ingress
+  namespace: apps-production
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /stats$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: webapp-production-tls
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/stats(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/stats(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+    - host: overflow-api.helios
+      http:
+        paths:
+          - path: /stats
+            pathType: Prefix
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+---
+# Vote Service: /api/votes -> vote-svc:8080/votes
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vote-svc-ingress
+  namespace: apps-production
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /votes$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: webapp-production-tls
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+    - host: overflow-api.helios
+      http:
+        paths:
+          - path: /votes
+            pathType: Prefix
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+---
+# Profile Service: /api/profiles -> profile-svc:8080/profiles
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: profile-svc-ingress
+  namespace: apps-production
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /profiles$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: webapp-production-tls
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/profiles(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/profiles(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+    - host: overflow-api.helios
+      http:
+        paths:
+          - path: /profiles
+            pathType: Prefix
+            backend:
+              service:
+                name: profile-svc
                 port:
                   number: 8080
 ---
@@ -147,3 +343,4 @@ spec:
                 name: overflow-webapp
                 port:
                   number: 3000
+
