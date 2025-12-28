@@ -33,6 +33,6 @@ export const apiConfig = {
 
 export const cloudinaryConfig = {
     get cloudName() { return getEnv('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME', 'placeholder'); },
-    get apiKey() { return getEnv('NEXT_PUBLIC_CLOUDINARY_API_KEY', 'placeholder-key'); },
-    get apiSecret() { return getEnv('NEXT_PUBLIC_CLOUDINARY_API_SECRET', 'placeholder-secret'); },
+    get apiKey() { return getEnv('CLOUDINARY_API_KEY', 'placeholder-key'); },
+    get apiSecret() { return getEnv('CLOUDINARY_API_SECRET', 'placeholder-secret'); },
 };
