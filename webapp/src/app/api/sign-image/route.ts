@@ -1,3 +1,7 @@
+// TODO: Remove Cloudinary - commented out for now
+// This API route will be deleted in the future
+
+/*
 import {cloudinary} from "@/lib/cloudinary";
 import {cloudinaryConfig} from "@/lib/config";
 
@@ -9,4 +13,9 @@ export async function POST(request: Request) {
         cloudinaryConfig.apiSecret);
     
     return Response.json({signature});
+}
+*/
+
+export async function POST(_request: Request) {
+    return Response.json({ error: 'Cloudinary integration disabled' }, { status: 503 });
 }

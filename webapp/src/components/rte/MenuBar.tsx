@@ -1,9 +1,11 @@
 import {Editor} from "@tiptap/core";
 import {useEditorState} from "@tiptap/react";
-import {BoldIcon, CodeBracketIcon, ItalicIcon, LinkIcon, PhotoIcon, StrikethroughIcon} from "@heroicons/react/20/solid";
+import {BoldIcon, CodeBracketIcon, ItalicIcon, LinkIcon, StrikethroughIcon} from "@heroicons/react/20/solid";
 import {Button} from "@heroui/button";
-import {CldUploadButton, CloudinaryUploadWidgetResults} from "next-cloudinary";
-import {errorToast} from "@/lib/util";
+// TODO: Remove Cloudinary - commenting out for now
+// import {CldUploadButton, CloudinaryUploadWidgetResults} from "next-cloudinary";
+// import {errorToast} from "@/lib/util";
+// import {PhotoIcon} from "@heroicons/react/20/solid";
 
 type Props = {
     editor: Editor | null;
@@ -27,14 +29,15 @@ export default function MenuBar({editor}: Props) {
     
     if (!editor || !editorState) return null;
     
-    const onUploadImage = (result: CloudinaryUploadWidgetResults) => {
-        if (result.info && typeof result.info === "object") {
-            editor.chain().focus().setImage({src: result.info.secure_url}).run();
-        } else {
-            errorToast({message: 'Problem adding image'});
-        }
-    }
-    
+    // TODO: Remove Cloudinary - commented out for now
+    // const onUploadImage = (result: CloudinaryUploadWidgetResults) => {
+    //     if (result.info && typeof result.info === "object") {
+    //         editor.chain().focus().setImage({src: result.info.secure_url}).run();
+    //     } else {
+    //         errorToast({message: 'Problem adding image'});
+    //     }
+    // }
+
     const options = [
         {
             icon: <BoldIcon className='w-5 h-5' />,
@@ -78,7 +81,8 @@ export default function MenuBar({editor}: Props) {
                     {option.icon}
                 </Button>
             ))}
-            <Button
+            {/* TODO: Remove Cloudinary - commented out for now */}
+            {/* <Button
                 isIconOnly
                 size='sm'
                 as={CldUploadButton}
@@ -88,7 +92,7 @@ export default function MenuBar({editor}: Props) {
                 uploadPreset='overflow'
             >
                 <PhotoIcon className='w-5 h-5' />
-            </Button>
+            </Button> */}
         </div>
     );
 }

@@ -1,3 +1,7 @@
+// TODO: Remove Cloudinary - commented out for now
+// This API route will be deleted in the future
+
+/*
 import {cloudinary} from "@/lib/cloudinary";
 
 export async function POST(request: Request) {
@@ -10,4 +14,9 @@ export async function POST(request: Request) {
         console.log('Cloudinary delete failed', error);
         return new Response('Failed to delete', {status: 500})
     }
+}
+*/
+
+export async function POST(_request: Request) {
+    return Response.json({ error: 'Cloudinary integration disabled' }, { status: 503 });
 }

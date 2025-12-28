@@ -84,7 +84,8 @@ function injectEnvironmentVariables(variables: EnvironmentVariables): void {
         process.env[key] = value;
     });
 
-    const criticalVars = ['CLOUDINARY_API_KEY', 'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME', 'AUTH_KEYCLOAK_ISSUER', 'API_URL'];
+    // TODO: Removed Cloudinary from critical vars check
+    const criticalVars = ['AUTH_KEYCLOAK_ISSUER', 'API_URL'];
     const status = criticalVars.map(name => {
         const value = process.env[name];
         return `${name}: ${value ? value.substring(0, 8) + '...' : '❌'}`;

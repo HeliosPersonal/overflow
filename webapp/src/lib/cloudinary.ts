@@ -1,12 +1,12 @@
+// TODO: Remove Cloudinary integration - commented out for now
+// This file will be deleted in the future
+
+/*
 import cloudinary from "cloudinary";
 import {cloudinaryConfig} from "@/lib/config";
 
 let isConfigured = false;
 
-/**
- * Lazy initialization of Cloudinary configuration
- * Ensures environment variables are loaded before configuration
- */
 function ensureCloudinaryConfigured() {
     if (isConfigured) return;
 
@@ -26,7 +26,6 @@ function ensureCloudinaryConfigured() {
     console.log('✅ [Cloudinary] SDK configured');
 }
 
-// Create a proxy object that ensures configuration before any operation
 const cloudinaryProxy = new Proxy(cloudinary, {
     get(target, prop) {
         ensureCloudinaryConfigured();
@@ -35,3 +34,7 @@ const cloudinaryProxy = new Proxy(cloudinary, {
 });
 
 export { cloudinaryProxy as cloudinary };
+*/
+
+// Placeholder export to prevent import errors
+export const cloudinary = null;

@@ -35,8 +35,11 @@ export const apiConfig = {
     get baseUrl() { return getEnv('API_URL', 'https://placeholder.local'); },
 };
 
+// TODO: Remove Cloudinary - commented out for now
+/*
 export const cloudinaryConfig = {
     get cloudName() { return getEnv('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME', 'placeholder'); },
     get apiKey() { return getEnv('CLOUDINARY_API_KEY', 'placeholder-key'); },
     get apiSecret() { return getEnv('CLOUDINARY_API_SECRET', 'placeholder-secret'); },
 };
+*/
