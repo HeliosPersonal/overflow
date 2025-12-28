@@ -22,6 +22,15 @@ public static class AuthExtensions
 
         // Construct the authority URL from Url and Realm
         var authority = $"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}";
+        
+        // Determine if we should require HTTPS metadata based on the authority URL
+        var requireHttpsMetadata = authority.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+        Console.WriteLine($"🔐 Configuring Keycloak Authentication:");
+        Console.WriteLine($"   Authority: {authority}");
+        Console.WriteLine($"   Audience: {keycloakOptions.Audience}");
+        Console.WriteLine($"   Require HTTPS Metadata: {requireHttpsMetadata}");
+        Console.WriteLine($"   Valid Issuers: {string.Join(", ", keycloakOptions.ValidIssuers)}");
 
         builder.Services
             .AddAuthentication()
@@ -31,7 +40,7 @@ public static class AuthExtensions
                 options =>
                 {
                     options.Authority = authority;
-                    options.RequireHttpsMetadata = false;
+                    options.RequireHttpsMetadata = requireHttpsMetadata;
                     options.Audience = keycloakOptions.Audience;
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
