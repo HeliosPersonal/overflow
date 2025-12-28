@@ -12,7 +12,7 @@ function getEnv(name: keyof NodeJS.ProcessEnv, fallback: string = ''): string {
         return fallback;
     }
     
-    // At runtime, throw error if missing (strict validation)
+    // At runtime, throw an error if missing (strict validation)
     if (!value) {
         const context = isServer ? 'server' : 'client';
         console.error(`❌ [Config] Missing required environment variable: ${name} (${context}-side)`);
