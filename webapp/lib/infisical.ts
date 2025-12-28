@@ -160,24 +160,20 @@ async function loadInfisicalSecrets(environment: string): Promise<SecretsMap> {
     const secretsMap: SecretsMap = {};
     allSecrets.forEach((secret) => {
       // Convert double underscore to single underscore for env var format
-      // Example: Auth__Secret → Auth_Secret (keeping original case)
-      // Then uppercase the whole thing: Auth_Secret → AUTH_SECRET
+      // Example: Auth__Secret → Auth_Secret
+      // Then convert to SCREAMING_SNAKE_CASE: Auth_Secret → AUTH_SECRET
       let key = secret.secretKey.replace(/__/g, '_');
       
-      // For Next.js NEXT_PUBLIC_ vars, keep them uppercase with underscores
-      // For other vars, convert to SCREAMING_SNAKE_CASE
-      if (key.startsWith('NextPublic_')) {
-        key = key.replace('NextPublic_', 'NEXT_PUBLIC_');
-      } else if (key.startsWith('ApiUrl_')) {
-        key = key.replace('ApiUrl_', 'API_URL_');
-      } else {
-        // Convert PascalCase_PascalCase to SCREAMING_SNAKE_CASE
-        // Auth_Url → AUTH_URL
-        key = key
-          .replace(/([a-z])([A-Z])/g, '$1_$2') // Add underscore between lowercase and uppercase
-          .toUpperCase();
-      }
+      console.log(`🔑 Infisical secret: ${secret.secretKey} → ${key}`);
       
+      // Convert PascalCase_PascalCase to SCREAMING_SNAKE_CASE
+      // Auth_Url → AUTH_URL
+      // Cloudinary_ApiKey → CLOUDINARY_API_KEY
+      key = key
+        .replace(/([a-z])([A-Z])/g, '$1_$2') // Add underscore between lowercase and uppercase
+        .toUpperCase();
+      
+      console.log(`   → Transformed to: ${key}`);
       secretsMap[key] = secret.secretValue;
     });
 
