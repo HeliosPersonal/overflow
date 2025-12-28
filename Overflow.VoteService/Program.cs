@@ -37,6 +37,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapPost("/votes", async (CastVoteDto dto, VoteDbContext db, ClaimsPrincipal user, IMessageBus bus) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);

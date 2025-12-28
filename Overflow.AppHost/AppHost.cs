@@ -2,7 +2,8 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var keycloak = builder.AddKeycloak("keycloak", 6001)
+var keycloak = builder
+    .AddKeycloak("keycloak", 6001)
     .WithDataVolume("keycloak-data")
     // .WithRealmImport("../infra/realms")
     .WithEnvironment("KC_HTTP_ENABLED", "true")
@@ -11,22 +12,21 @@ var keycloak = builder.AddKeycloak("keycloak", 6001)
     .WithEnvironment("VIRTUAL_HOST", "id.overflow.local")
     .WithEnvironment("VIRTUAL_PORT", "8080");
 
-var postgres = builder.AddPostgres("postgres", port: 5432)
+var postgres = builder
+    .AddPostgres("postgres", port: 5432)
     .WithDataVolume("postgres-data")
     .WithPgWeb();
 
-var typesenseApiKey = builder.Environment.IsDevelopment()
-    ? builder.Configuration["Parameters:typesense-api-key"]
-      ?? throw new InvalidOperationException("Could not get typesense api key")
-    : "${TYPESENSE_API_KEY}";
+var typesenseApiKey = builder.Configuration["TypesenseOptions:ApiKey"]
+                      ?? throw new InvalidOperationException("Could not get typesense api key");
 
 var typesense = builder.AddContainer("typesense", "typesense/typesense", "29.0")
     .WithArgs("--data-dir", "/data", "--api-key", typesenseApiKey, "--enable-cors")
     .WithVolume("typesense-data", "/data")
-    .WithEnvironment("TYPESENSE_API_KEY", typesenseApiKey)
+    .WithEnvironment("TYPESENSEOPTIONS__APIKEY", typesenseApiKey)
     .WithHttpEndpoint(8108, 8108, name: "typesense");
 
-var typesenseContainer = typesense.GetEndpoint("typesense");
+var typesenseReference = typesense.GetEndpoint("typesense");
 
 var questionDb = postgres.AddDatabase("questionDb");
 var profileDb = postgres.AddDatabase("profileDb");
@@ -46,8 +46,9 @@ var questionService = builder.AddProject<Projects.Overflow_QuestionService>("que
     .WaitFor(rabbitmq);
 
 var searchService = builder.AddProject<Projects.Overflow_SearchService>("search-svc")
-    .WithEnvironment("typesense-api-key", typesenseApiKey)
-    .WithReference(typesenseContainer)
+    .WithEnvironment("TYPESENSEOPTIONS__ConnectionUrl", typesenseReference)
+    .WithEnvironment("TYPESENSEOPTIONS__APIKEY", typesenseApiKey)
+    .WithReference(typesenseReference)
     .WithReference(rabbitmq)
     .WaitFor(typesense)
     .WaitFor(rabbitmq);
@@ -74,7 +75,8 @@ var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
     .WaitFor(voteDb)
     .WaitFor(rabbitmq);
 
-var yarp = builder.AddYarp("gateway")
+var yarp = builder
+    .AddYarp("gateway")
     .WithConfiguration(yarpBuilder =>
     {
         yarpBuilder.AddRoute("/questions/{**catch-all}", questionService);
@@ -92,9 +94,6 @@ var yarp = builder.AddYarp("gateway")
 
 var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")
     .WithReference(keycloak)
-    .WithHttpEndpoint(env: "PORT", port: 3000, targetPort: 4000)
-    .WithEnvironment("VIRTUAL_HOST", "app.overflow.local")
-    .WithEnvironment("VIRTUAL_PORT", "4000");
-    // .PublishAsDockerFile();
+    .WithHttpEndpoint(env: "PORT", port: 3000, targetPort: 4000);
 
 builder.Build().Run();

@@ -9,9 +9,6 @@
  * It's imported dynamically in instrumentation.ts to avoid Edge Runtime issues.
  */
 
-// Type-only imports are safe in Edge Runtime
-import type { InfisicalSDK } from '@infisical/sdk';
-
 interface InfisicalConfig {
   clientId: string;
   clientSecret: string;
@@ -25,8 +22,11 @@ interface SecretsMap {
 
 /**
  * Load configuration and secrets
+ * - Development: Only loads from .env files (no Infisical)
+ * - Staging/Production: Loads from .env files + Infisical secrets
+ *
  * 1. Load config from .env.{environment} file
- * 2. Load secrets from Infisical
+ * 2. Load secrets from Infisical ONLY if not development
  * 3. Merge (secrets override config if same key exists)
  */
 export async function loadConfiguration(): Promise<SecretsMap> {
@@ -36,18 +36,34 @@ export async function loadConfiguration(): Promise<SecretsMap> {
     return {};
   }
 
-  // Use APP_ENV to determine environment (staging vs production)
-  // APP_ENV is set by Kubernetes deployment, defaults to production
-  const environment = process.env.APP_ENV || 'production';
-  
-  console.log(`🔧 Loading configuration for environment: ${environment}...`);
+  // Determine environment
+  // NODE_ENV: 'development' | 'production' (Next.js build mode)
+  // APP_ENV: 'staging' | 'production' (deployment environment)
+  const nodeEnv = process.env.NODE_ENV || 'production';
+  const isDevelopment = nodeEnv === 'development';
+
+  // In development, use 'development' env file, otherwise use APP_ENV
+  const appEnv = isDevelopment ? 'development' : (process.env.APP_ENV || 'production');
+
+  console.log(`🔧 Loading configuration...`, {
+    NODE_ENV: nodeEnv,
+    APP_ENV: process.env.APP_ENV,
+    effectiveEnv: appEnv,
+    isDevelopment,
+  });
 
   // 1. Load non-sensitive config from .env file
-  const configMap = await loadEnvFile(environment);
+  const configMap = await loadEnvFile(appEnv);
 
-  // 2. Load sensitive secrets from Infisical
-  const secretsMap = await loadInfisicalSecrets(environment);
-  
+  // 2. Load sensitive secrets from Infisical ONLY in non-development environments
+  let secretsMap: SecretsMap = {};
+  if (!isDevelopment) {
+    console.log('🔐 Non-development environment detected, loading secrets from Infisical...');
+    secretsMap = await loadInfisicalSecrets(appEnv);
+  } else {
+    console.log('🔧 Development environment detected, skipping Infisical (using .env files only)');
+  }
+
   // 3. Merge: secrets take precedence over config
   const merged = { ...configMap, ...secretsMap };
   

@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Overflow.ProfileService.Data;
@@ -32,6 +33,7 @@ public class ProfilesController(ProfileDbContext db) : ControllerBase
     }
 
     [HttpPut("edit")]
+    [Authorize]
     public async Task<ActionResult<List<UserProfile>>> EditProfile(EditProfileDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -49,6 +51,7 @@ public class ProfilesController(ProfileDbContext db) : ControllerBase
     }
 
     [HttpGet("me")]
+    [Authorize]
     public async Task<ActionResult<UserProfile>> GetMe()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

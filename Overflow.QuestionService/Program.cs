@@ -49,6 +49,9 @@ if (!app.Environment.IsProduction())
     app.MapOpenApi();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.MapDefaultEndpoints();
