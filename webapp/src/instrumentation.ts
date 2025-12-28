@@ -1,43 +1,73 @@
 ﻿/**
- * Next.js Instrumentation
- * This file is executed before the Next.js server starts
+ * Next.js Instrumentation Hook
  *
- * Loads configuration:
- * - Development: Only from .env files
- * - Staging/Production: From .env files + Infisical secrets at runtime
+ * This file runs ONCE when the Next.js server starts, before any pages load.
+ * It initializes the application's environment configuration.
+ *
+ * Configuration Strategy:
+ * - Local Development: Load from .env.development file only
+ * - Staging/Production: Load from .env files + fetch secrets from Infisical
+ *
+ * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
+const RUNTIME_NODEJS = 'nodejs';
+const PHASE_PRODUCTION_BUILD = 'phase-production-build';
+
+/**
+ * Next.js instrumentation register hook
+ * Automatically called by Next.js during server initialization
+ */
 export async function register() {
-    console.log('📦 Instrumentation: register() called', {
-        NEXT_RUNTIME: process.env.NEXT_RUNTIME,
-        NEXT_PHASE: process.env.NEXT_PHASE,
-        NODE_ENV: process.env.NODE_ENV,
-        APP_ENV: process.env.APP_ENV,
+    const currentRuntime = process.env.NEXT_RUNTIME;
+    const currentPhase = process.env.NEXT_PHASE;
+    const nodeEnvironment = process.env.NODE_ENV;
+    const appEnvironment = process.env.APP_ENV;
+
+    console.log('🚀 [Instrumentation] Starting application bootstrap', {
+        runtime: currentRuntime,
+        phase: currentPhase,
+        nodeEnv: nodeEnvironment,
+        appEnv: appEnvironment,
     });
 
-    // Only run in Node.js runtime (not Edge runtime)
-    if (process.env.NEXT_RUNTIME === 'nodejs') {
-        // Skip during build phase - we only want to load secrets at runtime
-        const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
+    const isNodeRuntime = currentRuntime === RUNTIME_NODEJS;
+    const isBuildPhase = currentPhase === PHASE_PRODUCTION_BUILD;
 
-        if (isBuilding) {
-            console.log('📦 Instrumentation: Skipped (build phase)');
-            return;
-        }
+    // Only initialize in Node.js runtime (skip Edge runtime)
+    if (!isNodeRuntime) {
+        console.log(`⏭️  [Instrumentation] Skipped - Edge runtime detected (${currentRuntime})`);
+        return;
+    }
 
-        // At runtime, load configuration
-        // In development: loads from .env files only
-        // In staging/production: loads from .env files + Infisical
-        try {
-            console.log('📦 Instrumentation: Loading configuration...');
-            const {loadConfiguration} = await import('../lib/infisical');
-            await loadConfiguration();
-            console.log('✅ Instrumentation: Configuration loaded successfully');
-        } catch (error) {
-            console.error('❌ Instrumentation: Failed to load configuration:', error);
-            // Don't throw - allow app to start with whatever env vars are available
-        }
-    } else {
-        console.log('📦 Instrumentation: Skipped - NEXT_RUNTIME is', process.env.NEXT_RUNTIME);
+    // Skip during build phase - configuration is only needed at runtime
+    if (isBuildPhase) {
+        console.log('⏭️  [Instrumentation] Skipped - Build phase, configuration not needed');
+        return;
+    }
+
+    // Load environment configuration and secrets
+    await initializeEnvironmentConfiguration();
+}
+
+/**
+ * Initialize environment configuration
+ * Loads .env files and fetches secrets from Infisical (non-dev environments only)
+ */
+async function initializeEnvironmentConfiguration(): Promise<void> {
+    try {
+        console.log('🔧 [Instrumentation] Loading environment configuration...');
+
+        const { loadEnvironmentConfiguration } = await import('./infisical');
+        const loadedVariables = await loadEnvironmentConfiguration();
+
+        const variableCount = Object.keys(loadedVariables).length;
+        console.log(`✅ [Instrumentation] Configuration loaded successfully (${variableCount} variables)`);
+
+    } catch (error) {
+        console.error('❌ [Instrumentation] Failed to load configuration:', error);
+        console.warn('⚠️  [Instrumentation] Application will start with existing environment variables');
+        // Non-fatal: Allow app to start even if configuration loading fails
     }
 }
+
