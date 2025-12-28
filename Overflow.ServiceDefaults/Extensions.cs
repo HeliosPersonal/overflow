@@ -51,6 +51,19 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
+        // Configure JSON console logging for structured single-line logs
+        builder.Logging.ClearProviders();
+        builder.Logging.AddJsonConsole(options =>
+        {
+            options.IncludeScopes = true;
+            options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
+            options.UseUtcTimestamp = true;
+            options.JsonWriterOptions = new JsonWriterOptions
+            {
+                Indented = false // Single line JSON
+            };
+        });
+        
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
