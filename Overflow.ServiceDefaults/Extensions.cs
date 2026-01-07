@@ -26,7 +26,6 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();
-        builder.Services.AddOpenTelemetry();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
@@ -123,19 +122,18 @@ public static class Extensions
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        // Try to get OTLP endpoint from appsettings first, fall back to environment variable
         var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"]
                            ?? builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
 
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(otlpEndpoint);
-
-        if (useOtlpExporter)
+        if (string.IsNullOrWhiteSpace(otlpEndpoint))
         {
-            // Set the environment variable for the OTLP exporter to use
-            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", otlpEndpoint);
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            throw new InvalidOperationException(
+                "OpenTelemetry OTLP endpoint is not configured. " +
+                "Please set 'OpenTelemetry:Endpoint' in appsettings.json or 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable.");
         }
 
+        Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", otlpEndpoint);
+        builder.Services.AddOpenTelemetry().UseOtlpExporter();
 
         return builder;
     }
