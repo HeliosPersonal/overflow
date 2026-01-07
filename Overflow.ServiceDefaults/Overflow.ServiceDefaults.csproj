@@ -20,4 +20,8 @@
         <PackageReference Include="WolverineFx.RabbitMQ" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj" />
+    </ItemGroup>
+
 </Project>

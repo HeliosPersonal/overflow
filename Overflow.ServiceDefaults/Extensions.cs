@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +11,9 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Overflow.Common.Options;
 
 namespace Overflow.ServiceDefaults;
 
@@ -40,6 +43,17 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
+        builder.Services
+            .AddOptions<OpenTelemetryOptions>()
+            .BindConfiguration(nameof(OpenTelemetryOptions))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var openTelemetryOptions = builder
+            .Services
+            .BuildServiceProvider()
+            .GetRequiredService<IOptions<OpenTelemetryOptions>>().Value;
+
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
@@ -49,17 +63,24 @@ public static class Extensions
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource =>
             {
-                var serviceName = builder.Configuration["OpenTelemetry:ServiceName"]
-                                  ?? builder.Configuration["OTEL_SERVICE_NAME"]
-                                  ?? builder.Environment.ApplicationName;
+                var serviceVersion = typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0";
 
-                resource
-                    .AddService(serviceName: serviceName)
-                    .AddAttributes(new Dictionary<string, object>
-                    {
-                        ["deployment.environment"] = builder.Configuration["OpenTelemetry:ResourceAttributes:deployment.environment"]!,
-                        ["host.name"] = Environment.MachineName
-                    });
+                resource.AddService(
+                    serviceName: openTelemetryOptions.ServiceName,
+                    serviceVersion: serviceVersion);
+
+                // Add resource attributes from options
+                var attributes = new Dictionary<string, object>
+                {
+                    ["host.name"] = Environment.MachineName
+                };
+
+                foreach (var attr in openTelemetryOptions.ResourceAttributes)
+                {
+                    attributes[attr.Key] = attr.Value;
+                }
+
+                resource.AddAttributes(attributes);
             })
             .WithMetrics(metrics =>
             {
@@ -118,17 +139,14 @@ public static class Extensions
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"]
-                           ?? builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
-
-        if (string.IsNullOrWhiteSpace(otlpEndpoint))
+        // PostConfigure to validate and set environment variables for OTLP SDK
+        builder.Services.PostConfigure<OpenTelemetryOptions>(options =>
         {
-            throw new InvalidOperationException(
-                "OpenTelemetry OTLP endpoint is not configured. " +
-                "Please set 'OpenTelemetry:Endpoint' in appsettings.json or 'OTEL_EXPORTER_OTLP_ENDPOINT' environment variable.");
-        }
+            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", options.Endpoint);
+            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL", options.Protocol);
+            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS", options.Headers);
+        });
 
-        Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", otlpEndpoint);
         builder.Services.AddOpenTelemetry().UseOtlpExporter();
 
         return builder;
