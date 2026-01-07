@@ -9,7 +9,7 @@ resource "helm_release" "rabbitmq_staging" {
   chart      = "rabbitmq"
 
   depends_on = [kubernetes_namespace.infra_staging]
-  
+
   set {
     name  = "auth.username"
     value = "admin"

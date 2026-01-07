@@ -2,11 +2,6 @@
 # NAMESPACES
 ############################
 
-resource "kubernetes_namespace" "monitoring" {
-  metadata {
-    name = "monitoring"
-  }
-}
 
 resource "kubernetes_namespace" "infra_staging" {
   metadata {
@@ -42,7 +37,7 @@ resource "kubernetes_namespace" "ingress" {
   metadata {
     name = "ingress"
   }
-  
+
   lifecycle {
     prevent_destroy = false
   }

@@ -1,4 +1,4 @@
-﻿# ========================================
+# ========================================
 # CLOUDFLARE DDNS CONFIGURATION
 # ========================================
 # Automatically updates Cloudflare DNS records with current public IP
@@ -57,7 +57,7 @@ resource "kubernetes_deployment" "cloudflare_ddns" {
           image = "oznu/cloudflare-ddns:latest"
 
           env {
-            name  = "API_KEY"
+            name = "API_KEY"
             value_from {
               secret_key_ref {
                 name = "cloudflare-api-token"
@@ -80,7 +80,7 @@ resource "kubernetes_deployment" "cloudflare_ddns" {
 
           env {
             name  = "PROXIED"
-            value = "true"  # Enable Cloudflare proxy (orange cloud)
+            value = "true" # Enable Cloudflare proxy (orange cloud)
           }
 
           resources {

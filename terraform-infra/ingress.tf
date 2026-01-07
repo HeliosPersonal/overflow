@@ -54,9 +54,9 @@ resource "kubernetes_ingress_v1" "keycloak_global" {
       "nginx.ingress.kubernetes.io/ssl-redirect"            = "true"
       "nginx.ingress.kubernetes.io/force-ssl-redirect"      = "true"
       # Backend protocol should be HTTP, nginx handles SSL termination
-      "nginx.ingress.kubernetes.io/backend-protocol"        = "HTTP"
+      "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP"
       # Explicitly set X-Forwarded-Proto to https for SSL-terminated connections
-      "nginx.ingress.kubernetes.io/upstream-vhost"          = "$host"
+      "nginx.ingress.kubernetes.io/upstream-vhost" = "$host"
     }
   }
 
@@ -144,7 +144,7 @@ resource "kubernetes_ingress_v1" "rabbitmq_staging" {
             service {
               name = "rabbitmq-staging"
               port {
-                number = 15672  # RabbitMQ Management UI port
+                number = 15672 # RabbitMQ Management UI port
               }
             }
           }
@@ -223,7 +223,7 @@ resource "kubernetes_ingress_v1" "typesense_api_endpoint_staging" {
             service {
               name = "typesense"
               port {
-                number = 8108  # Typesense API port
+                number = 8108 # Typesense API port
               }
             }
           }
