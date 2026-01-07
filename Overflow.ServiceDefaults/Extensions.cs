@@ -13,9 +13,6 @@ using System.Text.Json;
 
 namespace Overflow.ServiceDefaults;
 
-// Adds common .NET Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
-// This project should be referenced by each service project in your solution.
-// To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
@@ -32,18 +29,10 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
             http.AddStandardResilienceHandler();
 
-            // Turn on service discovery by default
             http.AddServiceDiscovery();
         });
-
-        // Uncomment the following to restrict the allowed schemes for service discovery.
-        // builder.Services.Configure<ServiceDiscoveryOptions>(options =>
-        // {
-        //     options.AllowedSchemes = ["https"];
-        // });
 
         return builder;
     }
@@ -58,15 +47,24 @@ public static class Extensions
         });
 
         builder.Services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource
-                .AddService(
-                    serviceName: builder.Environment.ApplicationName,
-                    serviceVersion: typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0")
-                .AddAttributes(new Dictionary<string, object>
-                {
-                    ["deployment.environment"] = builder.Environment.EnvironmentName,
-                    ["host.name"] = Environment.MachineName
-                }))
+            .ConfigureResource(resource =>
+            {
+                var serviceName = builder.Configuration["OpenTelemetry:ServiceName"]
+                                  ?? builder.Configuration["OTEL_SERVICE_NAME"]
+                                  ?? builder.Environment.ApplicationName;
+
+                var environment = builder.Configuration["OpenTelemetry:ResourceAttributes:deployment.environment"]
+                                  ?? builder.Environment.EnvironmentName;
+
+                resource.AddService(
+                        serviceName: serviceName,
+                        serviceVersion: typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0")
+                    .AddAttributes(new Dictionary<string, object>
+                    {
+                        ["deployment.environment"] = environment,
+                        ["host.name"] = Environment.MachineName
+                    });
+            })
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
@@ -123,19 +121,19 @@ public static class Extensions
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        // Try to get OTLP endpoint from appsettings first, fall back to environment variable
+        var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"]
+                           ?? builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(otlpEndpoint);
 
         if (useOtlpExporter)
         {
+            // Set the environment variable for the OTLP exporter to use
+            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", otlpEndpoint);
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
         }
 
-        // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
-        //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
-        //{
-        //    builder.Services.AddOpenTelemetry()
-        //       .UseAzureMonitor();
-        //}
 
         return builder;
     }
@@ -175,7 +173,7 @@ public static class Extensions
             ResponseWriter = async (context, report) =>
             {
                 context.Response.ContentType = "application/json";
-                
+
                 var result = new
                 {
                     status = report.Status.ToString(),
@@ -203,7 +201,7 @@ public static class Extensions
             ResponseWriter = async (context, report) =>
             {
                 context.Response.ContentType = "application/json";
-                
+
                 var result = new
                 {
                     status = report.Status.ToString(),

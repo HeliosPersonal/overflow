@@ -48,13 +48,6 @@ spec:
                 secretKeyRef:
                   name: infisical-credentials
                   key: INFISICAL_CLIENT_SECRET
-            # OpenTelemetry configuration
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318"
-            - name: OTEL_SERVICE_NAME
-              value: "question-service"
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment=$(ASPNETCORE_ENVIRONMENT)"
             # Disable file watching to avoid inotify limits
             - name: DOTNET_USE_POLLING_FILE_WATCHER
               value: "true"

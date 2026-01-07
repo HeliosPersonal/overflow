@@ -47,12 +47,6 @@ spec:
                 secretKeyRef:
                   name: infisical-credentials
                   key: INFISICAL_CLIENT_SECRET
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318"
-            - name: OTEL_SERVICE_NAME
-              value: "profile-service"
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment=$(ASPNETCORE_ENVIRONMENT)"
             - name: DOTNET_USE_POLLING_FILE_WATCHER
               value: "true"
           livenessProbe:
