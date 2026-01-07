@@ -31,14 +31,14 @@ builder.Services.AddDbContext<QuestionDbContext>(options =>
     options.UseNpgsql(connString);
 }, optionsLifetime: ServiceLifetime.Singleton);
 
-builder.UseWolverineWithRabbitMqAsync(opts =>
+await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
     opts.ApplicationAssembly = typeof(Program).Assembly;
     opts.PersistMessagesWithPostgresql(connString!);
     opts.UseEntityFrameworkCoreTransactions();
-    opts.PublishMessage<QuestionCreated>().ToRabbitExchange("Contracts.QuestionCreated").UseDurableOutbox();
-    opts.PublishMessage<QuestionUpdated>().ToRabbitExchange("Contracts.QuestionUpdated").UseDurableOutbox();
-    opts.PublishMessage<QuestionDeleted>().ToRabbitExchange("Contracts.QuestionDeleted").UseDurableOutbox();
+    opts.PublishMessage<QuestionCreated>().ToRabbitExchange("Overflow.Contracts.QuestionCreated").UseDurableOutbox();
+    opts.PublishMessage<QuestionUpdated>().ToRabbitExchange("Overflow.Contracts.QuestionUpdated").UseDurableOutbox();
+    opts.PublishMessage<QuestionDeleted>().ToRabbitExchange("Overflow.Contracts.QuestionDeleted").UseDurableOutbox();
 });
 
 var app = builder.Build();

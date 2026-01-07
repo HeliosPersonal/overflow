@@ -20,11 +20,8 @@ builder.Services.AddHealthChecks()
     .AddTypesenseHealthCheck()
     .AddRabbitMqHealthCheck();
 
-builder.UseWolverineWithRabbitMqAsync(opts =>
-{
-    opts.ApplicationAssembly = typeof(Program).Assembly;
-});
-
+// Add Wolverine with RabbitMQ
+await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
 var app = builder.Build();
 

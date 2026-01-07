@@ -20,10 +20,8 @@ builder.AddServiceDefaults();
 builder.Services.AddHealthChecks()
     .AddRabbitMqHealthCheck();
 
-builder.UseWolverineWithRabbitMqAsync(opts =>
-{
-    opts.ApplicationAssembly = typeof(Program).Assembly;
-});
+// Add Wolverine with RabbitMQ
+await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
 var connString = builder.Configuration.GetConnectionString("statDb")!;
 await connString.EnsurePostgresDatabaseExistsAsync();
