@@ -53,15 +53,11 @@ public static class Extensions
                                   ?? builder.Configuration["OTEL_SERVICE_NAME"]
                                   ?? builder.Environment.ApplicationName;
 
-                var environment = builder.Configuration["OpenTelemetry:ResourceAttributes:deployment.environment"]
-                                  ?? builder.Environment.EnvironmentName;
-
-                resource.AddService(
-                        serviceName: serviceName,
-                        serviceVersion: typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0")
+                resource
+                    .AddService(serviceName: serviceName)
                     .AddAttributes(new Dictionary<string, object>
                     {
-                        ["deployment.environment"] = environment,
+                        ["deployment.environment"] = builder.Configuration["OpenTelemetry:ResourceAttributes:deployment.environment"]!,
                         ["host.name"] = Environment.MachineName
                     });
             })
