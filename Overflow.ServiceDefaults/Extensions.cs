@@ -11,9 +11,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using Npgsql;
-using Overflow.Common.Options;
 
 namespace Overflow.ServiceDefaults;
 
@@ -24,6 +22,9 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        // Project OTLP environment variables from config to top-level for OpenTelemetry SDK
+        builder.ProjectOtlpEnvironmentVariables();
+        
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -43,17 +44,6 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        builder.Services
-            .AddOptions<OpenTelemetryOptions>()
-            .BindConfiguration(nameof(OpenTelemetryOptions))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        var openTelemetryOptions = builder
-            .Services
-            .BuildServiceProvider()
-            .GetRequiredService<IOptions<OpenTelemetryOptions>>().Value;
-
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
@@ -64,21 +54,18 @@ public static class Extensions
             .ConfigureResource(resource =>
             {
                 var serviceVersion = typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+                var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? builder.Environment.ApplicationName;
 
                 resource.AddService(
-                    serviceName: openTelemetryOptions.ServiceName,
+                    serviceName: serviceName,
                     serviceVersion: serviceVersion);
 
-                // Add resource attributes from options
+                // Add standard resource attributes
                 var attributes = new Dictionary<string, object>
                 {
-                    ["host.name"] = Environment.MachineName
+                    ["host.name"] = Environment.MachineName,
+                    ["deployment.environment"] = builder.Environment.EnvironmentName
                 };
-
-                foreach (var attr in openTelemetryOptions.ResourceAttributes)
-                {
-                    attributes[attr.Key] = attr.Value;
-                }
 
                 resource.AddAttributes(attributes);
             })
@@ -129,25 +116,8 @@ public static class Extensions
                             activity.SetTag("db.operation", command.CommandType.ToString());
                         };
                     });
-            });
-
-        builder.AddOpenTelemetryExporters();
-
-        return builder;
-    }
-
-    private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
-        where TBuilder : IHostApplicationBuilder
-    {
-        // PostConfigure to validate and set environment variables for OTLP SDK
-        builder.Services.PostConfigure<OpenTelemetryOptions>(options =>
-        {
-            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", options.Endpoint);
-            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL", options.Protocol);
-            Environment.SetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS", options.Headers);
-        });
-
-        builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            })
+            .UseOtlpExporter(); // This reads OTEL_EXPORTER_OTLP_* from configuration
 
         return builder;
     }
@@ -240,5 +210,45 @@ public static class Extensions
         });
 
         return app;
+    }
+    
+    /// <summary>
+    /// Projects environment variables from appsettings EnvironmentVariables:Values section to top-level configuration.
+    /// This is required for OpenTelemetry's UseOtlpExporter() which reads OTEL_EXPORTER_OTLP_* from top-level config.
+    /// 
+    /// Note: Values already present at top-level (e.g., from actual environment variables or Infisical secrets)
+    /// take precedence and will NOT be overridden by appsettings values.
+    /// This allows Infisical to inject sensitive values like OTEL_EXPORTER_OTLP_HEADERS.
+    /// </summary>
+    private static void ProjectOtlpEnvironmentVariables(this IHostApplicationBuilder builder)
+    {
+        // Source: appsettings EnvironmentVariables:Values:{KEY} = {VALUE}
+        // Target: top-level config {KEY} = {VALUE} (e.g., OTEL_EXPORTER_OTLP_ENDPOINT)
+        // Priority: Actual env vars / Infisical secrets > appsettings values
+
+        var pairs = builder.Configuration
+            .GetSection("EnvironmentVariables:Values")
+            .GetChildren();
+
+        var overlay = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in pairs)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key) || kv.Value is null)
+            {
+                continue;
+            }
+
+            // Only add if not already present at top-level
+            // This ensures environment variables and Infisical secrets take precedence over appsettings
+            if (string.IsNullOrEmpty(builder.Configuration[kv.Key]))
+            {
+                overlay[kv.Key] = kv.Value;
+            }
+        }
+
+        if (overlay.Count > 0)
+        {
+            builder.Configuration.AddInMemoryCollection(overlay);
+        }
     }
 }
