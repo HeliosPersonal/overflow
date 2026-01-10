@@ -123,9 +123,9 @@ resource "kubernetes_secret" "grafana_cloud_credentials" {
 
   data = {
     # Same API key used for all three services typically
-    prometheus-password = var.grafana_cloud_prometheus_password
-    loki-password      = var.grafana_cloud_prometheus_password
-    tempo-password     = var.grafana_cloud_prometheus_password
+    prometheus-password = var.grafana_cloud_api_token
+    loki-password      = var.grafana_cloud_api_token
+    tempo-password     = var.grafana_cloud_api_token
   }
 
   type = "Opaque"
@@ -151,7 +151,7 @@ resource "helm_release" "grafana_alloy" {
   values = [templatefile("${path.module}/alloy-values.yaml", {
     prometheus_url      = var.grafana_cloud_prometheus_url
     prometheus_user     = var.grafana_cloud_prometheus_user
-    prometheus_password = var.grafana_cloud_prometheus_password
+    grafana_cloud_api_token = var.grafana_cloud_api_token
     loki_url            = var.grafana_cloud_loki_url
     loki_user           = var.grafana_cloud_loki_user
     tempo_url           = var.grafana_cloud_tempo_url

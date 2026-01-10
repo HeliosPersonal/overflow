@@ -84,10 +84,10 @@ variable "grafana_cloud_prometheus_user" {
   description = "Grafana Cloud Prometheus username (Instance ID)"
 }
 
-variable "grafana_cloud_prometheus_password" {
+variable "grafana_cloud_api_token" {
   type        = string
   sensitive   = true
-  description = "Grafana Cloud Prometheus API key"
+  description = "Grafana Cloud API token (used for all services: Prometheus, Loki, Tempo)"
 }
 
 variable "grafana_cloud_loki_url" {

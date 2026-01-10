@@ -11,13 +11,13 @@ alloy:
           
           basic_auth {
             username = "${prometheus_user}"
-            password = "${prometheus_password}"
+            password = "${grafana_cloud_api_token}"
           }
         }
       }
       
-      // OTLP Receiver - For .NET Services to send metrics
-      otelcol.receiver.otlp "default" {
+      // OTLP Receiver - For .NET Services
+      otelcol.receiver.otlp "otlp_receiver" {
         grpc {
           endpoint = "0.0.0.0:4317"
         }
@@ -28,19 +28,54 @@ alloy:
         
         output {
           metrics = [otelcol.processor.batch.default.input]
+          traces  = [otelcol.processor.batch.default.input]
+          logs    = [otelcol.processor.batch.default.input]
         }
       }
       
-      // Batch processor for OTLP metrics
+      // Batch processor for OTLP data
       otelcol.processor.batch "default" {
         output {
           metrics = [otelcol.exporter.prometheus.default.input]
+          traces  = [otelcol.exporter.otlp.grafanacloud.input]
+          logs    = [otelcol.exporter.loki.grafanacloud.input]
         }
       }
       
       // Convert OTLP metrics to Prometheus format
       otelcol.exporter.prometheus "default" {
         forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
+      
+      // Basic auth for Grafana Cloud Tempo
+      otelcol.auth.basic "grafanacloud" {
+        username = "${tempo_user}"
+        password = "${grafana_cloud_api_token}"
+      }
+      
+      // Export traces to Grafana Cloud Tempo via OTLP
+      otelcol.exporter.otlp "grafanacloud" {
+        client {
+          endpoint = "${tempo_url}"
+          auth     = otelcol.auth.basic.grafanacloud.handler
+        }
+      }
+      
+      // Write logs to Grafana Cloud Loki
+      loki.write "grafanacloud" {
+        endpoint {
+          url = "${loki_url}/loki/api/v1/push"
+          
+          basic_auth {
+            username = "${loki_user}"
+            password = "${grafana_cloud_api_token}"
+          }
+        }
+      }
+      
+      // Export OTLP logs to Loki
+      otelcol.exporter.loki "grafanacloud" {
+        forward_to = [loki.write.grafanacloud.receiver]
       }
       
       // Self-scrape Alloy's own metrics
@@ -128,7 +163,14 @@ rbac:
         - services
         - endpoints
         - pods
+        - nodes
+        - nodes/metrics
+        - nodes/stats
       verbs: ["get", "list", "watch"]
+    - nonResourceURLs:
+        - /metrics
+        - /metrics/cadvisor
+      verbs: ["get"]
 
 serviceAccount:
   create: true
