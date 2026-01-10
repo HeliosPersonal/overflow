@@ -1,4 +1,4 @@
-variable "kubeconfig_path" {
+﻿variable "kubeconfig_path" {
   type        = string
   default     = "~/.kube/config"
   description = "Path to kubeconfig for k3s cluster."
@@ -71,5 +71,42 @@ variable "keycloak_postgres_password" {
   type      = string
   sensitive = true
   default   = "postgres"
+}
+
+# Grafana Cloud Configuration
+variable "grafana_cloud_prometheus_url" {
+  type        = string
+  description = "Grafana Cloud Prometheus remote write URL (e.g., https://prometheus-prod-XX-XX.grafana.net)"
+}
+
+variable "grafana_cloud_prometheus_user" {
+  type        = string
+  description = "Grafana Cloud Prometheus username (Instance ID)"
+}
+
+variable "grafana_cloud_prometheus_password" {
+  type        = string
+  sensitive   = true
+  description = "Grafana Cloud Prometheus API key"
+}
+
+variable "grafana_cloud_loki_url" {
+  type        = string
+  description = "Grafana Cloud Loki URL (e.g., https://logs-prod-XX-XX.grafana.net)"
+}
+
+variable "grafana_cloud_loki_user" {
+  type        = string
+  description = "Grafana Cloud Loki username (Instance ID)"
+}
+
+variable "grafana_cloud_tempo_url" {
+  type        = string
+  description = "Grafana Cloud Tempo OTLP endpoint (e.g., https://tempo-prod-XX-XX.grafana.net:443)"
+}
+
+variable "grafana_cloud_tempo_user" {
+  type        = string
+  description = "Grafana Cloud Tempo username (Instance ID)"
 }
 

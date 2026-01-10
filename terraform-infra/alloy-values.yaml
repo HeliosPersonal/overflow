@@ -1,0 +1,135 @@
+﻿# Grafana Alloy Helm Chart Values - SIMPLIFIED
+# Minimal configuration to test Grafana Cloud connection
+
+alloy:
+  configMap:
+    content: |
+      // Prometheus Remote Write to Grafana Cloud
+      prometheus.remote_write "grafanacloud" {
+        endpoint {
+          url = "https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push"
+          
+          basic_auth {
+            username = "2900353"
+            password = "glc_eyJvIjoiMTYzNDcyMCIsIm4iOiJzdGFjay0xNDg4MDYwLWhtLXdyaXRlLWdyYWZhbmEtYXBpLXRva2VuIiwiayI6Ijk4UTBGY2oyNU9yVHUwRTU1NjBaV29mYSIsIm0iOnsiciI6InByb2QtZXUtd2VzdC0yIn19"
+          }
+        }
+      }
+      
+      // OTLP Receiver - For .NET Services to send metrics
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        
+        output {
+          metrics = [otelcol.processor.batch.default.input]
+        }
+      }
+      
+      // Batch processor for OTLP metrics
+      otelcol.processor.batch "default" {
+        output {
+          metrics = [otelcol.exporter.prometheus.default.input]
+        }
+      }
+      
+      // Convert OTLP metrics to Prometheus format
+      otelcol.exporter.prometheus "default" {
+        forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
+      
+      // Self-scrape Alloy's own metrics
+      prometheus.exporter.self "alloy" { }
+      
+      prometheus.scrape "alloy" {
+        targets    = prometheus.exporter.self.alloy.targets
+        forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
+      
+      // Discover Kubernetes services
+      discovery.kubernetes "services" {
+        role = "service"
+      }
+      
+      // Discover Kubernetes pods
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+      
+      // Scrape kube-state-metrics
+      discovery.relabel "kube_state_metrics" {
+        targets = discovery.kubernetes.services.targets
+        
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          regex = "kube-state-metrics"
+          action = "keep"
+        }
+      }
+      
+      prometheus.scrape "kube_state_metrics" {
+        targets    = discovery.relabel.kube_state_metrics.output
+        job_name   = "kube-state-metrics"
+        forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
+      
+      // Scrape node-exporter
+      discovery.relabel "node_exporter" {
+        targets = discovery.kubernetes.pods.targets
+        
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          regex = "prometheus-node-exporter"
+          action = "keep"
+        }
+      }
+      
+      prometheus.scrape "node_exporter" {
+        targets    = discovery.relabel.node_exporter.output
+        job_name   = "node-exporter"
+        forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
+  
+  extraPorts:
+    - name: "otlp-grpc"
+      port: 4317
+      targetPort: 4317
+      protocol: "TCP"
+    - name: "otlp-http"
+      port: 4318
+      targetPort: 4318
+      protocol: "TCP"
+
+controller:
+  type: "deployment"
+  replicas: 1
+
+service:
+  type: ClusterIP
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+rbac:
+  create: true
+  extraClusterRoleRules:
+    - apiGroups: [""]
+      resources:
+        - services
+        - endpoints
+        - pods
+      verbs: ["get", "list", "watch"]
+
+serviceAccount:
+  create: true
+  name: grafana-alloy

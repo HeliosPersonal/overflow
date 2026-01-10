@@ -1,4 +1,4 @@
-# ========================================
+﻿# ========================================
 # CLOUDFLARE DDNS CONFIGURATION
 # ========================================
 # Automatically updates Cloudflare DNS records with current public IP

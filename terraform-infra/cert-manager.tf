@@ -1,4 +1,4 @@
-# ========================================
+﻿# ========================================
 # CERT-MANAGER & LET'S ENCRYPT SSL
 # ========================================
 # Automates SSL/TLS certificate management for Kubernetes ingress
