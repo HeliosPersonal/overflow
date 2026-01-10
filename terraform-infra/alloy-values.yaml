@@ -129,6 +129,35 @@ alloy:
         job_name   = "node-exporter"
         forward_to = [prometheus.remote_write.grafanacloud.receiver]
       }
+      
+      // Scrape nginx-ingress-controller
+      discovery.relabel "nginx_ingress" {
+        targets = discovery.kubernetes.pods.targets
+        
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          regex = "controller"
+          action = "keep"
+        }
+        
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          regex = "ingress-nginx"
+          action = "keep"
+        }
+        
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_port_number"]
+          regex = "10254"
+          action = "keep"
+        }
+      }
+      
+      prometheus.scrape "nginx_ingress" {
+        targets    = discovery.relabel.nginx_ingress.output
+        job_name   = "nginx-ingress"
+        forward_to = [prometheus.remote_write.grafanacloud.receiver]
+      }
   
   extraPorts:
     - name: "otlp-grpc"
