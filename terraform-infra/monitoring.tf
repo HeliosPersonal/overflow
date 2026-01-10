@@ -149,12 +149,13 @@ resource "helm_release" "grafana_alloy" {
   ]
 
   values = [templatefile("${path.module}/alloy-values.yaml", {
-    prometheus_url  = var.grafana_cloud_prometheus_url
-    prometheus_user = var.grafana_cloud_prometheus_user
-    loki_url        = var.grafana_cloud_loki_url
-    loki_user       = var.grafana_cloud_loki_user
-    tempo_url       = var.grafana_cloud_tempo_url
-    tempo_user      = var.grafana_cloud_tempo_user
+    prometheus_url      = var.grafana_cloud_prometheus_url
+    prometheus_user     = var.grafana_cloud_prometheus_user
+    prometheus_password = var.grafana_cloud_prometheus_password
+    loki_url            = var.grafana_cloud_loki_url
+    loki_user           = var.grafana_cloud_loki_user
+    tempo_url           = var.grafana_cloud_tempo_url
+    tempo_user          = var.grafana_cloud_tempo_user
   })]
 
   # Allow time for dependencies to be ready

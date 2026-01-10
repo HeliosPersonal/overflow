@@ -7,11 +7,11 @@ alloy:
       // Prometheus Remote Write to Grafana Cloud
       prometheus.remote_write "grafanacloud" {
         endpoint {
-          url = "https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push"
+          url = "${prometheus_url}/api/prom/push"
           
           basic_auth {
-            username = "2900353"
-            password = "glc_eyJvIjoiMTYzNDcyMCIsIm4iOiJzdGFjay0xNDg4MDYwLWhtLXdyaXRlLWdyYWZhbmEtYXBpLXRva2VuIiwiayI6Ijk4UTBGY2oyNU9yVHUwRTU1NjBaV29mYSIsIm0iOnsiciI6InByb2QtZXUtd2VzdC0yIn19"
+            username = "${prometheus_user}"
+            password = "${prometheus_password}"
           }
         }
       }
