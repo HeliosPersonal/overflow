@@ -18,7 +18,7 @@ public static class WebApplicationBuilderExtensions
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <returns>The builder for chaining.</returns>
-    public static WebApplicationBuilder AddEnvVariablesAndConfigureSecrets(this WebApplicationBuilder builder)
+    public static IHostApplicationBuilder AddEnvVariablesAndConfigureSecrets(this IHostApplicationBuilder builder)
     {
         builder.Configuration.AddEnvironmentVariables();
 

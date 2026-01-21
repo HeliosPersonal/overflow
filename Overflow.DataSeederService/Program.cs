@@ -1,9 +1,13 @@
+using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Services;
 using Overflow.ServiceDefaults;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddEnvVariablesAndConfigureSecrets();
+builder.ConfigureKeycloakFromSettings();
 
 // Configure options
 builder.Services.Configure<SeederOptions>(builder.Configuration.GetSection("SeederOptions"));

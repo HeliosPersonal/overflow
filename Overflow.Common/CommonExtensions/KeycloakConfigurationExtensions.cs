@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Overflow.Common.Options;
 
 namespace Overflow.Common.CommonExtensions;
@@ -10,8 +11,8 @@ public static class KeycloakConfigurationExtensions
     /// Configures Keycloak options from configuration and applies them to the application builder.
     /// This ensures that Keycloak configuration from appsettings.json is properly loaded.
     /// </summary>
-    public static WebApplicationBuilder ConfigureKeycloakFromSettings(
-        this WebApplicationBuilder builder)
+    public static IHostApplicationBuilder ConfigureKeycloakFromSettings(
+        this IHostApplicationBuilder builder)
     {
         // Explicitly bind KeycloakOptions from configuration
         var keycloakSection = builder.Configuration.GetSection("KeycloakOptions");
