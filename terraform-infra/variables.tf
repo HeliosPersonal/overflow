@@ -109,17 +109,3 @@ variable "grafana_cloud_tempo_user" {
   type        = string
   description = "Grafana Cloud Tempo username (Instance ID)"
 }
-
-# Data Seeder Keycloak Admin Client (Staging only)
-variable "data_seeder_admin_client_id" {
-  type        = string
-  default     = "data-seeder-admin"
-  description = "Keycloak admin client ID for data seeder service"
-}
-
-variable "data_seeder_admin_client_secret" {
-  type        = string
-  sensitive   = true
-  description = "Keycloak admin client secret for data seeder service"
-}
-

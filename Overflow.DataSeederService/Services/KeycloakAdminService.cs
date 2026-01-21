@@ -206,15 +206,15 @@ public class KeycloakAdminService
             var requestBody = new Dictionary<string, string>
             {
                 ["grant_type"] = "password",
-                ["client_id"] = _keycloakOptions.ClientId ?? throw new InvalidOperationException("ClientId is required"),
+                ["client_id"] = _keycloakOptions.NextJsClientId ?? throw new InvalidOperationException("NextJsClientId is required"),
                 ["username"] = username,
                 ["password"] = password
             };
 
             // Add client secret if available (for confidential clients)
-            if (!string.IsNullOrEmpty(_keycloakOptions.ClientSecret))
+            if (!string.IsNullOrEmpty(_keycloakOptions.NextJsClientSecret))
             {
-                requestBody["client_secret"] = _keycloakOptions.ClientSecret;
+                requestBody["client_secret"] = _keycloakOptions.NextJsClientSecret;
             }
 
             var response = await _httpClient.PostAsync(

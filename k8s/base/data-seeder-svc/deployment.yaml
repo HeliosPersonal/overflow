@@ -33,17 +33,6 @@ spec:
               value: "http://profile-svc:8080"
             - name: SeederOptions__VoteServiceUrl
               value: "http://vote-svc:8080"
-            # Keycloak Admin API credentials for user management
-            - name: KeycloakOptions__AdminClientId
-              valueFrom:
-                secretKeyRef:
-                  name: data-seeder-keycloak
-                  key: admin-client-id
-            - name: KeycloakOptions__AdminClientSecret
-              valueFrom:
-                secretKeyRef:
-                  name: data-seeder-keycloak
-                  key: admin-client-secret
             # Infisical credentials - if needed for other secrets
             - name: INFISICAL_PROJECT_ID
               valueFrom:

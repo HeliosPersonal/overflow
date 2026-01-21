@@ -35,7 +35,6 @@ public static class KeycloakConfigurationExtensions
                     builder.Configuration[$"KeycloakOptions:ValidIssuers:{i}"] = options.ValidIssuers[i];
                 }
                 
-                // Optional: Client credentials if present
                 if (!string.IsNullOrEmpty(options.ClientId))
                 {
                     builder.Configuration["KeycloakOptions:ClientId"] = options.ClientId;
@@ -44,6 +43,26 @@ public static class KeycloakConfigurationExtensions
                 if (!string.IsNullOrEmpty(options.ClientSecret))
                 {
                     builder.Configuration["KeycloakOptions:ClientSecret"] = options.ClientSecret;
+                }
+                
+                if (!string.IsNullOrEmpty(options.AdminClientId))
+                {
+                    builder.Configuration["KeycloakOptions:AdminClientId"] = options.AdminClientId;
+                }
+                
+                if (!string.IsNullOrEmpty(options.AdminClientSecret))
+                {
+                    builder.Configuration["KeycloakOptions:AdminClientSecret"] = options.AdminClientSecret;
+                }
+                
+                if (!string.IsNullOrEmpty(options.NextJsClientId))
+                {
+                    builder.Configuration["KeycloakOptions:NextJsClientId"] = options.NextJsClientId;
+                }
+                
+                if (!string.IsNullOrEmpty(options.NextJsClientSecret))
+                {
+                    builder.Configuration["KeycloakOptions:NextJsClientSecret"] = options.NextJsClientSecret;
                 }
             }
         }

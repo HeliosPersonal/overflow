@@ -19,4 +19,8 @@ public class KeycloakOptions
     public required string? AdminClientId { get; set; }
     
     public required string? AdminClientSecret { get; set; }
+    
+    public required string? NextJsClientId { get; set; }
+    
+    public required string? NextJsClientSecret { get; set; }
 }
