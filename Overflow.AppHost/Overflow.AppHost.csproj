@@ -16,6 +16,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj" IsAspireProjectResource="false"/>
+        <ProjectReference Include="..\Overflow.DataSeederService\Overflow.DataSeederService.csproj" />
         <ProjectReference Include="..\Overflow.ServiceDefaults\Overflow.ServiceDefaults.csproj" IsAspireProjectResource="false"/>
         <ProjectReference Include="..\Overflow.ProfileService\Overflow.ProfileService.csproj"/>
         <ProjectReference Include="..\Overflow.QuestionService\Overflow.QuestionService.csproj"/>

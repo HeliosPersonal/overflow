@@ -88,6 +88,10 @@ jobs:
             dockerfile: Overflow.VoteService/Dockerfile
             image: overflow-vote
             context: .
+          - service: DataSeederService
+            dockerfile: Overflow.DataSeederService/Dockerfile
+            image: overflow-data-seeder
+            context: .
           - service: WebApp
             dockerfile: webapp/Dockerfile
             image: overflow-webapp

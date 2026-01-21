@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Hosting;
-
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder
@@ -68,12 +66,14 @@ var statService = builder.AddProject<Projects.Overflow_StatsService>("stat-svc")
     .WaitFor(rabbitmq);
 
 var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
-    .WithReference(keycloak)
     .WithReference(voteDb)
     .WithReference(rabbitmq)
     .WaitFor(keycloak)
     .WaitFor(voteDb)
     .WaitFor(rabbitmq);
+
+var dataSeederService = builder.AddProject<Projects.Overflow_DataSeederService>("data-seeder-svc")
+    .WaitFor(questionService);
 
 var yarp = builder
     .AddYarp("gateway")
