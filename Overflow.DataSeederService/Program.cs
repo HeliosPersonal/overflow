@@ -31,9 +31,10 @@ builder.Services.AddHttpClient<LlmClient>(client =>
 })
 .AddStandardResilienceHandler(options =>
 {
-    // Configure timeout for LLM requests - generous timeouts for model loading
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
-    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+    // Configure timeout for LLM requests - VERY generous timeouts for model loading and generation
+    // Answer generation can take 3-5 minutes depending on complexity
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(10);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(8);
     
     // Retry - only on network failures, not timeouts
     options.Retry.MaxRetryAttempts = 1;
@@ -41,7 +42,7 @@ builder.Services.AddHttpClient<LlmClient>(client =>
     options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
     
     // Disable circuit breaker for LLM - model loading can take unpredictable time
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(20);
     options.CircuitBreaker.FailureRatio = 0.9; // Very lenient
     options.CircuitBreaker.MinimumThroughput = 100; // Effectively disabled
 });
