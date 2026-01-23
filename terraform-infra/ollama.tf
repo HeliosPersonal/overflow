@@ -39,6 +39,12 @@ resource "local_file" "ollama_values" {
     env:
       - name: OLLAMA_HOST
         value: "0.0.0.0:11434"
+      - name: OLLAMA_KEEP_ALIVE
+        value: "24h"
+      - name: OLLAMA_MAX_LOADED_MODELS
+        value: "1"
+      - name: OLLAMA_NUM_PARALLEL
+        value: "2"
     
     # Init container to pull model
     initModels:

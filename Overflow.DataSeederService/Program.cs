@@ -18,7 +18,27 @@ builder.Services.AddHttpClient<UserGenerator>();
 builder.Services.AddHttpClient<QuestionGenerator>();
 builder.Services.AddHttpClient<AnswerGenerator>();
 builder.Services.AddHttpClient<VotingService>();
-builder.Services.AddHttpClient<LlmClient>();
+
+// LLM client needs longer timeouts for model inference
+builder.Services.AddHttpClient<LlmClient>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+})
+.AddStandardResilienceHandler(options =>
+{
+    // Configure timeout for LLM requests (should be less than client timeout)
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+    
+    // Retry with exponential backoff
+    options.Retry.MaxRetryAttempts = 2;
+    options.Retry.UseJitter = true;
+    
+    // Circuit breaker - more lenient for LLM
+    options.CircuitBreaker.FailureRatio = 0.5;
+    options.CircuitBreaker.MinimumThroughput = 3;
+});
+
 builder.Services.AddHttpClient<KeycloakAdminService>();
 
 // Add services
