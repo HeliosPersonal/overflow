@@ -35,6 +35,8 @@ builder.Services.AddHttpClient<LlmClient>(client =>
     options.Retry.UseJitter = true;
     
     // Circuit breaker - more lenient for LLM
+    // Sampling duration must be at least double the attempt timeout (2 min * 2 = 4 min)
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(5);
     options.CircuitBreaker.FailureRatio = 0.5;
     options.CircuitBreaker.MinimumThroughput = 3;
 });
