@@ -1,4 +1,4 @@
-﻿# Grafana Alloy Helm Chart Values - SIMPLIFIED
+﻿# Grafana Alloy Helm Chart Values
 # Minimal configuration to test Grafana Cloud connection
 
 alloy:
