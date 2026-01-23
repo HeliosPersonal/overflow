@@ -13,8 +13,10 @@ builder.ConfigureKeycloakFromSettings();
 builder.Services.Configure<SeederOptions>(builder.Configuration.GetSection("SeederOptions"));
 builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection("KeycloakOptions"));
 
-// LLM client needs custom longer timeouts - configure BEFORE AddServiceDefaults
-// to avoid default 30s timeout being applied by ConfigureHttpClientDefaults
+// Manually configure service discovery (needed for all HttpClients)
+builder.Services.AddServiceDiscovery();
+
+// LLM client needs custom longer timeouts - configure WITHOUT AddServiceDefaults interference
 builder.Services.AddHttpClient<LlmClient>(client =>
 {
     client.Timeout = TimeSpan.FromMinutes(5);
@@ -36,15 +38,15 @@ builder.Services.AddHttpClient<LlmClient>(client =>
     options.Retry.UseJitter = true;
     options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
     
-    // Circuit breaker - more lenient for LLM
+    // Circuit breaker - more lenient for LLM (for cold start and model loading)
     // Sampling duration must be at least double the attempt timeout (2 min * 2 = 4 min)
     options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(5);
     options.CircuitBreaker.FailureRatio = 0.5;
     options.CircuitBreaker.MinimumThroughput = 3;
 });
 
-// NOW add ServiceDefaults which will configure default HttpClient settings for other clients
-// Service discovery will be added to ALL HttpClients including LlmClient
+// Add ServiceDefaults AFTER LlmClient so ConfigureHttpClientDefaults doesn't affect it
+// Note: ConfigureHttpClientDefaults applies to clients added AFTER it's called
 builder.AddServiceDefaults();
 
 // Add HttpClient with service discovery support (uses default resilience settings)
