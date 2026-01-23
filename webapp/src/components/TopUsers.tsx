@@ -1,5 +1,4 @@
 import {getTopUsers} from "@/lib/actions/profile-actions";
-import {handleError} from "@/lib/util";
 
 export default async function TopUsers() {
     const {data: users, error} = await getTopUsers();
@@ -12,16 +11,14 @@ export default async function TopUsers() {
                     <div>Unavailable</div>
                 ) : (
                     <>
-                        {Array.isArray(users) && users.map(u => (
+                        {Array.isArray(users) && users.filter(u => u.profile).map(u => (
                             <div className='flex justify-between items-center' key={u.userId}>
-                                <div>{u.profile.displayName}</div>
+                                <div>{u.profile!.displayName}</div>
                                 <div>{u.delta}</div>
                             </div>
                         ))}
                     </>
                 )}
-                
-                
             </div>
         </div>
     );

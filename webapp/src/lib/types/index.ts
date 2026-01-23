@@ -86,4 +86,4 @@ export type TopUser = {
     delta: number
 }
 
-export type TopUserWithProfile = TopUser & {profile: Profile}
+export type TopUserWithProfile = TopUser & {profile?: Profile}
