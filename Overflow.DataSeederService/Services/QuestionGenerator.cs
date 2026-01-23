@@ -76,21 +76,45 @@ public class QuestionGenerator
         // Try to generate with LLM first
         if (_options.EnableLlmGeneration)
         {
+            _logger.LogInformation("Attempting LLM generation for tag: {Tag}", primaryTag);
+            var titleStart = DateTime.UtcNow;
+            
             var llmTitle = await _llmClient.GenerateQuestionTitleAsync(primaryTag, cancellationToken);
+            var titleElapsed = (DateTime.UtcNow - titleStart).TotalSeconds;
+            
             if (!string.IsNullOrWhiteSpace(llmTitle))
             {
+                _logger.LogInformation("LLM title generated in {Elapsed}s: '{Title}'", titleElapsed, llmTitle);
                 title = llmTitle;
+                
+                var contentStart = DateTime.UtcNow;
                 var llmContent = await _llmClient.GenerateQuestionContentAsync(title, primaryTag, cancellationToken);
-                content = llmContent ?? QuestionTemplates.GetRandomQuestion(primaryTag).content;
+                var contentElapsed = (DateTime.UtcNow - contentStart).TotalSeconds;
+                
+                if (!string.IsNullOrWhiteSpace(llmContent))
+                {
+                    _logger.LogInformation("LLM content generated in {Elapsed}s ({Length} chars)", 
+                        contentElapsed, llmContent.Length);
+                    content = llmContent;
+                }
+                else
+                {
+                    _logger.LogWarning("LLM content generation failed after {Elapsed}s, using template fallback", 
+                        contentElapsed);
+                    content = QuestionTemplates.GetRandomQuestion(primaryTag).content;
+                }
             }
             else
             {
+                _logger.LogWarning("LLM title generation failed after {Elapsed}s, using template fallback", 
+                    titleElapsed);
                 // Fallback to templates
                 (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
             }
         }
         else
         {
+            _logger.LogInformation("LLM generation disabled, using templates for tag: {Tag}", primaryTag);
             // Use templates
             (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
         }

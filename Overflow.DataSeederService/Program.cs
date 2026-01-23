@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
 using Overflow.DataSeederService.Models;
@@ -31,23 +32,22 @@ builder.Services.AddHttpClient<LlmClient>(client =>
 {
     // Configure timeout for LLM requests (should be less than client timeout)
     options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
-    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
     
-    // Retry with exponential backoff
-    options.Retry.MaxRetryAttempts = 2;
+    // Retry - only on network failures, not timeouts
+    options.Retry.MaxRetryAttempts = 1;
     options.Retry.UseJitter = true;
     options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
     
-    // Circuit breaker - more lenient for LLM (for cold start and model loading)
-    // Sampling duration must be at least double the attempt timeout (2 min * 2 = 4 min)
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(5);
-    options.CircuitBreaker.FailureRatio = 0.5;
-    options.CircuitBreaker.MinimumThroughput = 3;
+    // Disable circuit breaker for LLM - model loading can take unpredictable time
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+    options.CircuitBreaker.FailureRatio = 0.9; // Very lenient
+    options.CircuitBreaker.MinimumThroughput = 100; // Effectively disabled
 });
 
 // Add ServiceDefaults AFTER LlmClient so ConfigureHttpClientDefaults doesn't affect it
 // Note: ConfigureHttpClientDefaults applies to clients added AFTER it's called
-builder.AddServiceDefaults();
+//builder.AddServiceDefaults();
 
 // Add HttpClient with service discovery support (uses default resilience settings)
 builder.Services.AddHttpClient<UserGenerator>();
@@ -65,4 +65,18 @@ builder.Services.AddHostedService<SeederBackgroundService>();
 
 
 var host = builder.Build();
+
+// Log configuration on startup
+var logger = host.Services.GetRequiredService<ILogger<Program>>();
+var seederOptions = host.Services.GetRequiredService<IOptions<SeederOptions>>().Value;
+logger.LogInformation("=== Data Seeder Configuration ===");
+logger.LogInformation("LLM API URL: {Url}", seederOptions.LlmApiUrl);
+logger.LogInformation("LLM Model: {Model}", seederOptions.LlmModel);
+logger.LogInformation("LLM Generation Enabled: {Enabled}", seederOptions.EnableLlmGeneration);
+logger.LogInformation("Interval: {Minutes} minutes", seederOptions.IntervalMinutes);
+logger.LogInformation("Question Service: {Url}", seederOptions.QuestionServiceUrl);
+logger.LogInformation("Profile Service: {Url}", seederOptions.ProfileServiceUrl);
+logger.LogInformation("Vote Service: {Url}", seederOptions.VoteServiceUrl);
+logger.LogInformation("==================================");
+
 host.Run();

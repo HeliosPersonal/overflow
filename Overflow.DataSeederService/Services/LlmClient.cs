@@ -15,6 +15,9 @@ public class LlmClient
         _httpClient = httpClient;
         _options = options.Value;
         _logger = logger;
+        
+        _logger.LogInformation("LlmClient initialized - URL: {Url}, Model: {Model}, Enabled: {Enabled}, HttpClient Timeout: {Timeout}s",
+            _options.LlmApiUrl, _options.LlmModel, _options.EnableLlmGeneration, _httpClient.Timeout.TotalSeconds);
     }
 
     public async Task<string?> GenerateAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
@@ -24,6 +27,9 @@ public class LlmClient
             _logger.LogWarning("LLM generation is disabled");
             return null;
         }
+
+        _logger.LogInformation("Starting LLM request - URL: {Url}, Model: {Model}, Timeout: {Timeout}s", 
+            _options.LlmApiUrl, _options.LlmModel, _httpClient.Timeout.TotalSeconds);
 
         var request = new LlmRequest
         {
@@ -37,13 +43,25 @@ public class LlmClient
             max_tokens = 1000
         };
 
+        _logger.LogDebug("LLM Request - System: {SystemPrompt}, User: {UserPrompt}", 
+            systemPrompt.Substring(0, Math.Min(100, systemPrompt.Length)), 
+            userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
+
+        var startTime = DateTime.UtcNow;
         try
         {
+            _logger.LogInformation("Sending POST request to LLM API at {Url}...", _options.LlmApiUrl);
+            
             var response = await _httpClient.PostAsJsonAsync(_options.LlmApiUrl, request, cancellationToken);
+            
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogInformation("LLM API responded in {Elapsed}s with status {StatusCode}", elapsed, response.StatusCode);
             
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("LLM API returned status {StatusCode}", response.StatusCode);
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("LLM API returned status {StatusCode}. Response: {Response}", 
+                    response.StatusCode, errorContent);
                 return null;
             }
 
@@ -51,20 +69,40 @@ public class LlmClient
             
             if (result?.choices?.Length > 0)
             {
-                return result.choices[0].message?.content?.Trim();
+                var content = result.choices[0].message?.content?.Trim();
+                _logger.LogInformation("LLM generated {Length} characters of content in {Elapsed}s", 
+                    content?.Length ?? 0, elapsed);
+                return content;
             }
 
-            _logger.LogWarning("LLM returned no content");
+            _logger.LogWarning("LLM returned no content after {Elapsed}s", elapsed);
+            return null;
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogError(ex, "LLM request TIMED OUT after {Elapsed}s. HttpClient timeout: {Timeout}s, URL: {Url}", 
+                elapsed, _httpClient.Timeout.TotalSeconds, _options.LlmApiUrl);
+            return null;
+        }
+        catch (TaskCanceledException ex)
+        {
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogWarning(ex, "LLM request was CANCELLED after {Elapsed}s", elapsed);
             return null;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Failed to call LLM API. Is Docker Model Runner running at {Url}?", _options.LlmApiUrl);
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogError(ex, "HTTP REQUEST FAILED after {Elapsed}s. URL: {Url}, Message: {Message}", 
+                elapsed, _options.LlmApiUrl, ex.Message);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating content with LLM");
+            var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogError(ex, "UNEXPECTED ERROR generating content with LLM after {Elapsed}s. Type: {ExceptionType}, Message: {Message}", 
+                elapsed, ex.GetType().Name, ex.Message);
             return null;
         }
     }
