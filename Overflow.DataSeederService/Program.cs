@@ -20,7 +20,8 @@ builder.Services.AddServiceDiscovery();
 // LLM client needs custom longer timeouts - configure WITHOUT AddServiceDefaults interference
 builder.Services.AddHttpClient<LlmClient>(client =>
 {
-    client.Timeout = TimeSpan.FromMinutes(5);
+    // Set infinite timeout - let Polly resilience handler manage timeouts
+    client.Timeout = Timeout.InfiniteTimeSpan;
 })
 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
@@ -30,9 +31,9 @@ builder.Services.AddHttpClient<LlmClient>(client =>
 })
 .AddStandardResilienceHandler(options =>
 {
-    // Configure timeout for LLM requests (should be less than client timeout)
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
-    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
+    // Configure timeout for LLM requests - generous timeouts for model loading
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
     
     // Retry - only on network failures, not timeouts
     options.Retry.MaxRetryAttempts = 1;
