@@ -26,13 +26,16 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            # Service URLs (using internal k8s service names)
             - name: SeederOptions__QuestionServiceUrl
               value: "http://question-svc:8080"
             - name: SeederOptions__ProfileServiceUrl
               value: "http://profile-svc:8080"
             - name: SeederOptions__VoteServiceUrl
               value: "http://vote-svc:8080"
+            - name: SeederOptions__LlmApiUrl
+              value: "http://ollama-svc.apps-staging.svc.cluster.local:11434/v1/chat/completions"
+            - name: SeederOptions__LlmModel
+              value: "phi3.5"
             # Infisical credentials - if needed for other secrets
             - name: INFISICAL_PROJECT_ID
               valueFrom:

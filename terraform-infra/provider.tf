@@ -8,6 +8,14 @@
       source  = "hashicorp/helm"
       version = "~> 2.13"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.4"
+    }
   }
 }
 

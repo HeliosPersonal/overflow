@@ -109,3 +109,55 @@ variable "grafana_cloud_tempo_user" {
   type        = string
   description = "Grafana Cloud Tempo username (Instance ID)"
 }
+
+# ============================================================================
+# Ollama LLM Service Configuration
+# ============================================================================
+
+variable "ollama_helm_chart_version" {
+  type        = string
+  description = "Ollama Helm chart version"
+  default     = "0.30.0"
+}
+
+variable "ollama_image_tag" {
+  type        = string
+  description = "Ollama Docker image tag"
+  default     = "latest"
+}
+
+variable "ollama_default_model" {
+  type        = string
+  description = "Default LLM model to download on initialization"
+  default     = "phi3.5"
+}
+
+variable "ollama_storage_size" {
+  type        = string
+  description = "Persistent volume size for model storage"
+  default     = "20Gi"
+}
+
+variable "ollama_memory_request" {
+  type        = string
+  description = "Memory request for Ollama pod"
+  default     = "2Gi"
+}
+
+variable "ollama_memory_limit" {
+  type        = string
+  description = "Memory limit for Ollama pod"
+  default     = "8Gi"
+}
+
+variable "ollama_cpu_request" {
+  type        = string
+  description = "CPU request for Ollama pod"
+  default     = "500m"
+}
+
+variable "ollama_cpu_limit" {
+  type        = string
+  description = "CPU limit for Ollama pod"
+  default     = "4000m"
+}
