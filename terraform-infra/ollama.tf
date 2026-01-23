@@ -109,10 +109,10 @@ resource "helm_release" "ollama_staging" {
 # Output Ollama service endpoint
 output "ollama_service_endpoint" {
   description = "Ollama service endpoint for DataSeeder"
-  value       = "http://ollama-svc.${kubernetes_namespace.apps_staging.metadata[0].name}.svc.cluster.local:11434"
+  value       = "http://ollama.${kubernetes_namespace.apps_staging.metadata[0].name}.svc.cluster.local:11434"
 }
 
 output "ollama_api_url" {
   description = "Ollama API URL for chat completions"
-  value       = "http://ollama-svc.${kubernetes_namespace.apps_staging.metadata[0].name}.svc.cluster.local:11434/v1/chat/completions"
+  value       = "http://ollama.${kubernetes_namespace.apps_staging.metadata[0].name}.svc.cluster.local:11434/v1/chat/completions"
 }
