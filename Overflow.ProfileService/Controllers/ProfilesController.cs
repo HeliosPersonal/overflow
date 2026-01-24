@@ -76,38 +76,4 @@ public class ProfilesController(ProfileDbContext db) : ControllerBase
 
         return Ok(rows);
     }
-
-    /// <summary>
-    /// Create a new user profile.
-    /// If authenticated, uses the Keycloak user ID from the JWT token.
-    /// Otherwise, generates a new ID (for backward compatibility/testing).
-    /// </summary>
-    [HttpPost]
-    public async Task<ActionResult<UserProfile>> CreateProfile(CreateProfileDto dto)
-    {
-        // Get user ID from JWT token if authenticated
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        // Check if profile already exists
-        if (!string.IsNullOrEmpty(userId))
-        {
-            var existingProfile = await db.UserProfiles.FindAsync(userId);
-            if (existingProfile != null)
-            {
-                return Conflict(new { message = "Profile already exists for this user" });
-            }
-        }
-
-        var profile = new UserProfile
-        {
-            Id = userId ?? Guid.NewGuid().ToString(),
-            DisplayName = dto.DisplayName,
-            Description = dto.Description
-        };
-
-        db.UserProfiles.Add(profile);
-        await db.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetProfile), new { id = profile.Id }, profile);
-    }
 }
