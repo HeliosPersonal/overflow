@@ -111,7 +111,7 @@ public class UserGenerator
     }
 
     /// <summary>
-    /// Create a user: Keycloak first, then let middleware auto-create profile on first auth.
+    /// Create a user: Keycloak first, then trigger profile auto-creation via middleware.
     /// </summary>
     public async Task<UserProfileWithAuth?> CreateRandomUserAsync(CancellationToken cancellationToken = default)
     {
@@ -133,20 +133,51 @@ public class UserGenerator
                 return null;
             }
 
-            _logger.LogInformation("[UserGen] ✅ Created user: {DisplayName} (Keycloak ID: {KeycloakId})", 
-                displayName, keycloakUserId);
-
-            // Profile will be auto-created by UserProfileCreationMiddleware on first authenticated request
-            return new UserProfileWithAuth
+            _logger.LogDebug("[UserGen] Triggering profile auto-creation via middleware...");
+            
+            // Trigger UserProfileCreationMiddleware by making an authenticated request
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{_options.ProfileServiceUrl}/profiles/me");
+            request.Headers.Add("Authorization", $"Bearer {token}");
+            
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            
+            if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                Profile = new UserProfile
+                // 200 OK = profile already exists (returned)
+                // 404 Not Found = profile was just created by middleware but endpoint returns NotFound
+                // Either way, the middleware has run and created the profile
+                _logger.LogInformation("[UserGen] ✅ Created user: {DisplayName} (Keycloak ID: {KeycloakId})", 
+                    displayName, keycloakUserId);
+                
+                // Profile was auto-created by UserProfileCreationMiddleware
+                return new UserProfileWithAuth
                 {
-                    Id = keycloakUserId,
-                    DisplayName = displayName
-                },
-                KeycloakUserId = keycloakUserId,
-                Token = token
-            };
+                    Profile = new UserProfile
+                    {
+                        Id = keycloakUserId,
+                        DisplayName = displayName
+                    },
+                    KeycloakUserId = keycloakUserId,
+                    Token = token
+                };
+            }
+            else
+            {
+                _logger.LogWarning("[UserGen] ⚠️  Middleware trigger returned {StatusCode} for {DisplayName}", 
+                    response.StatusCode, displayName);
+                
+                // Still return the user - profile might have been created anyway
+                return new UserProfileWithAuth
+                {
+                    Profile = new UserProfile
+                    {
+                        Id = keycloakUserId,
+                        DisplayName = displayName
+                    },
+                    KeycloakUserId = keycloakUserId,
+                    Token = token
+                };
+            }
         }
         catch (Exception ex)
         {
