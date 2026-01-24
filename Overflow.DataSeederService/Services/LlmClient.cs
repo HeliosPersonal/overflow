@@ -40,7 +40,7 @@ public class LlmClient
                 new LlmMessage { role = "user", content = userPrompt }
             },
             temperature = 0.7,
-            max_tokens = 1000
+            max_tokens = 500
         };
 
         _logger.LogDebug("LLM Request - System: {SystemPrompt}, User: {UserPrompt}", 
@@ -117,16 +117,54 @@ public class LlmClient
 
     public async Task<string?> GenerateQuestionContentAsync(string title, string tag, CancellationToken cancellationToken = default)
     {
-        var systemPrompt = "You are a developer asking a technical question. Write a clear, detailed question body with code examples if relevant. Use markdown formatting.";
-        var userPrompt = $"Write the question body for this title: '{title}'. Topic: {tag}. Include context, what you've tried, and specific details. Keep it between 100-500 words.";
+        var systemPrompt = @"You are a developer asking a technical question. Write in HTML format compatible with TipTap editor.
+Use proper HTML tags: <p> for paragraphs, <code> for inline code, <pre><code> for code blocks, <strong> for bold, <em> for italic, <ul>/<ol>/<li> for lists.
+Keep it concise - maximum 10 sentences total.";
+        
+        var userPrompt = $@"Write the question body for this title: '{title}'. Topic: {tag}.
+
+Requirements:
+- Use HTML tags (p, code, pre, strong, em, ul, ol, li)
+- Maximum 10 sentences
+- Include:
+  1. Brief context (2-3 sentences)
+  2. What you've tried (2-3 sentences with code example if relevant)
+  3. Specific question (1-2 sentences)
+- Use <pre><code>...</code></pre> for code blocks
+- Use <code>...</code> for inline code
+
+Example structure:
+<p>I'm working on {tag} and facing an issue with...</p>
+<p>I've tried the following:</p>
+<pre><code>// code example</code></pre>
+<p>What's the best way to solve this?</p>";
         
         return await GenerateAsync(systemPrompt, userPrompt, cancellationToken);
     }
 
     public async Task<string?> GenerateAnswerAsync(string questionTitle, string questionContent, CancellationToken cancellationToken = default)
     {
-        var systemPrompt = "You are an experienced developer providing a helpful answer to a technical question. Be concise, accurate, and include code examples when relevant.";
-        var userPrompt = $"Answer this question:\n\nTitle: {questionTitle}\n\nContent: {questionContent}\n\nProvide a clear, helpful answer with code examples if appropriate. Keep it between 50-400 words.";
+        var systemPrompt = @"You are an experienced developer providing a helpful answer. Write in HTML format compatible with TipTap editor.
+Use proper HTML tags: <p> for paragraphs, <code> for inline code, <pre><code> for code blocks, <strong> for bold, <em> for italic, <ul>/<ol>/<li> for lists.
+Keep it concise - maximum 5 sentences total.";
+        
+        var userPrompt = $@"Answer this question:
+
+Title: {questionTitle}
+Content: {questionContent}
+
+Requirements:
+- Use HTML tags (p, code, pre, strong, em, ul, ol, li)
+- Maximum 5 sentences
+- Be clear and direct
+- Include code example only if essential
+- Use <pre><code>...</code></pre> for code blocks
+- Use <code>...</code> for inline code
+
+Example structure:
+<p>You can solve this by using <code>methodName()</code>.</p>
+<pre><code>// solution code</code></pre>
+<p>This approach works because...</p>";
         
         return await GenerateAsync(systemPrompt, userPrompt, cancellationToken);
     }
