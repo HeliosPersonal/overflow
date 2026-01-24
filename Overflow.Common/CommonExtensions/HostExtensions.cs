@@ -15,7 +15,7 @@ public static class HostExtensions
         var loggerFactory = services.GetRequiredService<ILoggerFactory>();
         var logger = loggerFactory.CreateLogger(typeof(HostExtensions));
 
-        logger.LogInformation(" Migration started for {Name}", typeof(TContext).Name);
+        logger.LogInformation("Migration started for {Name}", typeof(TContext).Name);
 
         try
         {
