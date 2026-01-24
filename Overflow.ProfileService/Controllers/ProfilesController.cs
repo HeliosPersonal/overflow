@@ -100,7 +100,7 @@ public class ProfilesController(ProfileDbContext db) : ControllerBase
 
         var profile = new UserProfile
         {
-            Id = userId ?? Guid.NewGuid().ToString(), // Use Keycloak ID or generate new
+            Id = userId ?? Guid.NewGuid().ToString(),
             DisplayName = dto.DisplayName,
             Description = dto.Description
         };

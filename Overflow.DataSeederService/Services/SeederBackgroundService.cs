@@ -48,7 +48,9 @@ public class SeederBackgroundService : BackgroundService
 
     private async Task SeedDataAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("=== Starting data seeding operation ===");
+        _logger.LogInformation("════════════════════════════════════════════════════════════════");
+        _logger.LogInformation("🌱 STARTING DATA SEEDING CYCLE");
+        _logger.LogInformation("════════════════════════════════════════════════════════════════");
 
         using var scope = _serviceProvider.CreateScope();
         
@@ -59,171 +61,256 @@ public class SeederBackgroundService : BackgroundService
         var authService = scope.ServiceProvider.GetRequiredService<AuthenticationService>();
         var llmClient = scope.ServiceProvider.GetRequiredService<LlmClient>();
 
-        // Step 1: Smart user pool management (max 1000 users)
-        _logger.LogInformation("Step 1: Managing user pool (max 1000 users)...");
-        var userPool = await userGenerator.GetOrCreateUserPoolAsync(cancellationToken);
-        
-        _logger.LogInformation("User pool size: {Count}/1000", userPool.Count);
-        
-        var allUsers = userPool;
-
-        if (allUsers.Count < 3)
+        try
         {
-            _logger.LogWarning("Not enough users to create realistic data. Need at least 3 users.");
-            return;
-        }
-
-        _logger.LogInformation("Total available users: {Count}", allUsers.Count);
-
-        // Step 2: Select a random user to ask a question
-        var asker = allUsers[Random.Shared.Next(allUsers.Count)];
-        _logger.LogInformation("Step 2: User '{DisplayName}' will ask a question", asker.Profile.DisplayName);
-
-        // Ensure we have a valid token (refresh if needed)
-        if (string.IsNullOrEmpty(asker.Token) && !string.IsNullOrEmpty(asker.KeycloakUserId))
-        {
-            asker.Token = await authService.GetUserTokenAsync(asker.KeycloakUserId, cancellationToken);
-        }
-
-        if (asker.Token == null)
-        {
-            _logger.LogWarning("Could not get authentication token for asker");
-            return;
-        }
-
-        // Step 3: Create a question
-        _logger.LogInformation("Step 3: Generating question...");
-        var question = await questionGenerator.CreateQuestionAsync(
-            asker.KeycloakUserId ?? asker.Profile.Id,
-            asker.Token,
-            cancellationToken);
-
-        if (question == null)
-        {
-            _logger.LogWarning("Failed to create question");
-            return;
-        }
-
-        _logger.LogInformation("Created question: '{Title}'", question.Title);
-
-        // Step 4: Wait a bit (realistic delay before answers come in)
-        var delaySeconds = Random.Shared.Next(5, 15);
-        _logger.LogInformation("Waiting {Seconds} seconds before generating answers...", delaySeconds);
-        await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
-
-        // Step 5: Select different users to answer (excluding the asker)
-        var potentialAnswerers = allUsers.Where(u => u.Profile.Id != asker.Profile.Id).ToList();
-        if (potentialAnswerers.Count == 0)
-        {
-            _logger.LogWarning("No users available to answer questions");
-            return;
-        }
-
-        var answerCount = Random.Shared.Next(_options.MinAnswersPerQuestion, _options.MaxAnswersPerQuestion + 1);
-        answerCount = Math.Min(answerCount, potentialAnswerers.Count);
-
-        var answerers = potentialAnswerers
-            .OrderBy(_ => Random.Shared.Next())
-            .Take(answerCount)
-            .ToList();
-
-        _logger.LogInformation("Step 5: Generating {Count} answers from different users...", answerCount);
-
-        var answerersWithTokens = new List<(string userId, string token)>();
-        foreach (var answerer in answerers)
-        {
-            // Ensure we have a valid token
-            if (string.IsNullOrEmpty(answerer.Token) && !string.IsNullOrEmpty(answerer.KeycloakUserId))
-            {
-                answerer.Token = await authService.GetUserTokenAsync(answerer.KeycloakUserId, cancellationToken);
-            }
-
-            if (answerer.Token != null)
-            {
-                answerersWithTokens.Add((answerer.KeycloakUserId ?? answerer.Profile.Id, answerer.Token));
-            }
-        }
-
-        var answers = await answerGenerator.CreateMultipleAnswersAsync(
-            question,
-            answerersWithTokens,
-            cancellationToken);
-
-        if (answers.Count == 0)
-        {
-            _logger.LogWarning("No answers were created");
-            return;
-        }
-
-        _logger.LogInformation("Created {Count} answers", answers.Count);
-
-        // Step 6: Determine which answer to accept
-        _logger.LogInformation("Step 6: Determining best answer to accept...");
-        
-        int bestAnswerIndex;
-        if (_options.EnableLlmGeneration && answers.Count > 1)
-        {
-            var answerContents = answers.Select(a => a.Content).ToList();
-            bestAnswerIndex = await llmClient.SelectBestAnswerAsync(
-                question.Title,
-                answerContents,
-                cancellationToken);
-        }
-        else
-        {
-            bestAnswerIndex = Random.Shared.Next(answers.Count);
-        }
-
-        var bestAnswer = answers[bestAnswerIndex];
-        
-        // Wait a bit before accepting (realistic delay)
-        await Task.Delay(Random.Shared.Next(3000, 8000), cancellationToken);
-
-        var accepted = await answerGenerator.AcceptAnswerAsync(
-            question.Id,
-            bestAnswer.Id,
-            asker.Token!,
-            cancellationToken);
-
-        if (accepted)
-        {
-            _logger.LogInformation("Accepted answer from user {UserId}", bestAnswer.UserId);
-        }
-
-        // Step 7: Add some votes from random users
-        if (_options.EnableVoting)
-        {
-            _logger.LogInformation("Step 7: Adding random votes...");
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 1: User Pool Management
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("📋 STEP 1: Managing User Pool (max 1000 users)");
+            _logger.LogInformation("─────────────────────────────────────────────────");
             
-            var voters = allUsers
-                .Where(u => u.Profile.Id != asker.Profile.Id && !answerersWithTokens.Any(a => a.userId == u.KeycloakUserId || a.userId == u.Profile.Id))
+            var userPool = await userGenerator.GetOrCreateUserPoolAsync(cancellationToken);
+            
+            if (userPool.Count < 3)
+            {
+                _logger.LogError("❌ STEP 1 FAILED: Not enough users ({Count}). Need at least 3 users.", userPool.Count);
+                return;
+            }
+
+            _logger.LogInformation("✅ STEP 1 COMPLETE: User pool ready with {Count} users", userPool.Count);
+            
+            var allUsers = userPool;
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 2: Select Question Asker
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("👤 STEP 2: Selecting Question Asker");
+            _logger.LogInformation("─────────────────────────────────────────────────");
+            
+            var asker = allUsers[Random.Shared.Next(allUsers.Count)];
+            _logger.LogInformation("Selected: {DisplayName} (Keycloak ID: {KeycloakId})", 
+                asker.Profile.DisplayName, asker.KeycloakUserId);
+
+            // Ensure we have a valid token (refresh if needed)
+            if (string.IsNullOrEmpty(asker.Token) && !string.IsNullOrEmpty(asker.KeycloakUserId))
+            {
+                _logger.LogDebug("Refreshing token for asker...");
+                asker.Token = await authService.GetUserTokenAsync(asker.KeycloakUserId, cancellationToken);
+            }
+
+            if (asker.Token == null)
+            {
+                _logger.LogError("❌ STEP 2 FAILED: Could not get authentication token for asker");
+                return;
+            }
+            
+            _logger.LogInformation("✅ STEP 2 COMPLETE: Asker ready with valid token");
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 3: Generate Question
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("❓ STEP 3: Generating Question");
+            _logger.LogInformation("─────────────────────────────────────────────────");
+            
+            var question = await questionGenerator.CreateQuestionAsync(
+                asker.KeycloakUserId ?? asker.Profile.Id,
+                asker.Token,
+                cancellationToken);
+
+            if (question == null)
+            {
+                _logger.LogError("❌ STEP 3 FAILED: Could not create question");
+                return;
+            }
+
+            _logger.LogInformation("✅ STEP 3 COMPLETE: Question created");
+            _logger.LogInformation("   📝 Title: {Title}", question.Title);
+            _logger.LogInformation("   🆔 ID: {Id}", question.Id);
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 4: Realistic Delay
+            // ═══════════════════════════════════════════════════════════════
+            var delaySeconds = Random.Shared.Next(5, 15);
+            _logger.LogInformation("");
+            _logger.LogInformation("⏳ STEP 4: Waiting {Seconds}s (realistic delay before answers)", delaySeconds);
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+            _logger.LogInformation("✅ STEP 4 COMPLETE");
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 5: Generate Answers
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("💬 STEP 5: Generating Answers");
+            _logger.LogInformation("─────────────────────────────────────────────────");
+            
+            var potentialAnswerers = allUsers.Where(u => u.Profile.Id != asker.Profile.Id).ToList();
+            if (potentialAnswerers.Count == 0)
+            {
+                _logger.LogError("❌ STEP 5 FAILED: No users available to answer (excluding asker)");
+                return;
+            }
+
+            var answerCount = Random.Shared.Next(_options.MinAnswersPerQuestion, _options.MaxAnswersPerQuestion + 1);
+            answerCount = Math.Min(answerCount, potentialAnswerers.Count);
+
+            var answerers = potentialAnswerers
                 .OrderBy(_ => Random.Shared.Next())
-                .Take(Random.Shared.Next(2, Math.Min(8, allUsers.Count)))
+                .Take(answerCount)
                 .ToList();
 
-            var votersWithTokens = new List<(string userId, string token)>();
-            foreach (var voter in voters)
+            _logger.LogInformation("Selected {Count} answerers:", answerCount);
+
+            var answerersWithTokens = new List<(string userId, string token)>();
+            foreach (var answerer in answerers)
             {
-                // Ensure we have a valid token
-                if (string.IsNullOrEmpty(voter.Token) && !string.IsNullOrEmpty(voter.KeycloakUserId))
+                // Ensure we have a valid token - always refresh to avoid expiration
+                if (!string.IsNullOrEmpty(answerer.KeycloakUserId))
                 {
-                    voter.Token = await authService.GetUserTokenAsync(voter.KeycloakUserId, cancellationToken);
+                    _logger.LogDebug("Refreshing token for user {DisplayName} (Keycloak ID: {KeycloakId})", 
+                        answerer.Profile.DisplayName, answerer.KeycloakUserId);
+                    answerer.Token = await authService.GetUserTokenAsync(answerer.KeycloakUserId, cancellationToken);
                 }
 
-                if (voter.Token != null)
+                if (answerer.Token != null)
                 {
-                    votersWithTokens.Add((voter.KeycloakUserId ?? voter.Profile.Id, voter.Token));
+                    answerersWithTokens.Add((answerer.KeycloakUserId ?? answerer.Profile.Id, answerer.Token));
+                    _logger.LogInformation("   👤 {DisplayName} (ready)", answerer.Profile.DisplayName);
+                }
+                else
+                {
+                    _logger.LogWarning("   ⚠️  {DisplayName} (no valid token, skipping)", answerer.Profile.DisplayName);
                 }
             }
 
-            await votingService.RandomlyVoteOnContentAsync(
-                question,
-                answers,
-                votersWithTokens,
-                cancellationToken);
-        }
+            if (answerersWithTokens.Count == 0)
+            {
+                _logger.LogError("❌ STEP 5 FAILED: No answerers have valid tokens");
+                return;
+            }
 
-        _logger.LogInformation("=== Seeding operation completed successfully ===");
+            var answers = await answerGenerator.CreateMultipleAnswersAsync(
+                question,
+                answerersWithTokens,
+                cancellationToken);
+
+            if (answers.Count == 0)
+            {
+                _logger.LogError("❌ STEP 5 FAILED: No answers were created");
+                return;
+            }
+
+            _logger.LogInformation("✅ STEP 5 COMPLETE: Created {Count} answer(s)", answers.Count);
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 6: Select Best Answer
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("🏆 STEP 6: Selecting Best Answer");
+            _logger.LogInformation("─────────────────────────────────────────────────");
+            
+            int bestAnswerIndex;
+            if (_options.EnableLlmGeneration && answers.Count > 1)
+            {
+                _logger.LogInformation("Using LLM to select best answer...");
+                var answerContents = answers.Select(a => a.Content).ToList();
+                bestAnswerIndex = await llmClient.SelectBestAnswerAsync(
+                    question.Title,
+                    answerContents,
+                    cancellationToken);
+            }
+            else
+            {
+                bestAnswerIndex = Random.Shared.Next(answers.Count);
+                _logger.LogInformation("Randomly selected answer {Index}", bestAnswerIndex);
+            }
+
+            var bestAnswer = answers[bestAnswerIndex];
+            
+            // Wait a bit before accepting (realistic delay)
+            var acceptDelay = Random.Shared.Next(3, 8);
+            _logger.LogInformation("Waiting {Seconds}s before accepting answer...", acceptDelay);
+            await Task.Delay(TimeSpan.FromSeconds(acceptDelay), cancellationToken);
+
+            _logger.LogInformation("✅ STEP 6 COMPLETE: Best answer selected (Index: {Index})", bestAnswerIndex);
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 7: Accept Answer
+            // ═══════════════════════════════════════════════════════════════
+            _logger.LogInformation("");
+            _logger.LogInformation("✅ STEP 7: Accepting Best Answer");
+            _logger.LogInformation("─────────────────────────────────────────────────");
+
+            var accepted = await answerGenerator.AcceptAnswerAsync(
+                question.Id,
+                bestAnswer.Id,
+                asker.Token!,
+                cancellationToken);
+
+            if (accepted)
+            {
+                _logger.LogInformation("✅ STEP 7 COMPLETE: Answer accepted by {DisplayName}", asker.Profile.DisplayName);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️  STEP 7 WARNING: Failed to accept answer (not critical)");
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // STEP 8: Add Random Votes
+            // ═══════════════════════════════════════════════════════════════
+            if (_options.EnableVoting)
+            {
+                _logger.LogInformation("");
+                _logger.LogInformation("🗳️  STEP 8: Adding Random Votes");
+                _logger.LogInformation("─────────────────────────────────────────────────");
+                
+                var voters = allUsers
+                    .Where(u => u.Profile.Id != asker.Profile.Id && !answerersWithTokens.Any(a => a.userId == u.KeycloakUserId || a.userId == u.Profile.Id))
+                    .OrderBy(_ => Random.Shared.Next())
+                    .Take(Random.Shared.Next(2, Math.Min(8, allUsers.Count)))
+                    .ToList();
+
+                _logger.LogInformation("Selected {Count} voters", voters.Count);
+
+                var votersWithTokens = new List<(string userId, string token)>();
+                foreach (var voter in voters)
+                {
+                    // Ensure we have a valid token
+                    if (string.IsNullOrEmpty(voter.Token) && !string.IsNullOrEmpty(voter.KeycloakUserId))
+                    {
+                        voter.Token = await authService.GetUserTokenAsync(voter.KeycloakUserId, cancellationToken);
+                    }
+
+                    if (voter.Token != null)
+                    {
+                        votersWithTokens.Add((voter.KeycloakUserId ?? voter.Profile.Id, voter.Token));
+                    }
+                }
+
+                await votingService.RandomlyVoteOnContentAsync(
+                    question,
+                    answers,
+                    votersWithTokens,
+                    cancellationToken);
+                
+                _logger.LogInformation("✅ STEP 8 COMPLETE: Votes added");
+            }
+
+            _logger.LogInformation("");
+            _logger.LogInformation("════════════════════════════════════════════════════════════════");
+            _logger.LogInformation("🎉 SEEDING CYCLE COMPLETED SUCCESSFULLY");
+            _logger.LogInformation("════════════════════════════════════════════════════════════════");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("");
+            _logger.LogError("════════════════════════════════════════════════════════════════");
+            _logger.LogError(ex, "💥 SEEDING CYCLE FAILED");
+            _logger.LogError("════════════════════════════════════════════════════════════════");
+        }
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

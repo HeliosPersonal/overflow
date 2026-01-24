@@ -11,7 +11,17 @@ public class UserProfileCreationMiddleware(RequestDelegate next)
         if (context.User.Identity?.IsAuthenticated is true)
         {
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var name = context.User.FindFirstValue("name");
+            
+            // Extract name from Keycloak JWT token claims
+            var givenName = context.User.FindFirstValue("given_name") ?? "";
+            var familyName = context.User.FindFirstValue("family_name") ?? "";
+            var fullName = $"{givenName} {familyName}".Trim();
+            
+            var name = context.User.FindFirstValue("name")
+                       ?? context.User.FindFirstValue(ClaimTypes.Name)
+                       ?? (!string.IsNullOrWhiteSpace(fullName) ? fullName : null)
+                       ?? context.User.FindFirstValue("preferred_username")
+                       ?? "Unnamed";
 
             if (userId is not null)
             {
@@ -21,7 +31,7 @@ public class UserProfileCreationMiddleware(RequestDelegate next)
                     var newProfile = new UserProfile
                     {
                         Id = userId,
-                        DisplayName = name ?? "Unnamed",
+                        DisplayName = name,
                     };
                     
                     db.UserProfiles.Add(newProfile);

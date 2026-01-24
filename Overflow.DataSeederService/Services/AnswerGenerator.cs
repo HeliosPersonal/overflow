@@ -72,7 +72,9 @@ public class AnswerGenerator
                 return answer;
             }
 
-            _logger.LogWarning("Failed to create answer: {StatusCode}", response.StatusCode);
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning("Failed to create answer: {StatusCode} - {Error}", 
+                response.StatusCode, errorContent);
             return null;
         }
         catch (Exception ex)
