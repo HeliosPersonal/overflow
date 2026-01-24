@@ -12,6 +12,9 @@ public class UserGenerator
     private readonly AuthenticationService _authService;
     private readonly ILogger<UserGenerator> _logger;
     private readonly Faker _faker;
+    private const int MaxUserPoolSize = 1000;
+    private const int MinUsersForSeeding = 10;
+    private List<UserProfileWithAuth>? _cachedUserPool;
 
     public UserGenerator(
         HttpClient httpClient, 
@@ -24,6 +27,109 @@ public class UserGenerator
         _authService = authService;
         _logger = logger;
         _faker = new Faker();
+    }
+
+    /// <summary>
+    /// Smart user pool management: maintains a pool of up to 1000 users.
+    /// Reuses existing users from the profile service and only creates new ones when needed.
+    /// </summary>
+    public async Task<List<UserProfileWithAuth>> GetOrCreateUserPoolAsync(CancellationToken cancellationToken = default)
+    {
+        // If we have cached pool and it's reasonably sized, return it
+        if (_cachedUserPool != null && _cachedUserPool.Count >= MinUsersForSeeding)
+        {
+            _logger.LogInformation("Using cached user pool with {Count} users", _cachedUserPool.Count);
+            return _cachedUserPool;
+        }
+
+        try
+        {
+            // Fetch existing profiles from Profile Service
+            var response = await _httpClient.GetAsync(
+                $"{_options.ProfileServiceUrl}/profiles?take={MaxUserPoolSize}", 
+                cancellationToken);
+
+            List<UserProfile> existingProfiles = new();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                existingProfiles = await response.Content.ReadFromJsonAsync<List<UserProfile>>(cancellationToken) 
+                                   ?? new List<UserProfile>();
+                _logger.LogInformation("Found {Count} existing profiles in Profile Service", existingProfiles.Count);
+            }
+
+            var userPool = new List<UserProfileWithAuth>();
+
+            // Create Keycloak users + tokens for existing profiles (up to 100 to avoid overwhelming the system)
+            var profilesToAuth = existingProfiles.Take(100).ToList();
+            foreach (var profile in profilesToAuth)
+            {
+                var (keycloakUserId, token) = await _authService.CreateKeycloakUserAndGetTokenAsync(
+                    profile.DisplayName, 
+                    cancellationToken);
+
+                userPool.Add(new UserProfileWithAuth
+                {
+                    Profile = profile,
+                    KeycloakUserId = keycloakUserId ?? profile.Id,
+                    Token = token
+                });
+            }
+
+            // Calculate how many new users we need to create
+            int currentPoolSize = existingProfiles.Count;
+            int usersNeeded = 0;
+
+            if (currentPoolSize < MinUsersForSeeding)
+            {
+                // We need at least MinUsersForSeeding users to start
+                usersNeeded = MinUsersForSeeding - currentPoolSize;
+                _logger.LogInformation("Pool too small ({Current} users), creating {ToCreate} new users to reach minimum", 
+                    currentPoolSize, usersNeeded);
+            }
+            else if (currentPoolSize < MaxUserPoolSize)
+            {
+                // Gradually grow the pool - add 5-20 users each time until we reach max
+                usersNeeded = Random.Shared.Next(5, Math.Min(21, MaxUserPoolSize - currentPoolSize + 1));
+                _logger.LogInformation("Growing user pool from {Current} to {Target} (max {Max})", 
+                    currentPoolSize, currentPoolSize + usersNeeded, MaxUserPoolSize);
+            }
+            else
+            {
+                _logger.LogInformation("User pool at maximum capacity ({Count}/{Max}), reusing existing users", 
+                    currentPoolSize, MaxUserPoolSize);
+            }
+
+            // Create new users if needed
+            if (usersNeeded > 0)
+            {
+                _logger.LogInformation("Creating {Count} new users...", usersNeeded);
+                var newUsers = await CreateMultipleUsersAsync(usersNeeded, cancellationToken);
+                userPool.AddRange(newUsers);
+                _logger.LogInformation("Successfully created {Count} new users", newUsers.Count);
+            }
+
+            // Cache the pool for this seeding cycle
+            _cachedUserPool = userPool;
+
+            _logger.LogInformation("User pool ready with {Count} users ({Existing} existing + {New} new)", 
+                userPool.Count, profilesToAuth.Count, usersNeeded);
+
+            return userPool;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error managing user pool");
+            
+            // Fallback: create minimum required users
+            if (_cachedUserPool == null || _cachedUserPool.Count < MinUsersForSeeding)
+            {
+                _logger.LogWarning("Falling back to creating {Count} new users", MinUsersForSeeding);
+                _cachedUserPool = await CreateMultipleUsersAsync(MinUsersForSeeding, cancellationToken);
+            }
+            
+            return _cachedUserPool;
+        }
     }
 
     /// <summary>

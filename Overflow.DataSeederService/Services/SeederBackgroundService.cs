@@ -59,19 +59,13 @@ public class SeederBackgroundService : BackgroundService
         var authService = scope.ServiceProvider.GetRequiredService<AuthenticationService>();
         var llmClient = scope.ServiceProvider.GetRequiredService<LlmClient>();
 
-        // Step 1: Get existing users or create new ones
-        _logger.LogInformation("Step 1: Managing users...");
-        var existingUsers = await userGenerator.GetExistingUsersAsync(50, cancellationToken);
+        // Step 1: Smart user pool management (max 1000 users)
+        _logger.LogInformation("Step 1: Managing user pool (max 1000 users)...");
+        var userPool = await userGenerator.GetOrCreateUserPoolAsync(cancellationToken);
         
-        var usersToCreate = Random.Shared.Next(_options.MinUsersToGenerate, _options.MaxUsersToGenerate + 1);
-        if (existingUsers.Count < 5)
-        {
-            // If we have very few users, create more
-            usersToCreate = Math.Max(usersToCreate, 5);
-        }
-
-        var newUsers = await userGenerator.CreateMultipleUsersAsync(usersToCreate, cancellationToken);
-        var allUsers = existingUsers.Concat(newUsers).ToList();
+        _logger.LogInformation("User pool size: {Count}/1000", userPool.Count);
+        
+        var allUsers = userPool;
 
         if (allUsers.Count < 3)
         {
