@@ -33,7 +33,6 @@ export default function RootLayout({
                      <TrendingTags />
                      <TopUsers />
                  </div>
-                
               </aside>
           </div>
       </Providers>
