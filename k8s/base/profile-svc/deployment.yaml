@@ -47,6 +47,8 @@ spec:
                 secretKeyRef:
                   name: infisical-credentials
                   key: INFISICAL_CLIENT_SECRET
+            
+            # Disable file watching to avoid inotify limits
             - name: DOTNET_USE_POLLING_FILE_WATCHER
               value: "true"
           livenessProbe:

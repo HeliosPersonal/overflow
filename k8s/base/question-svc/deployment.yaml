@@ -1,3 +1,10 @@
+# ====================================================================================
+# QUESTION SERVICE - Deployment
+# ====================================================================================
+# Manages questions, answers, tags, and related CRUD operations
+# Part of the Overflow microservices backend
+# ====================================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,6 +32,7 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            # ASP.NET Core configuration
             - name: ASPNETCORE_HTTP_PORTS
               value: "8080"
             - name: ASPNETCORE_ENVIRONMENT
@@ -32,7 +40,8 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            # Infisical credentials - all other secrets loaded from Infisical
+            
+            # Infisical credentials for centralized secrets management
             - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
@@ -48,6 +57,7 @@ spec:
                 secretKeyRef:
                   name: infisical-credentials
                   key: INFISICAL_CLIENT_SECRET
+            
             # Disable file watching to avoid inotify limits
             - name: DOTNET_USE_POLLING_FILE_WATCHER
               value: "true"

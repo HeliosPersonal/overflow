@@ -1,3 +1,10 @@
+# ====================================================================================
+# OVERFLOW WEB APPLICATION - Deployment
+# ====================================================================================
+# Next.js frontend application with server-side rendering
+# Provides the user interface for the Overflow platform
+# ====================================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,13 +32,15 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
+            # Node.js environment configuration
             - name: NODE_ENV
               value: "production"
             - name: APP_ENV
               value: "production"
             - name: PORT
               value: "3000"
-            # Infisical credentials - all config and secrets loaded from Infisical at build/runtime
+            
+            # Infisical credentials for configuration and secrets loading
             - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:

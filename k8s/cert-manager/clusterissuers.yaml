@@ -1,7 +1,11 @@
-﻿---
-# Let's Encrypt Staging ClusterIssuer
-# Use for testing to avoid rate limits
-# Certificates from staging are NOT trusted by browsers
+﻿# ====================================================================================
+# LET'S ENCRYPT CLUSTER ISSUERS
+# ====================================================================================
+# Defines ClusterIssuers for automatic SSL/TLS certificate provisioning
+# Staging issuer for testing, Production issuer for live domains
+# ====================================================================================
+
+# Staging ClusterIssuer - for testing (high rate limits, untrusted certificates)
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -16,9 +20,9 @@ spec:
       - http01:
           ingress:
             class: nginx
+
 ---
-# Let's Encrypt Production ClusterIssuer
-# Use for production - rate limited to 50 certs/week per domain
+# Production ClusterIssuer - for live domains (rate limited: 50 certs/week per domain)
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

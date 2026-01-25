@@ -1,8 +1,11 @@
-# Staging Application Ingress
-# Routes external traffic to all services via staging domain
+# ====================================================================================
+# STAGING INGRESS - Traffic Routing
+# ====================================================================================
+# Routes external traffic to all services in staging environment
+# Domain: staging.devoverflow.org + overflow-api-staging.helios (internal)
+# ====================================================================================
 
----
-# Question Service: /api/questions -> question-svc:8080/questions
+# Question Service - routes /api/questions/* to question-svc
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

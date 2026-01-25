@@ -1,3 +1,10 @@
+# ====================================================================================
+# VOTE SERVICE - Deployment
+# ====================================================================================
+# Manages upvotes/downvotes for questions and answers
+# Handles vote validation and reputation calculation
+# ====================================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,6 +32,7 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            # ASP.NET Core configuration
             - name: ASPNETCORE_HTTP_PORTS
               value: "8080"
             - name: ASPNETCORE_ENVIRONMENT
@@ -32,7 +40,8 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            # Infisical credentials - all other secrets loaded from Infisical
+            
+            # Infisical credentials for centralized secrets management
             - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
