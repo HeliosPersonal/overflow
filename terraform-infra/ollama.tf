@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 # Ollama LLM Service - Helm Chart Deployment
 # Provides local LLM inference for DataSeeder service
 # ============================================================================
@@ -9,18 +9,18 @@ resource "local_file" "ollama_values" {
   content  = <<-EOT
     # Ollama Helm Chart Values
     # Managed by Terraform
-    
+
     image:
       repository: ollama/ollama
       tag: ${var.ollama_image_tag}
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       port: 11434
       targetPort: 11434
       name: ollama-svc
-    
+
     resources:
       requests:
         memory: ${var.ollama_memory_request}
@@ -28,30 +28,24 @@ resource "local_file" "ollama_values" {
       limits:
         memory: ${var.ollama_memory_limit}
         cpu: ${var.ollama_cpu_limit}
-    
+
     persistence:
       enabled: true
       size: ${var.ollama_storage_size}
       storageClass: ""  # Use default storage class
       accessMode: ReadWriteOnce
-    
+
     # Environment variables
     env:
       - name: OLLAMA_HOST
         value: "0.0.0.0:11434"
-      - name: OLLAMA_KEEP_ALIVE
-        value: "24h"
-      - name: OLLAMA_MAX_LOADED_MODELS
-        value: "1"
-      - name: OLLAMA_NUM_PARALLEL
-        value: "2"
-    
+
     # Init container to pull model
     initModels:
       enabled: true
       models:
         - ${var.ollama_default_model}
-    
+
     livenessProbe:
       enabled: true
       httpGet:
@@ -60,7 +54,7 @@ resource "local_file" "ollama_values" {
       initialDelaySeconds: 30
       periodSeconds: 10
       timeoutSeconds: 5
-    
+
     readinessProbe:
       enabled: true
       httpGet:
@@ -79,7 +73,7 @@ resource "null_resource" "ollama_repo" {
   }
 
   triggers = {
-    always_run = timestamp()
+    chart_version = var.ollama_helm_chart_version
   }
 }
 

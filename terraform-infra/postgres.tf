@@ -1,7 +1,12 @@
-﻿############################
-# POSTGRES (Bitnami)
-############################
+# ====================================================================================
+# POSTGRESQL DATABASES
+# ====================================================================================
+# Deploys PostgreSQL databases for staging and production environments
+# Uses Bitnami PostgreSQL Helm chart with persistent storage
+# ====================================================================================
 
+# PostgreSQL for staging environment
+# Stores staging application data with local-path persistent storage
 resource "helm_release" "postgres_staging" {
   name             = "postgres-staging"
   namespace        = kubernetes_namespace.infra_staging.metadata[0].name
@@ -12,6 +17,7 @@ resource "helm_release" "postgres_staging" {
 
   depends_on = [kubernetes_namespace.infra_staging]
 
+  # Database authentication (password stored in terraform.secret.tfvars)
   set_sensitive {
     name  = "auth.postgresPassword"
     value = var.pg_staging_password
@@ -27,6 +33,7 @@ resource "helm_release" "postgres_staging" {
     value = "stagingdb"
   }
 
+  # Persistent storage configuration
   set {
     name  = "primary.persistence.size"
     value = "10Gi"
@@ -43,6 +50,8 @@ resource "helm_release" "postgres_staging" {
   }
 }
 
+# PostgreSQL for production environment
+# Stores production application data with local-path persistent storage
 resource "helm_release" "postgres_production" {
   name             = "postgres-production"
   namespace        = kubernetes_namespace.infra_production.metadata[0].name
@@ -53,6 +62,7 @@ resource "helm_release" "postgres_production" {
 
   depends_on = [kubernetes_namespace.infra_production]
 
+  # Database authentication (password stored in terraform.secret.tfvars)
   set_sensitive {
     name  = "auth.postgresPassword"
     value = var.pg_production_password
@@ -68,6 +78,7 @@ resource "helm_release" "postgres_production" {
     value = "productiondb"
   }
 
+  # Persistent storage configuration
   set {
     name  = "primary.persistence.size"
     value = "10Gi"

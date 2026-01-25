@@ -1,12 +1,11 @@
-﻿# ========================================
-# CERT-MANAGER & LET'S ENCRYPT SSL
-# ========================================
-# Automates SSL/TLS certificate management for Kubernetes ingress
-# Uses Let's Encrypt as the certificate authority
+# ====================================================================================
+# CERT-MANAGER - Automated TLS Certificate Management
+# ====================================================================================
+# Manages SSL/TLS certificates for Kubernetes Ingress resources
+# Automates certificate provisioning and renewal using Let's Encrypt
+# ====================================================================================
 
-############################
-# CERT-MANAGER NAMESPACE
-############################
+# Namespace for cert-manager components
 resource "kubernetes_namespace" "cert_manager" {
   metadata {
     name = "cert-manager"
@@ -16,11 +15,8 @@ resource "kubernetes_namespace" "cert_manager" {
   }
 }
 
-############################
-# CERT-MANAGER INSTALLATION
-############################
-# Installs cert-manager via Helm chart
-# cert-manager automatically provisions and manages TLS certificates
+# Deploy cert-manager using Helm chart
+# Automatically manages certificate lifecycle (creation, renewal, rotation)
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   namespace        = kubernetes_namespace.cert_manager.metadata[0].name
@@ -29,20 +25,22 @@ resource "helm_release" "cert_manager" {
   version          = "v1.19.0"
   create_namespace = false
 
+  # Install Custom Resource Definitions for Certificate resources
   set {
     name  = "installCRDs"
     value = "true"
   }
 
+  # Configure leader election for high availability
   set {
     name  = "global.leaderElection.namespace"
     value = kubernetes_namespace.cert_manager.metadata[0].name
   }
 }
 
-############################
-# CLUSTER ISSUERS
-############################
-# ClusterIssuers must be applied AFTER cert-manager is installed
-# Deploy them using: kubectl apply -f k8s/cert-manager/
-# See k8s/cert-manager/clusterissuers.yaml
+# ====================================================================================
+# NOTE: ClusterIssuers for Let's Encrypt
+# ====================================================================================
+# ClusterIssuers must be deployed AFTER cert-manager is running
+# Apply them separately using: kubectl apply -f k8s/cert-manager/clusterissuers.yaml
+# ====================================================================================

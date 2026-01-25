@@ -1,4 +1,11 @@
-﻿variable "kubeconfig_path" {
+# ====================================================================================
+# TERRAFORM VARIABLES
+# ====================================================================================
+# Variable definitions for configurable infrastructure parameters
+# Actual values are set in terraform.tfvars and terraform.secret.tfvars
+# ====================================================================================
+
+variable "kubeconfig_path" {
   type        = string
   default     = "~/.kube/config"
   description = "Path to kubeconfig for k3s cluster."
@@ -129,7 +136,7 @@ variable "ollama_image_tag" {
 variable "ollama_default_model" {
   type        = string
   description = "Default LLM model to download on initialization"
-  default     = "phi3.5"
+  default     = "phi3.5:mini"
 }
 
 variable "ollama_storage_size" {

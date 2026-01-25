@@ -1,7 +1,12 @@
-﻿############################
-# KEYCLOAK (cloudpirates / OCI)
-############################
+# ====================================================================================
+# KEYCLOAK - Identity and Access Management
+# ====================================================================================
+# Deploys Keycloak authentication server for user management and SSO
+# Includes embedded PostgreSQL database for Keycloak data storage
+# ====================================================================================
 
+# Keycloak authentication server for production environment
+# Provides OAuth2/OIDC authentication, user management, and SSO capabilities
 resource "helm_release" "keycloak" {
   name             = "keycloak"
   namespace        = kubernetes_namespace.infra_production.metadata[0].name
@@ -11,6 +16,7 @@ resource "helm_release" "keycloak" {
 
   depends_on = [kubernetes_namespace.infra_production]
 
+  # Admin user configuration
   set {
     name  = "keycloak.adminUser"
     value = var.keycloak_admin_user
@@ -21,7 +27,7 @@ resource "helm_release" "keycloak" {
     value = var.keycloak_admin_password
   }
 
-  # Enable embedded PostgreSQL database
+  # Embedded PostgreSQL database for Keycloak data persistence
   set {
     name  = "postgres.enabled"
     value = "true"
@@ -42,31 +48,31 @@ resource "helm_release" "keycloak" {
     value = var.keycloak_postgres_password
   }
 
-  # Enable metrics endpoint
+  # Enable Prometheus metrics endpoint for monitoring
   set {
     name  = "keycloak.metrics.enabled"
     value = "true"
   }
 
-  # Production mode configuration (based on official chart example)
+  # Production mode configuration
   set {
     name  = "keycloak.production"
     value = "true"
   }
 
-  # Set public hostname (this sets BOTH frontend and admin URLs automatically)
+  # Public hostname configuration (sets both frontend and admin URLs)
   set {
     name  = "keycloak.hostname"
     value = "keycloak.devoverflow.org"
   }
 
-  # Disable strict hostname checking to allow flexible hostname resolution
+  # Disable strict hostname checking for flexible resolution
   set {
     name  = "keycloak.hostnameStrict"
     value = "false"
   }
 
-  # CRITICAL: Enable proxy headers to trust X-Forwarded-* headers from nginx
+  # Trust X-Forwarded-* headers from nginx ingress controller
   set {
     name  = "keycloak.proxyHeaders"
     value = "xforwarded"

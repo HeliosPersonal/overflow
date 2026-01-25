@@ -1,4 +1,10 @@
-﻿terraform {
+# ====================================================================================
+# TERRAFORM PROVIDER CONFIGURATION
+# ====================================================================================
+# Configures required providers and their versions for infrastructure management
+# ====================================================================================
+
+terraform {
   required_providers {
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -19,10 +25,12 @@
   }
 }
 
+# Kubernetes provider configuration using kubeconfig file
 provider "kubernetes" {
   config_path = var.kubeconfig_path
 }
 
+# Helm provider configuration for chart deployments
 provider "helm" {
   kubernetes {
     config_path = var.kubeconfig_path

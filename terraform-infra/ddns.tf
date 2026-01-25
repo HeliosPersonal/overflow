@@ -1,13 +1,12 @@
-﻿# ========================================
-# CLOUDFLARE DDNS CONFIGURATION
-# ========================================
-# Automatically updates Cloudflare DNS records with current public IP
-# Required for dynamic IP addresses from ISP
+# ====================================================================================
+# CLOUDFLARE DYNAMIC DNS (DDNS)
+# ====================================================================================
+# Automatically updates Cloudflare DNS records with current public IP address
+# Essential for home lab/self-hosted environments with dynamic IP from ISP
+# ====================================================================================
 
-############################
-# CLOUDFLARE API SECRET
-############################
-# Store your Cloudflare API token as a Kubernetes secret
+# Cloudflare API token stored as Kubernetes secret
+# Used by DDNS container to authenticate with Cloudflare API
 resource "kubernetes_secret" "cloudflare_api_token" {
   metadata {
     name      = "cloudflare-api-token"
@@ -21,9 +20,8 @@ resource "kubernetes_secret" "cloudflare_api_token" {
   type = "Opaque"
 }
 
-############################
-# CLOUDFLARE DDNS DEPLOYMENT
-############################
+# Cloudflare DDNS deployment
+# Runs continuously to monitor and update DNS records when IP changes
 resource "kubernetes_deployment" "cloudflare_ddns" {
   depends_on = [kubernetes_secret.cloudflare_api_token]
 
@@ -56,6 +54,7 @@ resource "kubernetes_deployment" "cloudflare_ddns" {
           name  = "cloudflare-ddns"
           image = "oznu/cloudflare-ddns:latest"
 
+          # Cloudflare API authentication
           env {
             name = "API_KEY"
             value_from {
@@ -66,23 +65,25 @@ resource "kubernetes_deployment" "cloudflare_ddns" {
             }
           }
 
+          # Target DNS zone
           env {
             name  = "ZONE"
             value = "devoverflow.org"
           }
 
+          # Subdomains to update (@ = root domain, comma-separated list)
           env {
-            name = "SUBDOMAIN"
-            # Comma-separated list of subdomains to update
-            # @ represents the root domain
+            name  = "SUBDOMAIN"
             value = "@,www,staging,keycloak"
           }
 
+          # Enable Cloudflare proxy (orange cloud icon) for DDoS protection
           env {
             name  = "PROXIED"
-            value = "true" # Enable Cloudflare proxy (orange cloud)
+            value = "true"
           }
 
+          # Minimal resource allocation for lightweight DNS update task
           resources {
             limits = {
               cpu    = "50m"
