@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Polly;
@@ -21,6 +22,9 @@ public static class WolverineExtensions
 
         if (!isEfDesignTime)
         {
+            using var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
+            var logger = loggerFactory.CreateLogger("RabbitMQConnection");
+            
             var retryPolicy = Policy
                 .Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
@@ -29,8 +33,8 @@ public static class WolverineExtensions
                     retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                     (exception, timespan, retryCount, _) =>
                     {
-                        Console.WriteLine(
-                            $"[RabbitMQ Retry] Attempt {retryCount} failed. Retrying in {timespan.TotalSeconds:F0}s: {exception.Message}");
+                        logger.LogWarning("RabbitMQ connection attempt {Attempt} failed, retrying in {Seconds}s: {Message}", 
+                            retryCount, timespan.TotalSeconds, exception.Message);
                     });
 
             await retryPolicy.ExecuteAsync(async () =>
@@ -43,6 +47,7 @@ public static class WolverineExtensions
                     Uri = new Uri(endpoint)
                 };
                 await using var connection = await factory.CreateConnectionAsync();
+                logger.LogInformation("RabbitMQ connection established successfully");
             });
         }
 

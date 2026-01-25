@@ -1,4 +1,4 @@
-﻿﻿using Overflow.SearchService.Options;
+﻿using Overflow.SearchService.Options;
 using Typesense.Setup;
 
 namespace Overflow.SearchService.Extensions;

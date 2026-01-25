@@ -43,7 +43,6 @@ await builder.UseWolverineWithRabbitMqAsync(opts =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
@@ -51,7 +50,6 @@ if (!app.Environment.IsProduction())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.MapDefaultEndpoints();

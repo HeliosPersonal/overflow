@@ -5,7 +5,7 @@ using Typesense;
 
 namespace Overflow.SearchService.MessageHandlers;
 
-public class QuestionCreatedHandler(ITypesenseClient client)
+public class QuestionCreatedHandler(ITypesenseClient client, ILogger<QuestionCreatedHandler> logger)
 {
     public async Task HandleAsync(QuestionCreated message)
     {
@@ -19,9 +19,10 @@ public class QuestionCreatedHandler(ITypesenseClient client)
             CreatedAt = created,
             Tags = message.Tags.ToArray(),
         };
-        await client.CreateDocument("questions", doc);
         
-        Console.WriteLine($"Created question with id {message.QuestionId}");
+        await client.CreateDocument("questions", doc);
+        logger.LogInformation("Indexed question in search: {QuestionId} with tags {Tags}", 
+            message.QuestionId, string.Join(", ", message.Tags));
     }
 
     private static string StripHtml(string content)

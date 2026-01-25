@@ -4,7 +4,7 @@ using Typesense;
 
 namespace Overflow.SearchService.MessageHandlers;
 
-public class QuestionUpdatedHandler(ITypesenseClient client)
+public class QuestionUpdatedHandler(ITypesenseClient client, ILogger<QuestionUpdatedHandler> logger)
 {
     public async Task HandleAsync(QuestionUpdated message)
     {
@@ -14,6 +14,8 @@ public class QuestionUpdatedHandler(ITypesenseClient client)
             Content = StripHtml(message.Content),
             Tags = message.Tags.ToArray(),
         });
+        
+        logger.LogDebug("Updated question in search index: {QuestionId}", message.QuestionId);
     }
     
     private static string StripHtml(string content)

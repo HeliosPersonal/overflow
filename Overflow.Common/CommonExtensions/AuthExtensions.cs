@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Overflow.Common.Options;
 
@@ -20,17 +21,15 @@ public static class AuthExtensions
             .BuildServiceProvider()
             .GetRequiredService<Microsoft.Extensions.Options.IOptions<KeycloakOptions>>().Value;
 
-        // Construct the authority URL from Url and Realm
         var authority = $"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}";
-        
-        // Determine if we should require HTTPS metadata based on the authority URL
         var requireHttpsMetadata = authority.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-        Console.WriteLine($"🔐 Configuring Keycloak Authentication:");
-        Console.WriteLine($"   Authority: {authority}");
-        Console.WriteLine($"   Audience: {keycloakOptions.Audience}");
-        Console.WriteLine($"   Require HTTPS Metadata: {requireHttpsMetadata}");
-        Console.WriteLine($"   Valid Issuers: {string.Join(", ", keycloakOptions.ValidIssuers)}");
+        using var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
+        var logger = loggerFactory.CreateLogger("KeycloakConfiguration");
+        
+        logger.LogInformation("Configuring Keycloak authentication: Authority={Authority}, Audience={Audience}, RequireHttps={RequireHttps}", 
+            authority, keycloakOptions.Audience, requireHttpsMetadata);
+        logger.LogDebug("Valid issuers: {ValidIssuers}", string.Join(", ", keycloakOptions.ValidIssuers));
 
         builder.Services
             .AddAuthentication()

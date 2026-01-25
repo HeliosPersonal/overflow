@@ -4,19 +4,19 @@ namespace Overflow.SearchService.Data;
 
 public static class SearchInitializer
 {
-    public static async Task EnsureIndexExists(ITypesenseClient client)
+    public static async Task EnsureIndexExists(ITypesenseClient client, ILogger? logger = null)
     {
         const string schemaName = "questions";
         
         try
         {
             await client.RetrieveCollection(schemaName);
-            Console.WriteLine($"Collection {schemaName} has been created already.");
+            logger?.LogDebug("Typesense collection already exists: {Collection}", schemaName);
             return;
         }
         catch (TypesenseApiNotFoundException)
         {
-            Console.WriteLine($"Collection {schemaName} has not been created yet.");
+            logger?.LogInformation("Creating Typesense collection: {Collection}", schemaName);
         }
 
         var schema = new Schema(schemaName, new List<Field>
@@ -34,6 +34,6 @@ public static class SearchInitializer
         };
         
         await client.CreateCollection(schema);
-        Console.WriteLine($"Collection {schemaName} has been created.");
+        logger?.LogInformation("Created Typesense collection: {Collection}", schemaName);
     }
 }

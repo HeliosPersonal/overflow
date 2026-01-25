@@ -4,7 +4,7 @@ using Overflow.QuestionService.Data;
 
 namespace Overflow.QuestionService.MessageHandlers;
 
-public class VoteCastedHandler(QuestionDbContext db)
+public class VoteCastedHandler(QuestionDbContext db, ILogger<VoteCastedHandler> logger)
 {
     public async Task Handle(VoteCasted message)
     {
@@ -14,14 +14,19 @@ public class VoteCastedHandler(QuestionDbContext db)
                 .Where(x => x.Id == message.TargetId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Votes, 
                     x => x.Votes + message.VoteValue));
+            
+            logger.LogDebug("Vote applied to question {QuestionId}: {VoteValue}", 
+                message.TargetId, message.VoteValue);
         }
-        
-        if (message.TargetType == "Answer")
+        else if (message.TargetType == "Answer")
         {
             await db.Answers
                 .Where(x => x.Id == message.TargetId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Votes, 
                     x => x.Votes + message.VoteValue));
+            
+            logger.LogDebug("Vote applied to answer {AnswerId}: {VoteValue}", 
+                message.TargetId, message.VoteValue);
         }
     }
 }

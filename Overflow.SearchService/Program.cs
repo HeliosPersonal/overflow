@@ -9,23 +9,18 @@ using Typesense;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddEnvVariablesAndConfigureSecrets();
-
-// Add services to the container.
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.Services.AddTypesenseConfiguration(builder.Configuration);
 
-// Add health checks
 builder.Services.AddHealthChecks()
     .AddTypesenseHealthCheck()
     .AddRabbitMqHealthCheck();
 
-// Add Wolverine with RabbitMQ
 await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -33,19 +28,24 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 
-app.MapGet("/search", async (string query, ITypesenseClient client) =>
+app.MapGet("/search", async (string query, ITypesenseClient client, ILogger<Program> logger) =>
 {
-    // [aspire]something
+    if (string.IsNullOrWhiteSpace(query))
+    {
+        logger.LogWarning("Search attempted with empty query");
+        return Results.BadRequest("Query parameter is required");
+    }
+
     string? tag = null;
     var tagMatch = Regex.Match(query, @"\[(.*?)\]");
     if (tagMatch.Success)
     {
         tag = tagMatch.Groups[1].Value;
         query = query.Replace(tagMatch.Value, "").Trim();
+        logger.LogDebug("Extracted tag filter: {Tag} from query", tag);
     }
 
     var searchParams = new SearchParameters(query, "title,content");
-
     if (!string.IsNullOrWhiteSpace(tag))
     {
         searchParams.FilterBy = $"tags:=[{tag}]";
@@ -54,26 +54,37 @@ app.MapGet("/search", async (string query, ITypesenseClient client) =>
     try
     {
         var result = await client.Search<SearchQuestion>("questions", searchParams);
+        logger.LogInformation("Search completed: query='{Query}', tag='{Tag}', found={Count}", 
+            query, tag, result.Found);
         return Results.Ok(result.Hits.Select(hit => hit.Document));
     }
-    catch (Exception e)
+    catch (Exception ex)
     {
-        return Results.Problem("Typesense search failed", e.Message);
+        logger.LogError(ex, "Typesense search failed for query: {Query}", query);
+        return Results.Problem("Search failed", ex.Message);
     }
 });
 
-app.MapGet("/search/similar-titles", async (string query, ITypesenseClient client) =>
+app.MapGet("/search/similar-titles", async (string query, ITypesenseClient client, ILogger<Program> logger) =>
 {
+    if (string.IsNullOrWhiteSpace(query))
+    {
+        logger.LogWarning("Similar titles search attempted with empty query");
+        return Results.BadRequest("Query parameter is required");
+    }
+
     var searchParams = new SearchParameters(query, "title");
 
     try
     {
         var result = await client.Search<SearchQuestion>("questions", searchParams);
+        logger.LogDebug("Similar titles search: query='{Query}', found={Count}", query, result.Found);
         return Results.Ok(result.Hits.Select(hit => hit.Document));
     }
-    catch (Exception e)
+    catch (Exception ex)
     {
-        return Results.Problem("Typesense search failed", e.Message);
+        logger.LogError(ex, "Similar titles search failed for query: {Query}", query);
+        return Results.Problem("Search failed", ex.Message);
     }
 });
 

@@ -11,16 +11,12 @@ using Overflow.StatsService.Projections;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddEnvVariablesAndConfigureSecrets();
-
-// Add services to the container.
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 
-// Add health checks
 builder.Services.AddHealthChecks()
     .AddRabbitMqHealthCheck();
 
-// Add Wolverine with RabbitMQ
 await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
 var connString = builder.Configuration.GetConnectionString("statDb")!;
@@ -29,7 +25,6 @@ await connString.EnsurePostgresDatabaseExistsAsync();
 builder.Services.AddMarten(opts =>
 {
     opts.Connection(connString);
-
     opts.Events.StreamIdentity = StreamIdentity.AsString;
     opts.Events.AddEventType<QuestionCreated>();
     opts.Events.AddEventType<UserReputationChanged>();
@@ -49,13 +44,12 @@ builder.Services.AddMarten(opts =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.MapGet("/stats/trending-tags", async (IQuerySession session) =>
+app.MapGet("/stats/trending-tags", async (IQuerySession session, ILogger<Program> logger) =>
 {
     var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
     var start = today.AddDays(-6);
@@ -72,10 +66,11 @@ app.MapGet("/stats/trending-tags", async (IQuerySession session) =>
         .Take(5)
         .ToList();
     
+    logger.LogDebug("Trending tags retrieved: {Count} tags over last 7 days", top.Count);
     return Results.Ok(top);
 });
 
-app.MapGet("/stats/top-users", async (IQuerySession session) =>
+app.MapGet("/stats/top-users", async (IQuerySession session, ILogger<Program> logger) =>
 {
     var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
     var start = today.AddDays(-6);
@@ -91,6 +86,7 @@ app.MapGet("/stats/top-users", async (IQuerySession session) =>
         .Take(5)
         .ToList();
 
+    logger.LogDebug("Top users retrieved: {Count} users by reputation delta over last 7 days", top.Count);
     return Results.Ok(top);
 });
 

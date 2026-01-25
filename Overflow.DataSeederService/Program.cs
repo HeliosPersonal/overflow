@@ -3,7 +3,6 @@ using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Services;
-using Overflow.ServiceDefaults;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -7,7 +7,7 @@ namespace Overflow.QuestionService.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class TagsController(QuestionDbContext db) : ControllerBase
+public class TagsController(QuestionDbContext db, ILogger<TagsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Tag>>> GetTags(string? sort)
@@ -16,8 +16,11 @@ public class TagsController(QuestionDbContext db) : ControllerBase
         
         query = sort == "popular"
             ? query.OrderByDescending(x => x.UsageCount).ThenBy(x => x.Name)
-                : query.OrderBy(x => x.Name);
+            : query.OrderBy(x => x.Name);
 
-        return await query.ToListAsync();
+        var tags = await query.ToListAsync();
+        logger.LogDebug("Retrieved {Count} tags, sorted by {SortBy}", tags.Count, sort ?? "name");
+        
+        return tags;
     }
 }
