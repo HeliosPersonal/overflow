@@ -34,7 +34,6 @@ public static class Extensions
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
             http.AddStandardResilienceHandler();
-
             http.AddServiceDiscovery();
         });
 
@@ -48,6 +47,14 @@ public static class Extensions
         {
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
+        });
+        
+        // Add TraceId, SpanId, and ParentId to all log entries for distributed tracing
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId 
+                | ActivityTrackingOptions.SpanId 
+                | ActivityTrackingOptions.ParentId;
         });
 
         builder.Services.AddOpenTelemetry()
@@ -252,3 +259,5 @@ public static class Extensions
         }
     }
 }
+
+
