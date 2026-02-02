@@ -67,23 +67,36 @@ resource "local_file" "ollama_values" {
 }
 
 # Add Ollama Helm repository
+# Using a separate step to ensure the repository is properly cached
 resource "null_resource" "ollama_repo" {
   provisioner "local-exec" {
-    command = "helm repo add ollama https://otwld.github.io/ollama-helm/ --force-update && helm repo update ollama"
+    command     = "helm repo add ollama https://otwld.github.io/ollama-helm/ --force-update; helm repo update"
+    interpreter = ["powershell", "-Command"]
   }
 
   triggers = {
-    chart_version = var.ollama_helm_chart_version
+    always_run = timestamp()  # Always refresh the repo cache
   }
 }
 
 # Deploy Ollama using Helm
+# Note: repository_url must match the exact URL used in helm repo add
 resource "helm_release" "ollama_staging" {
-  name       = "ollama"
-  repository = "https://otwld.github.io/ollama-helm/"
-  chart      = "ollama"
-  version    = var.ollama_helm_chart_version
-  namespace  = kubernetes_namespace.apps_staging.metadata[0].name
+  name             = "ollama"
+  repository       = "https://otwld.github.io/ollama-helm/"
+  chart            = "ollama"
+  version          = var.ollama_helm_chart_version
+  namespace        = kubernetes_namespace.apps_staging.metadata[0].name
+  
+  # Force recreation if values change significantly
+  recreate_pods    = true
+  cleanup_on_fail  = true
+  replace          = false
+  
+  # Wait for deployment to be ready
+  wait             = true
+  wait_for_jobs    = true
+  timeout          = 600
 
   values = [
     local_file.ollama_values.content

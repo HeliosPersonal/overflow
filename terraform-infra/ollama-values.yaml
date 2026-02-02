@@ -1,17 +1,17 @@
 # Ollama Helm Chart Values
 # Managed by Terraform
-    
+
 image:
   repository: ollama/ollama
   tag: latest
   pullPolicy: IfNotPresent
-    
+
 service:
   type: ClusterIP
   port: 11434
   targetPort: 11434
   name: ollama-svc
-    
+
 resources:
   requests:
     memory: 2Gi
@@ -19,24 +19,24 @@ resources:
   limits:
     memory: 8Gi
     cpu: 4000m
-    
+
 persistence:
   enabled: true
   size: 20Gi
   storageClass: ""  # Use default storage class
   accessMode: ReadWriteOnce
-    
+
 # Environment variables
 env:
   - name: OLLAMA_HOST
     value: "0.0.0.0:11434"
-    
+
 # Init container to pull model
 initModels:
   enabled: true
   models:
     - phi3.5:mini
-    
+
 livenessProbe:
   enabled: true
   httpGet:
@@ -45,7 +45,7 @@ livenessProbe:
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
-    
+
 readinessProbe:
   enabled: true
   httpGet:
