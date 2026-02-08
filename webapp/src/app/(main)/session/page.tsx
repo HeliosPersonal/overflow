@@ -1,5 +1,5 @@
-import ErrorButtons from "@/app/session/ErrorButtons";
-import AuthTestButton from "@/app/session/AuthTestButton";
+import ErrorButtons from "@/app/(main)/session/ErrorButtons";
+import AuthTestButton from "@/app/(main)/session/AuthTestButton";
 import {auth} from "@/auth";
 import {Snippet} from "@heroui/snippet";
 

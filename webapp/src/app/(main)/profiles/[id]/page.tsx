@@ -1,7 +1,7 @@
 import {getProfileById} from "@/lib/actions/profile-actions";
 import {notFound} from "next/navigation";
 import {handleError} from "@/lib/util";
-import ProfileDetailed from "@/app/profiles/[id]/ProfileDetailed";
+import ProfileDetailed from "@/app/(main)/profiles/[id]/ProfileDetailed";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
 
 type Params = Promise<{id: string}>

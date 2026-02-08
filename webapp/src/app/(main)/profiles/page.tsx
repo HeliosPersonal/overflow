@@ -1,4 +1,4 @@
-import ProfilesList from "@/app/profiles/ProfilesList";
+import ProfilesList from "@/app/(main)/profiles/ProfilesList";
 import {getUserProfiles} from "@/lib/actions/profile-actions";
 import {handleError} from "@/lib/util";
 

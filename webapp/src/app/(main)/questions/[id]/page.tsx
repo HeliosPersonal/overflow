@@ -1,10 +1,10 @@
 import {getQuestionById} from "@/lib/actions/question-actions";
 import {notFound} from "next/navigation";
-import QuestionDetailedHeader from "@/app/questions/[id]/QuestionDetailedHeader";
-import QuestionContent from "@/app/questions/[id]/QuestionContent";
-import AnswerContent from "@/app/questions/[id]/AnswerContent";
-import AnswersHeader from "@/app/questions/[id]/AnswersHeader";
-import AnswerForm from "@/app/questions/[id]/AnswerForm";
+import QuestionDetailedHeader from "@/app/(main)/questions/[id]/QuestionDetailedHeader";
+import QuestionContent from "@/app/(main)/questions/[id]/QuestionContent";
+import AnswerContent from "@/app/(main)/questions/[id]/AnswerContent";
+import AnswersHeader from "@/app/(main)/questions/[id]/AnswersHeader";
+import AnswerForm from "@/app/(main)/questions/[id]/AnswerForm";
 import {Answer} from "@/lib/types";
 
 type Params = Promise<{id: string}>

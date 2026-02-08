@@ -1,4 +1,4 @@
-import QuestionForm from "@/app/questions/ask/QuestionForm";
+import QuestionForm from "@/app/(main)/questions/ask/QuestionForm";
 
 export default function Page() {
     return (

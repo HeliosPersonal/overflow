@@ -1,15 +1,17 @@
+'use client';
+
 import {Button} from "@heroui/button";
+import {useRouter} from "next/navigation";
 
 export default function RegisterButton() {
-    const clientId = 'nextjs';
-    const issuer = process.env.AUTH_KEYCLOAK_ISSUER;
-    const redirectUrl = process.env.AUTH_URL;
-    
-    const registerUrl = `${issuer}/protocol/openid-connect/registrations` +
-        `?client_id=${clientId}&redirect_uri=` +
-        `${encodeURIComponent(redirectUrl!)}&response_type=code&scope=openid`;
+    const router = useRouter();
     
     return (
-        <Button as='a' href={registerUrl} color='secondary'>Register</Button>
+        <Button 
+            onPress={() => router.push('/signup?callbackUrl=/questions')}
+            color='secondary'
+        >
+            Register
+        </Button>
     );
 }

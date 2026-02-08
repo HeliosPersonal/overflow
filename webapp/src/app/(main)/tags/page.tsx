@@ -1,6 +1,6 @@
 import {getTags} from "@/lib/actions/tag-actions";
-import TagCard from "@/app/tags/TagCard";
-import TagHeader from "@/app/tags/TagsHeader";
+import TagCard from "@/app/(main)/tags/TagCard";
+import TagHeader from "@/app/(main)/tags/TagsHeader";
 
 type SearchParams = Promise<{sort?: string}>
 export default async function Page({searchParams}: {searchParams: SearchParams }) {

@@ -1,4 +1,4 @@
-import QuestionForm from "@/app/questions/ask/QuestionForm";
+import QuestionForm from "@/app/(main)/questions/ask/QuestionForm";
 import {getQuestionById} from "@/lib/actions/question-actions";
 import {notFound} from "next/navigation";
 import {handleError} from "@/lib/util";

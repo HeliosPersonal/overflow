@@ -4,7 +4,7 @@ import {Card, CardBody, CardFooter, CardHeader} from "@heroui/card";
 import {Profile} from "@/lib/types";
 import {Button} from "@heroui/button";
 import {useState} from "react";
-import EditProfileForm from "@/app/profiles/[id]/EditProfileForm";
+import EditProfileForm from "@/app/(main)/profiles/[id]/EditProfileForm";
 import {Avatar} from "@heroui/avatar";
 import {Divider} from "@heroui/divider";
 

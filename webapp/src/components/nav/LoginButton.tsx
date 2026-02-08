@@ -1,16 +1,17 @@
 'use client';
 
 import {Button} from "@heroui/button";
-import {signIn} from "next-auth/react";
+import {useRouter} from "next/navigation";
 
 export default function LoginButton() {
+    const router = useRouter();
+    
     return (
         <Button 
             color='secondary' 
             variant='bordered'
             type='button'
-            onPress={() => signIn('keycloak', 
-                {redirectTo: '/questions'}, {prompt: 'login'})}
+            onPress={() => router.push('/login?callbackUrl=/questions')}
         >
             Login
         </Button>

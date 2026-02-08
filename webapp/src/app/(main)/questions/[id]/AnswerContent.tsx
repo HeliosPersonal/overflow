@@ -1,6 +1,6 @@
 import {Answer} from "@/lib/types";
-import VotingButtons from "@/app/questions/[id]/VotingButtons";
-import AnswerFooter from "@/app/questions/[id]/AnswerFooter";
+import VotingButtons from "@/app/(main)/questions/[id]/VotingButtons";
+import AnswerFooter from "@/app/(main)/questions/[id]/AnswerFooter";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
 
 type Props = {

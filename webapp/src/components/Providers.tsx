@@ -25,7 +25,9 @@ export default function Providers({children}: {children: ReactNode}) {
             <ToastProvider />
             <ThemeProvider
                 attribute='class'
-                defaultTheme='light'
+                defaultTheme='system'
+                enableSystem
+                storageKey='overflow-theme'
             >
                 {children}
             </ThemeProvider>

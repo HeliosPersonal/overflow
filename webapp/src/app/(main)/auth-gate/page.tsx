@@ -1,11 +1,11 @@
 'use client'
 
 import {Button} from "@heroui/button";
-import {useSearchParams} from "next/navigation";
-import {signIn} from "next-auth/react";
+import {useSearchParams, useRouter} from "next/navigation";
 
 export default function AuthGatePage() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const callbackUrl = searchParams.get("callbackUrl");
     console.log({callbackUrl});
     
@@ -17,7 +17,7 @@ export default function AuthGatePage() {
                     You need to be logged in to do that.
                 </p>
                 <Button 
-                    onPress={() => signIn('keycloak', {redirectTo: callbackUrl || '/questions'})} 
+                    onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl || '/questions')}`)} 
                     color='primary'>Login</Button>
             </div>
         </div>

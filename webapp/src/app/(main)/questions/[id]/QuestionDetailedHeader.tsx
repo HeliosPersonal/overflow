@@ -3,7 +3,7 @@ import {Button} from "@heroui/button";
 import Link from "next/link";
 import {fuzzyTimeAgo} from "@/lib/util";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
-import DeleteQuestionButton from "@/app/questions/[id]/DeleteQuestionButton";
+import DeleteQuestionButton from "@/app/(main)/questions/[id]/DeleteQuestionButton";
 
 type Props = {
     question: Question;
