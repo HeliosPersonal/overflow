@@ -52,17 +52,17 @@ labels:
 
 replicas:
   - name: question-svc
-    count: 2
+    count: 1
   - name: search-svc
-    count: 2
+    count: 1
   - name: profile-svc
-    count: 2
+    count: 1
   - name: stats-svc
-    count: 2
+    count: 1
   - name: vote-svc
-    count: 2
+    count: 1
   - name: overflow-webapp
-    count: 2
+    count: 1
 
 # Production-specific resource adjustments
 patches:
@@ -82,20 +82,20 @@ patches:
         path: /spec/rules/0/host
         value: overflow-api.helios
   
-  # Resource adjustments for production
+  # Resource adjustments for production (higher than staging)
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
+        value: 256Mi
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 1Gi
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
+        value: 50m
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
+        value: 500m
     target:
       kind: Deployment
       name: question-svc
