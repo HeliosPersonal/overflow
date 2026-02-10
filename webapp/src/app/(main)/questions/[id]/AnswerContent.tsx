@@ -11,8 +11,8 @@ type Props = {
 export default async function AnswerContent({answer, askerId}: Props) {
     const currentUser = await getCurrentUser();
     return (
-        <div className='flex border-b pb-3 px-6'>
-            <VotingButtons 
+        <div className='flex border-b border-neutral-200 dark:border-neutral-800 pb-3 px-6'>
+            <VotingButtons
                 target={answer}
                 currentUserId={currentUser?.id}
                 askerId={askerId}

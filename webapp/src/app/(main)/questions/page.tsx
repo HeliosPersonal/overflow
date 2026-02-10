@@ -14,7 +14,7 @@ export default async function QuestionsPage({searchParams}: {searchParams?: Prom
         <>
             <QuestionsHeader total={questions?.totalCount ?? 0} tag={params?.tag} />
             {questions?.items.map(question => (
-                <div key={question.id} className='py-4 not-last:border-b w-full flex'>
+                <div key={question.id} className='py-4 not-last:border-b border-neutral-200 dark:border-neutral-800 w-full flex'>
                     <QuestionCard key={question.id} question={question} />
                 </div>
             ))}

@@ -10,7 +10,7 @@ import RegisterButton from "@/components/nav/RegisterButton";
 export default async function TopNav() {
     const user = await getCurrentUser();
     return (
-        <header className='p-2 w-full fixed top-0 z-50 border-b bg-white dark:bg-black'>
+        <header className='p-2 w-full fixed top-0 z-50 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black'>
             <div className='flex px-10 mx-auto'>
                 <div className='flex items-center gap-6'>
                     <Link href='/' className='flex items-center gap-3 max-h-16'>

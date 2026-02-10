@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html suppressHydrationWarning lang="en" className="h-full">
-      <body className="flex flex-col bg-stone-200 dark:bg-default-50 h-full">
+      <body className="flex flex-col border-neutral-200 dark:border-neutral-800 dark:bg-default-50 h-full">
         <Providers>
           {children}
         </Providers>

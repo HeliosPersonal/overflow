@@ -51,7 +51,7 @@ export default function SearchInput() {
             />
             {showDropdown && results && (
                 <div 
-                    className='absolute top-full z-50 bg-white dark:bg-default-50 shadow-lg border-2 border-default-500 w-[50%]'>
+                    className='absolute top-full z-50 bg-white dark:bg-default-50 shadow-lg border-2 border-neutral-800 w-[50%]'>
                     <Listbox
                         onAction={onAction}
                         items={results}
@@ -63,7 +63,7 @@ export default function SearchInput() {
                                 key={question.id}
                                 startContent={
                                     <div className='flex flex-col h-14 min-w-14 justify-center items-center 
-                                        border border-success rounded-md'>
+                                        border border-neutral-200 dark:border-neutral-800 rounded-md'>
                                         <span>{question.answerCount}</span>
                                         <span className='text-xs'>answers</span>
                                     </div>
