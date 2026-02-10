@@ -233,6 +233,40 @@ spec:
                 port:
                   number: 8080
 ---
+# NextAuth API Routes: /api/auth/* -> overflow-webapp:3000/api/auth/*
+# IMPORTANT: This must come BEFORE the main webapp ingress to ensure proper routing
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-auth-ingress
+  namespace: apps-staging
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Increase timeouts for auth operations
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    # Ensure large enough buffer for auth responses
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: webapp-staging-tls
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+---
 # WebApp: / -> overflow-webapp:3000/
 apiVersion: networking.k8s.io/v1
 kind: Ingress
