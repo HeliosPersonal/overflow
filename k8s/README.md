@@ -1,4 +1,4 @@
-﻿# Kubernetes Manifests
+﻿﻿# Kubernetes Manifests
 
 ## Overview
 This directory contains Kubernetes manifests for deploying the Overflow application using Kustomize.
@@ -259,6 +259,30 @@ Certificates are automatically provisioned when Ingresses are created with prope
 - **Production:** https://devoverflow.org
 - **Keycloak:** https://keycloak.devoverflow.org
 
+## EndpointSlice Migration Note
+
+**Deprecation Warning:** `v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice`
+
+This warning is **informational only** and requires no action. Kubernetes automatically creates both Endpoints and EndpointSlices for every Service. The EndpointSlice API is the modern replacement that:
+- Scales better for large clusters
+- Supports dual-stack networking
+- Provides topology-aware routing
+
+**No changes needed in your manifests.** The Kubernetes controller handles this automatically.
+
+```bash
+# Verify both exist
+kubectl get endpoints -n apps-staging
+kubectl get endpointslices -n apps-staging
+```
+
 ---
 
-**Last Updated:** January 25, 2026
+## Additional Documentation
+
+For comprehensive infrastructure documentation, see:
+- **[Infrastructure Guide](../docs/INFRASTRUCTURE.md)** - Complete infrastructure overview, Terraform, monitoring, and runbooks
+
+---
+
+**Last Updated:** February 10, 2026
