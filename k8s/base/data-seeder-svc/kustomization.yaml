@@ -1,8 +1,28 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+﻿# ====================================================================================
+# DATA SEEDER SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Data Seeder Service (development/staging only)
+#
+# This service provides:
+# - AI-generated test data using Ollama LLM
+# - Realistic question/answer content generation
+# - Tag and category seeding
+# - User profile generation
+#
+# NOTE: This is a background worker, NOT exposed via Ingress
+# It runs as a one-time job or scheduled task to populate test data
+#
+# Dependencies:
+# - Ollama LLM service (ollama:11434 in apps-staging)
+# - PostgreSQL for inserting generated data
+# - RabbitMQ for publishing creation events
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - deployment.yaml
+  - deployment.yaml    # Note: No service.yaml - not exposed externally
 
 labels:
   - pairs:

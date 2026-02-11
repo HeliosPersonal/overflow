@@ -1,4 +1,21 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+﻿# ====================================================================================
+# STATS SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Statistics Service microservice
+#
+# This service provides:
+# - Aggregated platform statistics
+# - Question/Answer counts
+# - User activity metrics
+# - Trending tags calculation
+# - Hot questions algorithm
+#
+# Dependencies:
+# - RabbitMQ for receiving events (QuestionCreated, VoteCasted, etc.)
+# - PostgreSQL for stats persistence (or Redis for real-time)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:

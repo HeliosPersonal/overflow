@@ -25,7 +25,7 @@ resource "kubernetes_secret" "cloudflare_api_token" {
 
 # Cloudflare DDNS deployment for root domain - DISABLED
 # 
-# The A record for devoverflow.org (93.175.109.61) already exists in Cloudflare.
+# The A record for devoverflow.org (home-network-ip) already exists in Cloudflare.
 # However, the oznu/cloudflare-ddns image has issues with @ (root) records:
 # - It cannot find the existing record: "DNS record for '@.devoverflow.org' was not found"
 # - This causes the pod to CrashLoopBackOff with "ERROR: Failed to create DNS record"

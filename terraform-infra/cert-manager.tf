@@ -22,7 +22,7 @@ resource "helm_release" "cert_manager" {
   namespace        = kubernetes_namespace.cert_manager.metadata[0].name
   repository       = "https://charts.jetstack.io"
   chart            = "cert-manager"
-  version          = "v1.19.0"
+  version          = "v1.19.2"
   create_namespace = false
 
   # Install Custom Resource Definitions for Certificate resources
@@ -39,8 +39,44 @@ resource "helm_release" "cert_manager" {
 }
 
 # ====================================================================================
-# NOTE: ClusterIssuers for Let's Encrypt
+# LET'S ENCRYPT CLUSTER ISSUER
 # ====================================================================================
-# ClusterIssuers must be deployed AFTER cert-manager is running
-# Apply them separately using: kubectl apply -f k8s/cert-manager/clusterissuers.yaml
+# Single production ClusterIssuer used by both staging and production environments
+# Using staging issuer is uncommon - most teams use production certs everywhere
 # ====================================================================================
+
+# Production ClusterIssuer - for all environments
+resource "kubernetes_manifest" "letsencrypt_production" {
+  depends_on = [helm_release.cert_manager]
+
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    
+    metadata = {
+      name = "letsencrypt-production"
+    }
+    
+    spec = {
+      acme = {
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        email  = var.letsencrypt_email
+        
+        privateKeySecretRef = {
+          name = "letsencrypt-production"
+        }
+        
+        solvers = [
+          {
+            http01 = {
+              ingress = {
+                class = "nginx"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+

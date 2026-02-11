@@ -1,23 +1,58 @@
-# Staging Environment Kustomization
-# Namespace: apps-staging | Replicas: 2 per service
+# ====================================================================================
+# STAGING ENVIRONMENT - Kustomization Overlay
+# ====================================================================================
+# Environment: Staging (apps-staging namespace)
+# Domain: staging.devoverflow.org
+# Purpose: Pre-production testing and validation
+#
+# This overlay customizes the base manifests for staging by:
+# 1. Setting namespace to apps-staging
+# 2. Updating container images with commit SHA tags (set by CI/CD)
+# 3. Configuring replica counts (1 per service for cost efficiency)
+# 4. Adding environment-specific labels
+# 5. Including staging ingress rules
+#
+# Deployment Trigger:
+# - Automatic: Push to 'development' branch
+# - Manual: GitHub Actions workflow_dispatch
+#
+# Connected Infrastructure (infra-staging namespace):
+# - PostgreSQL: postgres-staging:5432
+# - RabbitMQ: rabbitmq-staging:5672
+# - Typesense: typesense:8108
+#
+# Shared Infrastructure (infra-production namespace):
+# - Keycloak: keycloak:8080 (single instance for both environments)
+# ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# All resources will be created in the apps-staging namespace
 namespace: apps-staging
 
+# ====================================================================================
+# BASE RESOURCES
+# ====================================================================================
+# Include all base manifests from k8s/base/ directory
+# Each base contains: kustomization.yaml, deployment.yaml, service.yaml
 resources:
-  - ../../base/infisical
-  - ../../base/question-svc
-  - ../../base/search-svc
-  - ../../base/profile-svc
-  - ../../base/stats-svc
-  - ../../base/vote-svc
-  - ../../base/data-seeder-svc
-  - ../../base/overflow-webapp
-  - ingress.yaml
+  - ../../base/infisical         # Shared secret for Infisical credentials
+  - ../../base/question-svc      # Question/Answer/Tag management API
+  - ../../base/search-svc        # Full-text search via Typesense
+  - ../../base/profile-svc       # User profiles and reputation
+  - ../../base/stats-svc         # Statistics aggregation service
+  - ../../base/vote-svc          # Voting system for Q&A
+  - ../../base/data-seeder-svc   # AI-powered test data generation
+  - ../../base/overflow-webapp   # Next.js frontend application
+  - ingress.yaml                 # Staging-specific ingress rules
 
-# Image tags updated by CI/CD
+# ====================================================================================
+# CONTAINER IMAGES
+# ====================================================================================
+# CI/CD replaces placeholder tags with actual commit SHA during deployment
+# Format: ghcr.io/{owner}/{image}:{commit-sha}
+# This ensures every deployment uses the exact version that was built and tested
 images:
   - name: ghcr.io/placeholder/overflow-question
     newName: ghcr.io/viacheslavmelnichenko/overflow-question
@@ -41,19 +76,32 @@ images:
     newName: ghcr.io/viacheslavmelnichenko/overflow-data-seeder
     newTag: SHA_REPLACED_BY_CICD
 
+# ====================================================================================
+# CONFIGMAP GENERATION
+# ====================================================================================
+# Generates ConfigMap with environment-specific settings
+# These are mounted as environment variables in .NET services
 configMapGenerator:
   - name: app-config
     behavior: create
     literals:
-      - aspnetcore-environment=Staging
+      - aspnetcore-environment=Staging  # Sets ASPNETCORE_ENVIRONMENT for .NET
 
-# No more secrets needed - all loaded from Infisical
-
+# ====================================================================================
+# LABELS
+# ====================================================================================
+# Applied to all resources for organization and selection
+# Useful for: kubectl get all -l environment=staging
 labels:
   - pairs:
-      environment: staging
-      managed-by: kustomize
+      environment: staging       # Identifies staging resources
+      managed-by: kustomize      # Indicates deployment method
 
+# ====================================================================================
+# REPLICA COUNTS
+# ====================================================================================
+# Staging uses 1 replica per service to conserve resources
+# Production should use 2+ replicas for high availability
 replicas:
   - name: question-svc
     count: 1
@@ -68,7 +116,13 @@ replicas:
   - name: overflow-webapp
     count: 1
 
+# ====================================================================================
+# PATCHES
+# ====================================================================================
+# Strategic merge patches for environment-specific overrides
+# Used to modify specific fields in base resources
 patches:
+  # Override APP_ENV for webapp to use staging configuration
   - target:
       kind: Deployment
       name: overflow-webapp

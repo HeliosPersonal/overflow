@@ -1,4 +1,21 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+﻿# ====================================================================================
+# PROFILE SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Profile Service microservice
+#
+# This service manages:
+# - User profile data (display name, bio, avatar)
+# - Reputation points tracking
+# - User statistics (questions asked, answers given)
+# - Badge/achievement tracking
+#
+# Dependencies:
+# - PostgreSQL for profile data persistence
+# - RabbitMQ for receiving reputation events (VoteCasted, AnswerAccepted)
+# - Keycloak for user identity mapping (sub claim → profile)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:

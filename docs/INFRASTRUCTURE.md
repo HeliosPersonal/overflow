@@ -2,18 +2,338 @@
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Technology Stack](#technology-stack)
-3. [Infrastructure Components](#infrastructure-components)
-4. [Deployment Pipeline](#deployment-pipeline)
-5. [Kubernetes Configuration](#kubernetes-configuration)
-6. [Terraform Infrastructure](#terraform-infrastructure)
-7. [Secrets Management](#secrets-management)
-8. [Monitoring & Observability](#monitoring--observability)
-9. [SSL/TLS Certificates](#ssltls-certificates)
-10. [DNS & Networking](#dns--networking)
-11. [Troubleshooting](#troubleshooting)
-12. [Runbooks](#runbooks)
+1. [How It All Works](#how-it-all-works)
+2. [Architecture Overview](#architecture-overview)
+3. [Technology Stack](#technology-stack)
+4. [Infrastructure Components](#infrastructure-components)
+5. [Deployment Pipeline](#deployment-pipeline)
+6. [Kubernetes Configuration](#kubernetes-configuration)
+7. [Terraform Infrastructure](#terraform-infrastructure)
+8. [Secrets Management](#secrets-management)
+9. [Monitoring & Observability](#monitoring--observability)
+10. [SSL/TLS Certificates](#ssltls-certificates)
+11. [DNS & Networking](#dns--networking)
+12. [Troubleshooting](#troubleshooting)
+13. [Runbooks](#runbooks)
+
+### Related Documentation
+
+- **[Network Architecture](./NETWORK_ARCHITECTURE.md)** - Detailed network diagrams and connection flows
+- **[Quick Start Guide](./QUICKSTART.md)** - Getting started with local and K8s development
+- **[Terraform README](../terraform-infra/README.md)** - Infrastructure as Code documentation
+- **[Kubernetes README](../k8s/README.md)** - Kustomize and manifest documentation
+
+---
+
+## How It All Works
+
+This section explains the complete flow from a user typing a URL to receiving a response, covering all infrastructure components.
+
+### The Complete Request Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           USER REQUEST JOURNEY                                   │
+│  https://staging.devoverflow.org/api/questions/123                               │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 1. DNS RESOLUTION                                                                │
+│    Browser queries DNS for staging.devoverflow.org                               │
+│    → Cloudflare DNS returns Cloudflare proxy IP (not your home IP)               │
+│    → Your actual IP is hidden (DDoS protection)                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 2. CLOUDFLARE EDGE                                                               │
+│    Request hits Cloudflare's edge network (nearest PoP)                          │
+│    → WAF rules applied (block malicious requests)                                │
+│    → Cache checked (static assets may be served from edge)                       │
+│    → SSL termination (Cloudflare → Origin uses separate TLS)                     │
+│    → Request forwarded to your home IP (from DDNS)                               │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 3. HOME ROUTER                                                                   │
+│    Request arrives at your public IP                                             │
+│    → Port forwarding: 443 → K3s node (helios)                                    │
+│    → NAT translation to internal IP                                              │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 4. NGINX INGRESS CONTROLLER                                                      │
+│    Kubernetes Ingress receives the request                                       │
+│    → TLS termination with Let's Encrypt certificate                              │
+│    → Host matching: staging.devoverflow.org                                      │
+│    → Path matching: /api/questions/* → question-svc                              │
+│    → Path rewriting: /api/questions/123 → /questions/123                         │
+│    → Load balancing across healthy pods                                          │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 5. KUBERNETES SERVICE (question-svc)                                             │
+│    ClusterIP service receives request                                            │
+│    → EndpointSlice lookup finds healthy pod IPs                                  │
+│    → kube-proxy routes to selected pod                                           │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 6. APPLICATION POD (question-svc)                                                │
+│    .NET container processes the request                                          │
+│    → Infisical SDK loads secrets (DB connection, API keys)                       │
+│    → Query PostgreSQL for question data                                          │
+│    → Validate JWT token from Authorization header (Keycloak)                     │
+│    → Return JSON response                                                        │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 7. RESPONSE JOURNEY (reverse path)                                               │
+│    Pod → Service → Ingress → Router → Cloudflare → User                          │
+│    Total round-trip: ~50-200ms depending on location                             │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Connections
+
+#### 1. Cloudflare DDNS (Dynamic DNS)
+
+**Problem**: Home internet has a dynamic IP that changes periodically.
+
+**Solution**: DDNS containers run in Kubernetes and update Cloudflare DNS records automatically.
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  cloudflare-    │     │  cloudflare-    │     │  cloudflare-    │
+│  ddns-www       │     │  ddns-staging   │     │  ddns-keycloak  │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │   Cloudflare API        │
+                    │   Updates A Records     │
+                    │   Every 5 minutes       │
+                    └─────────────────────────┘
+```
+
+**Configuration** (Terraform `ddns.tf`):
+- Deploys to `kube-system` namespace
+- Uses `oznu/cloudflare-ddns` image
+- Reads API token from Kubernetes secret
+- Updates: www, staging, keycloak subdomains
+- Proxied through Cloudflare (hides real IP)
+
+#### 2. SSL/TLS Certificates (cert-manager)
+
+**Problem**: Need valid HTTPS certificates for all domains.
+
+**Solution**: cert-manager automatically provisions and renews Let's Encrypt certificates.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        CERTIFICATE LIFECYCLE                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+1. PROVISIONING (when Ingress is created)
+   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+   │   Ingress    │────▶│ cert-manager │────▶│ Let's        │────▶│  TLS Secret  │
+   │   Created    │     │   Watches    │     │ Encrypt ACME │     │   Created    │
+   │              │     │              │     │ HTTP-01      │     │              │
+   └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+
+2. HTTP-01 CHALLENGE (domain validation)
+   - Let's Encrypt sends challenge token
+   - cert-manager creates temporary Ingress
+   - Cloudflare routes /.well-known/acme-challenge/* to cluster
+   - Let's Encrypt verifies domain ownership
+   - Certificate issued (valid for 90 days)
+
+3. AUTO-RENEWAL (before expiration)
+   - cert-manager checks certificate expiry daily
+   - Renews when < 30 days remaining
+   - Updates TLS secret automatically
+   - Ingress picks up new certificate immediately
+```
+
+**ClusterIssuers** (`k8s/cert-manager/clusterissuers.yaml`):
+- `letsencrypt-staging`: For testing (untrusted, high rate limits)
+- `letsencrypt-production`: For production (trusted, 50 certs/week limit)
+
+#### 3. Ingress Routing
+
+**Problem**: Multiple services need to be accessible via single domain.
+
+**Solution**: NGINX Ingress Controller routes based on path and host.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      INGRESS ROUTING RULES                                      │
+│                   staging.devoverflow.org                                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+PATH                    REWRITE TO              SERVICE              PORT
+─────────────────────────────────────────────────────────────────────────────────
+/api/questions/*   →   /questions/*        →   question-svc    →   8080
+/api/tags/*        →   /tags/*             →   question-svc    →   8080
+/api/search/*      →   /search/*           →   search-svc      →   8080
+/api/profiles/*    →   /profiles/*         →   profile-svc     →   8080
+/api/stats/*       →   /stats/*            →   stats-svc       →   8080
+/api/votes/*       →   /votes/*            →   vote-svc        →   8080
+/api/auth/*        →   /api/auth/* (no!)   →   overflow-webapp →   3000
+/*                 →   /* (no rewrite)     →   overflow-webapp →   3000
+```
+
+**Key Annotations**:
+```yaml
+annotations:
+  cert-manager.io/cluster-issuer: "letsencrypt-production"  # Auto SSL
+  nginx.ingress.kubernetes.io/ssl-redirect: "true"          # Force HTTPS
+  nginx.ingress.kubernetes.io/rewrite-target: /service$1$2  # Path rewrite
+```
+
+#### 4. Authentication Flow (Keycloak + NextAuth)
+
+**Problem**: Users need to authenticate securely.
+
+**Solution**: Keycloak provides OAuth2/OIDC, NextAuth handles frontend sessions.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      LOGIN FLOW (Credentials)                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+1. User enters email/password on /login page
+2. Next.js calls NextAuth credentials provider
+3. NextAuth makes Direct Access Grant to Keycloak:
+   POST https://keycloak.devoverflow.org/realms/overflow-staging/protocol/openid-connect/token
+   Body: grant_type=password&username=...&password=...&client_id=nextjs
+
+4. Keycloak validates credentials and returns:
+   - access_token (JWT, short-lived ~5min)
+   - refresh_token (long-lived ~30 days)
+   - id_token (user info)
+
+5. NextAuth stores tokens in encrypted session cookie
+6. Subsequent requests include access_token in Authorization header
+7. Backend services validate JWT signature with Keycloak public key
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      TOKEN REFRESH FLOW                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+1. Access token expires (after ~5 minutes)
+2. NextAuth JWT callback detects expiration
+3. NextAuth calls Keycloak token endpoint with refresh_token:
+   POST .../token
+   Body: grant_type=refresh_token&refresh_token=...
+
+4. Keycloak issues new access_token and refresh_token
+5. Session cookie updated with new tokens
+6. Request continues with fresh access_token
+```
+
+#### 5. Secrets Management (Infisical)
+
+**Problem**: Need to store sensitive data (passwords, API keys) securely.
+
+**Solution**: Infisical provides centralized secrets management with SDK.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      SECRETS FLOW                                               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌─────────────────────────────┐
+                    │       INFISICAL CLOUD       │
+                    │   (eu.infisical.com)        │
+                    │                             │
+                    │  Projects:                  │
+                    │  └─ Overflow                │
+                    │      ├─ staging (env)       │
+                    │      │   ├─ DATABASE_URL    │
+                    │      │   ├─ RABBITMQ_URL    │
+                    │      │   └─ ...             │
+                    │      └─ production (env)    │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+                    ▼                             ▼
+         ┌──────────────────┐             ┌─────────────────┐
+         │  CI/CD Pipeline  │             │  Application    │
+         │  (GitHub Actions)│             │  Runtime        │
+         │                  │             │                 │
+         │  Injects into    │             │  SDK loads at   │
+         │  K8s Secret:     │             │  startup:       │
+         │  - PROJECT_ID    │             │  - DATABASE_URL │
+         │  - CLIENT_ID     │────────────▶   - RABBITMQ_URL │
+         │  - CLIENT_SECRET │             │  - API keys     │
+         └──────────────────┘             └─────────────────┘
+```
+
+**Kubernetes Secret** (`infisical-credentials`):
+```yaml
+# Only contains Infisical auth - actual secrets loaded at runtime
+stringData:
+  INFISICAL_PROJECT_ID: "..."
+  INFISICAL_CLIENT_ID: "..."
+  INFISICAL_CLIENT_SECRET: "..."
+```
+
+**Application Startup**:
+```csharp
+// .NET services use Infisical SDK
+var secrets = await infisical.GetSecretsAsync(new GetSecretsOptions {
+    Environment = "staging",
+    ProjectId = projectId
+});
+// Now have DATABASE_URL, RABBITMQ_URL, etc.
+```
+
+#### 6. Message Queue (RabbitMQ)
+
+**Problem**: Services need async communication for events.
+
+**Solution**: RabbitMQ provides reliable message queuing with MassTransit.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      EVENT FLOW EXAMPLE                                         │
+│                   (User creates a new question)                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐                        ┌──────────────┐
+│ question-svc │──── QuestionCreated ─▶ │  RabbitMQ    │
+│              │     Event              │              │
+└──────────────┘                        └──────┬───────┘
+                                               │
+                ┌──────────────────────────────┼──────────────────────────────┐
+                │                              │                              │
+                ▼                              ▼                              ▼
+       ┌──────────────┐              ┌──────────────┐              ┌──────────────┐
+       │  search-svc  │              │  stats-svc   │              │ profile-svc  │
+       │              │              │              │              │              │
+       │ Index in     │              │ Update       │              │ Update user  │
+       │ Typesense    │              │ question     │              │ question     │
+       │              │              │ count        │              │ count        │
+       └──────────────┘              └──────────────┘              └──────────────┘
+```
+
+**Events**:
+- `QuestionCreated`         - New question added
+- `QuestionUpdated`         - Question edited
+- `QuestionDeleted`         - Question removed
+- `AnswerAccepted`          - Answer marked as accepted
+- `VoteCasted`              - User voted on Q&A
+- `UserReputationChanged`   - Reputation points changed
 
 ---
 
@@ -21,7 +341,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              INTERNET                                        │
+│                              INTERNET                                       │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
                     ┌─────────────▼─────────────┐
@@ -31,10 +351,10 @@
                                   │
           ┌───────────────────────┼───────────────────────┐
           │                       │                       │
-┌─────────▼─────────┐   ┌────────▼────────┐   ┌─────────▼─────────┐
+┌─────────▼──────────┐   ┌────────▼─────────┐   ┌─────────▼──────────┐
 │ staging.devoverflow│   │  devoverflow.org │   │keycloak.devoverflow│
 │       .org         │   │   (production)   │   │       .org         │
-└─────────┬─────────┘   └────────┬────────┘   └─────────┬─────────┘
+└─────────┬──────────┘   └────────┬─────────┘   └─────────┬──────────┘
           │                       │                       │
           └───────────────────────┼───────────────────────┘
                                   │
@@ -58,11 +378,11 @@
 │• data-seeder  │    │ • data-seeder         │    ┌─────────────────────────┐
 │• ollama (LLM) │    │                       │    │    infra-staging        │
 └───────────────┘    └───────────────────────┘    │       namespace         │
-                                                   ├─────────────────────────┤
-                                                   │ • PostgreSQL (staging)  │
-                                                   │ • RabbitMQ (staging)    │
-                                                   │ • Typesense (staging)   │
-                                                   └─────────────────────────┘
+                                                  ├─────────────────────────┤
+                                                  │ • PostgreSQL (staging)  │
+                                                  │ • RabbitMQ (staging)    │
+                                                  │ • Typesense (staging)   │
+                                                  └─────────────────────────┘
 ```
 
 ### Cluster Information
@@ -77,11 +397,11 @@
 ## Technology Stack
 
 ### Application Layer
-| Component | Technology | Description |
-|-----------|------------|-------------|
-| Web App | Next.js 15 (React) | Server-side rendered frontend |
-| Backend Services | .NET 10 | Microservices architecture |
-| API Gateway | NGINX Ingress | Traffic routing & SSL termination |
+| Component | Technology         | Description |
+|-----------|--------------------|-------------|
+| Web App | Next.js 22 (React) | Server-side rendered frontend |
+| Backend Services | .NET 10            | Microservices architecture |
+| API Gateway | NGINX Ingress      | Traffic routing & SSL termination |
 
 ### Infrastructure Layer
 | Component | Technology | Description |
@@ -170,17 +490,17 @@
 ### CI/CD Flow
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Git Push   │────▶│  Build &     │────▶│   Build      │────▶│   Deploy     │
-│              │     │  Test (.NET) │     │   Docker     │     │   to K8s     │
-└──────────────┘     └──────────────┘     │   Images     │     └──────────────┘
-                                          └──────────────┘
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Git Push   │────▶ │  Build &     │────▶ │   Build      │────▶ │   Deploy     │
+│              │      │  Test (.NET) │      │   Docker     │      │   to K8s     │
+└──────────────┘      └──────────────┘      │   Images     │      └──────────────┘
+                                            └──────────────┘
                                                  │
                                                  ▼
-                                          ┌──────────────┐
-                                          │    GHCR      │
-                                          │   (Images)   │
-                                          └──────────────┘
+                                            ┌──────────────┐
+                                            │    GHCR      │
+                                            │   (Images)   │
+                                            └──────────────┘
 ```
 
 ### Branch Strategy
@@ -298,20 +618,20 @@ The cleanup script (`cleanup-k8s-resources.sh`) removes:
 
 ```
 terraform-infra/
-├── provider.tf          # Kubernetes & Helm providers
-├── variables.tf         # Variable definitions
-├── terraform.tfvars     # Non-sensitive variable values
+├── provider.tf              # Kubernetes & Helm providers
+├── variables.tf             # Variable definitions
+├── terraform.tfvars         # Non-sensitive variable values
 ├── terraform.secret.tfvars  # Sensitive values (gitignored)
-├── namespaces.tf        # Kubernetes namespaces
-├── postgres.tf          # PostgreSQL deployments
-├── rabbitmq.tf          # RabbitMQ deployments
-├── typesense.tf         # Typesense search engine
-├── keycloak.tf          # Identity provider
-├── ingress.tf           # NGINX Ingress + infrastructure routes
-├── cert-manager.tf      # SSL certificate automation
-├── monitoring.tf        # Grafana Alloy, exporters
-├── ollama.tf            # LLM service for data seeding
-└── ddns.tf              # Cloudflare DDNS for dynamic IP
+├── namespaces.tf            # Kubernetes namespaces
+├── postgres.tf              # PostgreSQL deployments
+├── rabbitmq.tf              # RabbitMQ deployments
+├── typesense.tf             # Typesense search engine
+├── keycloak.tf              # Identity provider
+├── ingress.tf               # NGINX Ingress + infrastructure routes
+├── cert-manager.tf          # SSL certificate automation
+├── monitoring.tf            # Grafana Alloy, exporters
+├── ollama.tf                # LLM service for data seeding
+└── ddns.tf                  # Cloudflare DDNS for dynamic IP
 ```
 
 ### Usage
@@ -437,26 +757,26 @@ grafana_cloud_api_token    = "your-token"
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         KUBERNETES CLUSTER                               │
+│                         KUBERNETES CLUSTER                              │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                │
-│  │ .NET Service │   │ .NET Service │   │ Next.js App  │                │
-│  │   (OTLP)     │   │   (OTLP)     │   │              │                │
-│  └──────┬───────┘   └──────┬───────┘   └──────────────┘                │
-│         │                   │                                            │
-│         └─────────┬─────────┘                                            │
-│                   ▼                                                      │
-│         ┌─────────────────┐     ┌─────────────────┐                    │
-│         │  GRAFANA ALLOY  │◀────│ kube-state-     │                    │
-│         │ (OTLP Receiver) │     │    metrics      │                    │
-│         │ (Prometheus     │◀────│                 │                    │
-│         │    Scraper)     │     └─────────────────┘                    │
+│                                                                         │
+│  ┌──────────────┐    ┌──────────────┐   ┌──────────────┐                │
+│  │ .NET Service │    │ .NET Service │   │ Next.js App  │                │
+│  │   (OTLP)     │    │   (OTLP)     │   │              │                │
+│  └──────┬───────┘    └──────┬───────┘   └──────────────┘                │
+│         │                   │                                           │
+│         └─────────┬─────────┘                                           │
+│                   ▼                                                     │
+│         ┌─────────────────┐     ┌─────────────────┐                     │
+│         │  GRAFANA ALLOY  │◀────│ kube-state-     │                     │
+│         │ (OTLP Receiver) │     │    metrics      │                     │
+│         │ (Prometheus     │◀────│                 │                     │
+│         │    Scraper)     │     └─────────────────┘                     │
 │         │ (Log Collector) │                                             │
-│         └────────┬────────┘◀────┌─────────────────┐                    │
-│                  │              │  node-exporter  │                    │
-│                  │              │                 │                    │
-│                  │              └─────────────────┘                    │
+│         └────────┬────────┘◀────┌─────────────────┐                     │
+│                  │              │  node-exporter  │                     │
+│                  │              │                 │                     │
+│                  │              └─────────────────┘                     │
 └──────────────────┼──────────────────────────────────────────────────────┘
                    │
                    ▼
@@ -479,7 +799,7 @@ grafana_cloud_api_token    = "your-token"
 
 ### Accessing Metrics
 
-1. Log into [Grafana Cloud](https://grafana.com)
+1. Log into [Grafana Cloud](https://overflowproject.grafana.net/)
 2. Navigate to Explore
 3. Select data source (Prometheus, Loki, or Tempo)
 
@@ -489,9 +809,10 @@ grafana_cloud_api_token    = "your-token"
 
 ### cert-manager Configuration
 
-**ClusterIssuers:**
-- `letsencrypt-staging` - For testing (high rate limits)
-- `letsencrypt-production` - For production domains
+**ClusterIssuer:**
+- `letsencrypt-production` - Used by all environments (staging and production)
+
+**Note:** Using a single production ClusterIssuer is the common practice. A separate staging issuer is rarely needed since Let's Encrypt's rate limits (50 certs/week per domain) are generous enough for most development workflows.
 
 ### Certificate Provisioning
 
@@ -651,7 +972,7 @@ git push origin development
 
 # 2. Monitor deployment
 # GitHub Actions will automatically deploy
-# Check: https://github.com/<owner>/overflow/actions
+# Check: https://github.com/ViacheslavMelnichenko/overflow/actions
 
 # 3. Verify deployment
 kubectl get pods -n apps-staging
@@ -764,7 +1085,7 @@ terraform import kubernetes_namespace.apps_staging apps-staging
 | Keycloak Admin | https://keycloak.devoverflow.org/admin |
 | Infisical | https://eu.infisical.com |
 | Grafana Cloud | https://grafana.com |
-| GitHub Actions | https://github.com/<owner>/overflow/actions |
+| GitHub Actions | https://github.com/ViacheslavMelnichenko/overflow/actions |
 
 ### Commands Cheat Sheet
 

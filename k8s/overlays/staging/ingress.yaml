@@ -1,27 +1,75 @@
 # ====================================================================================
-# STAGING INGRESS - Traffic Routing
+# STAGING INGRESS - Traffic Routing Configuration
 # ====================================================================================
-# Routes external traffic to all services in staging environment
-# Domain: staging.devoverflow.org + overflow-api-staging.helios (internal)
+# Domain: staging.devoverflow.org (external) + *.helios (internal LAN)
+# Namespace: apps-staging
+#
+# TRAFFIC FLOW:
+# ====================================================================================
+#
+#   Internet → Cloudflare (CDN/WAF/SSL) → Home Router → K8s Ingress → Services
+#
+#   1. User requests https://staging.devoverflow.org/api/questions/123
+#   2. Cloudflare proxies the request (DDNS updates IP dynamically)
+#   3. Request hits NGINX Ingress Controller in the cluster
+#   4. Ingress matches path /api/questions/* and routes to question-svc:8080
+#   5. NGINX rewrites path: /api/questions/123 → /questions/123
+#   6. question-svc processes request and returns response
+#
+# SSL/TLS CERTIFICATES:
+# ====================================================================================
+#   - Managed by cert-manager using Let's Encrypt (letsencrypt-production issuer)
+#   - Certificate stored in secret: webapp-staging-tls
+#   - Auto-renewed before expiration (cert-manager handles this)
+#
+# PATH REWRITING:
+# ====================================================================================
+#   Frontend uses /api prefix for all backend calls, but services don't have /api:
+#   - /api/questions/*  → question-svc:8080/questions/*
+#   - /api/search/*     → search-svc:8080/search/*
+#   - /api/profiles/*   → profile-svc:8080/profiles/*
+#   - /api/stats/*      → stats-svc:8080/stats/*
+#   - /api/votes/*      → vote-svc:8080/votes/*
+#   - /api/auth/*       → overflow-webapp:3000/api/auth/* (NextAuth - no rewrite!)
+#   - /*                → overflow-webapp:3000/* (SSR pages)
+#
+# INTERNAL ACCESS (*.helios):
+# ====================================================================================
+#   For local network access without going through Cloudflare:
+#   - overflow-api-staging.helios - Direct API access
+#   - overflow-staging.helios - Direct webapp access
+#   Requires local DNS or /etc/hosts entry pointing to cluster IP
+#
 # ====================================================================================
 
-# Question Service - routes /api/questions/* to question-svc
+# ------------------------------------------------------------------------------
+# QUESTION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/questions/*, /api/questions/{id}/answers, etc.
+# Rewrites: /api/questions/123 → /questions/123
+# Backend: question-svc:8080
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: question-svc-ingress
   namespace: apps-staging
   annotations:
+    # SSL certificate provisioning via cert-manager
     cert-manager.io/cluster-issuer: "letsencrypt-production"
+    # Force HTTPS redirect for all HTTP requests
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Rewrite /api/questions/... to /questions/...
+    # $1 = optional trailing slash, $2 = rest of path
     nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: webapp-staging-tls  # cert-manager creates/updates this
   rules:
+    # External access via Cloudflare
     - host: staging.devoverflow.org
       http:
         paths:
@@ -32,6 +80,7 @@ spec:
                 name: question-svc
                 port:
                   number: 8080
+    # Internal LAN access (no Cloudflare, no SSL)
     - host: overflow-api-staging.helios
       http:
         paths:
@@ -43,7 +92,13 @@ spec:
                 port:
                   number: 8080
 ---
-# Tags endpoint (via Question Service): /api/tags -> question-svc:8080/tags
+# ------------------------------------------------------------------------------
+# TAGS INGRESS (via Question Service)
+# ------------------------------------------------------------------------------
+# Routes: /api/tags/*
+# Rewrites: /api/tags → /tags
+# Backend: question-svc:8080 (tags are part of question service)
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -81,7 +136,14 @@ spec:
                 port:
                   number: 8080
 ---
-# Search Service: /api/search -> search-svc:8080/search
+# ------------------------------------------------------------------------------
+# SEARCH SERVICE INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/search/*
+# Rewrites: /api/search/query → /search/query
+# Backend: search-svc:8080
+# Uses Typesense for full-text search
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -119,7 +181,14 @@ spec:
                 port:
                   number: 8080
 ---
-# Stats Service: /api/stats -> stats-svc:8080/stats
+# ------------------------------------------------------------------------------
+# STATS SERVICE INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/stats/*
+# Rewrites: /api/stats/trending → /stats/trending
+# Backend: stats-svc:8080
+# Provides platform statistics and trending content
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -157,7 +226,14 @@ spec:
                 port:
                   number: 8080
 ---
-# Vote Service: /api/votes -> vote-svc:8080/votes
+# ------------------------------------------------------------------------------
+# VOTE SERVICE INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/votes/*
+# Rewrites: /api/votes → /votes
+# Backend: vote-svc:8080
+# Handles upvote/downvote operations on Q&A
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -195,7 +271,14 @@ spec:
                 port:
                   number: 8080
 ---
-# Profile Service: /api/profiles -> profile-svc:8080/profiles
+# ------------------------------------------------------------------------------
+# PROFILE SERVICE INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/profiles/*
+# Rewrites: /api/profiles/me → /profiles/me
+# Backend: profile-svc:8080
+# Manages user profiles, reputation, and statistics
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -233,8 +316,19 @@ spec:
                 port:
                   number: 8080
 ---
-# NextAuth API Routes: /api/auth/* -> overflow-webapp:3000/api/auth/*
-# IMPORTANT: This must come BEFORE the main webapp ingress to ensure proper routing
+# ------------------------------------------------------------------------------
+# NEXTAUTH API ROUTES INGRESS
+# ------------------------------------------------------------------------------
+# Routes: /api/auth/* (signin, signout, callback, csrf, session, etc.)
+# NO REWRITE - NextAuth expects /api/auth/* paths as-is
+# Backend: overflow-webapp:3000
+#
+# IMPORTANT: This ingress MUST be evaluated before the main webapp ingress
+# to ensure /api/auth/* requests go to the webapp, not backend services.
+# NGINX orders rules by specificity, so /api/auth should match before /*
+#
+# Extended timeouts for auth operations (OAuth callbacks can be slow)
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -243,11 +337,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # Increase timeouts for auth operations
+    # Extended timeouts for OAuth flows (Keycloak token exchange, etc.)
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    # Ensure large enough buffer for auth responses
+    # Allow larger request bodies for auth payloads
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   ingressClassName: nginx
@@ -267,7 +361,18 @@ spec:
                 port:
                   number: 3000
 ---
-# WebApp: / -> overflow-webapp:3000/
+# ------------------------------------------------------------------------------
+# WEBAPP INGRESS (Catch-All)
+# ------------------------------------------------------------------------------
+# Routes: /* (all paths not matched by other ingresses)
+# NO REWRITE - serves Next.js pages and static assets
+# Backend: overflow-webapp:3000
+#
+# This is the "default" ingress that handles:
+# - SSR pages (/, /questions, /questions/[id], /profile, etc.)
+# - Static assets (/_next/*, /images/*, etc.)
+# - Client-side navigation
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -1,11 +1,31 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+﻿# ====================================================================================
+# QUESTION SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Question Service microservice
+# 
+# This service handles:
+# - Question CRUD operations (create, read, update, delete)
+# - Answer management (add answers to questions)
+# - Tag management (categorize questions)
+# - Comments on questions and answers
+#
+# The service communicates via:
+# - REST API for client requests
+# - RabbitMQ for async events (QuestionCreated, QuestionUpdated, etc.)
+# - PostgreSQL for data persistence
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Resources included in this base
 resources:
-  - deployment.yaml
-  - service.yaml
+  - deployment.yaml   # Pod template and replica configuration
+  - service.yaml      # ClusterIP service for internal routing
 
+# Standard Kubernetes labels applied to all resources
+# These help with resource organization and selection
 labels:
   - pairs:
-      app.kubernetes.io/name: question-svc
-      app.kubernetes.io/part-of: overflow
+      app.kubernetes.io/name: question-svc      # Service identifier
+      app.kubernetes.io/part-of: overflow       # Parent application

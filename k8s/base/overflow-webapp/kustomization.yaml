@@ -1,12 +1,34 @@
+# ====================================================================================
+# OVERFLOW WEB APPLICATION - Kustomization
+# ====================================================================================
+# Base kustomization for the Next.js frontend application
+#
+# This application provides:
+# - Server-side rendered React pages (Next.js 15)
+# - User authentication via NextAuth.js + Keycloak
+# - API route handlers for auth callbacks
+# - Static asset serving
+#
+# Environment-specific configuration:
+# - Staging: staging.devoverflow.org (apps-staging namespace)
+# - Production: devoverflow.org (apps-production namespace)
+#
+# Secrets are loaded from Infisical at both:
+# - Build time (NEXT_PUBLIC_* variables)
+# - Runtime (server-side environment variables)
+# ====================================================================================
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Resources included in this base
 resources:
-  - deployment.yaml
-  - service.yaml
+  - deployment.yaml   # Pod template with Next.js container
+  - service.yaml      # ClusterIP service for ingress routing
 
+# Standard Kubernetes labels applied to all resources
 labels:
   - pairs:
-      app.kubernetes.io/name: overflow-webapp
-      app.kubernetes.io/part-of: overflow
+      app.kubernetes.io/name: overflow-webapp   # Application identifier
+      app.kubernetes.io/part-of: overflow       # Parent application
 
