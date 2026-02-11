@@ -100,21 +100,20 @@ labels:
 # ====================================================================================
 # REPLICA COUNTS
 # ====================================================================================
-# Staging uses 1 replica per service to conserve resources
-# Production should use 2+ replicas for high availability
+# Staging uses 2 replicas per service for high availability testing
 replicas:
   - name: question-svc
-    count: 1
+    count: 2
   - name: search-svc
-    count: 1
+    count: 2
   - name: profile-svc
-    count: 1
+    count: 2
   - name: stats-svc
-    count: 1
+    count: 2
   - name: vote-svc
-    count: 1
+    count: 2
   - name: overflow-webapp
-    count: 1
+    count: 2
 
 # ====================================================================================
 # PATCHES

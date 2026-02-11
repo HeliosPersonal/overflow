@@ -52,17 +52,17 @@ labels:
 
 replicas:
   - name: question-svc
-    count: 1
+    count: 0
   - name: search-svc
-    count: 1
+    count: 0
   - name: profile-svc
-    count: 1
+    count: 0
   - name: stats-svc
-    count: 1
+    count: 0
   - name: vote-svc
-    count: 1
+    count: 0
   - name: overflow-webapp
-    count: 1
+    count: 0
 
 # Production-specific resource adjustments
 patches:
