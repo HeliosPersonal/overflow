@@ -1,0 +1,74 @@
+# ====================================================================================
+# PRODUCTION ENVIRONMENT - Kustomization Overlay
+# ====================================================================================
+# Environment: Production (apps-production namespace)
+# Domain: devoverflow.org / www.devoverflow.org
+# Purpose: Live production workloads
+#
+# Connected Infrastructure (infra-production namespace — single shared instance):
+# - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: production_*)
+# - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-production)
+# - Typesense:  typesense.infra-production.svc.cluster.local:8108
+# - Keycloak:   keycloak.infra-production.svc.cluster.local:8080  (realm: overflow-production)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apps-production
+
+resources:
+  - ../../base/infisical
+  - ../../base/question-svc
+  - ../../base/search-svc
+  - ../../base/profile-svc
+  - ../../base/stats-svc
+  - ../../base/vote-svc
+  - ../../base/overflow-webapp
+  - ingress.yaml
+
+# Image tags set to latest for production (built from main branch)
+images:
+  - name: ghcr.io/placeholder/overflow-question
+    newName: ghcr.io/GITHUB_USERNAME/overflow-question
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-search
+    newName: ghcr.io/GITHUB_USERNAME/overflow-search
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-profile
+    newName: ghcr.io/GITHUB_USERNAME/overflow-profile
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-stats
+    newName: ghcr.io/GITHUB_USERNAME/overflow-stats
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-vote
+    newName: ghcr.io/GITHUB_USERNAME/overflow-vote
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-webapp
+    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
+    newTag: latest
+
+configMapGenerator:
+  - name: app-config
+    behavior: create
+    literals:
+      - aspnetcore-environment=Production
+
+labels:
+  - pairs:
+      environment: production
+      managed-by: kustomize
+
+replicas:
+  - name: question-svc
+    count: 0
+  - name: search-svc
+    count: 0
+  - name: profile-svc
+    count: 0
+  - name: stats-svc
+    count: 0
+  - name: vote-svc
+    count: 0
+  - name: overflow-webapp
+    count: 0

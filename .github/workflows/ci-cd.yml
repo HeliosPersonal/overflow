@@ -1,0 +1,440 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - development
+      - main
+  pull_request:
+    branches:
+      - development
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      branch:
+        description: 'Branch to deploy (leave empty for current branch)'
+        required: false
+        type: string
+
+# Permissions for GITHUB_TOKEN to push to GitHub Container Registry
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_TAG: ${{ github.sha }}
+  KUBECONFIG: /home/github-runner/.kube/config
+
+jobs:
+  # ============================================================================
+  # BUILD & TEST (runs on every push/PR)
+  # ============================================================================
+  build-and-test:
+    name: 🏗️ Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore Overflow.slnx
+
+      - name: 🔨 Build solution
+        run: dotnet build Overflow.slnx --no-restore --configuration Release
+
+      - name: 🧪 Run tests
+        run: dotnet test Overflow.slnx --no-build --configuration Release --verbosity normal
+
+  # ============================================================================
+  # BUILD DOCKER IMAGES (runs in parallel for each service)
+  # ============================================================================
+  build-images:
+    name: 🐳 Build ${{ matrix.service }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: QuestionService
+            dockerfile: Overflow.QuestionService/Dockerfile
+            image: overflow-question
+            context: .
+          - service: SearchService
+            dockerfile: Overflow.SearchService/Dockerfile
+            image: overflow-search
+            context: .
+          - service: ProfileService
+            dockerfile: Overflow.ProfileService/Dockerfile
+            image: overflow-profile
+            context: .
+          - service: StatsService
+            dockerfile: Overflow.StatsService/Dockerfile
+            image: overflow-stats
+            context: .
+          - service: VoteService
+            dockerfile: Overflow.VoteService/Dockerfile
+            image: overflow-vote
+            context: .
+          - service: DataSeederService
+            dockerfile: Overflow.DataSeederService/Dockerfile
+            image: overflow-data-seeder
+            context: .
+          - service: WebApp
+            dockerfile: webapp/Dockerfile
+            image: overflow-webapp
+            context: ./webapp
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup environment
+        id: repo_owner
+        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: 🔑 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔧 Determine build environment
+        if: matrix.service == 'WebApp'
+        id: webapp_env
+        run: |
+          # Determine environment based on branch
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "build_env=production" >> $GITHUB_OUTPUT
+          else
+            echo "build_env=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🐳 Build & push ${{ matrix.service }} (Backend Services)
+        if: matrix.service != 'WebApp'
+        run: |
+          IMAGE_NAME="${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}"
+          docker build -f ${{ matrix.dockerfile }} -t ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${{ matrix.context }}
+          docker push ${IMAGE_NAME}:${{ env.IMAGE_TAG }}
+          
+          # Also tag and push as 'latest' for production deployments
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${IMAGE_NAME}:latest
+            docker push ${IMAGE_NAME}:latest
+          fi
+
+      - name: 🐳 Build & push WebApp
+        if: matrix.service == 'WebApp'
+        run: |
+          IMAGE_NAME="${{ env.DOCKER_REGISTRY }}/${{ steps.repo_owner.outputs.owner_lc }}/${{ matrix.image }}"
+          # Build with Infisical credentials - all other config loaded from Infisical at build time
+          docker build -f ${{ matrix.dockerfile }} \
+            --build-arg INFISICAL_CLIENT_ID="${{ secrets.INFISICAL_CLIENT_ID }}" \
+            --build-arg INFISICAL_CLIENT_SECRET="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
+            --build-arg INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}" \
+            --build-arg NODE_ENV="${{ steps.webapp_env.outputs.build_env }}" \
+            -t ${IMAGE_NAME}:${{ env.IMAGE_TAG }} \
+            ${{ matrix.context }}
+          docker push ${IMAGE_NAME}:${{ env.IMAGE_TAG }}
+          
+          # Also tag and push as 'latest' for production deployments
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag ${IMAGE_NAME}:${{ env.IMAGE_TAG }} ${IMAGE_NAME}:latest
+            docker push ${IMAGE_NAME}:latest
+          fi
+
+  # ============================================================================
+  # TERRAFORM - Apply overflow infrastructure (databases, vhosts, ConfigMaps)
+  # Runs after images are built, before k8s deployment.
+  # - On PRs / development branch: plan only (no apply) to review infra changes
+  # - On main branch: plan + apply (infra changes land together with production)
+  # - Skipped entirely when no terraform files changed (except workflow_dispatch)
+  # Must complete successfully so overflow-infra-config ConfigMap exists
+  # in the target namespace before pods start.
+  # ============================================================================
+  terraform:
+    name: 🏗️ Terraform (overflow infra)
+    needs: build-images
+    if: |
+      (github.event_name == 'push' && (
+        github.ref == 'refs/heads/development' ||
+        github.ref == 'refs/heads/main'
+      )) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: terraform
+
+    env:
+      # Azure Blob state backend auth (same service principal as infrastructure-helios)
+      ARM_CLIENT_ID:       ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET:   ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID:       ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      # Terraform variables (passed as TF_VAR_* to avoid a tfvars file in CI)
+      TF_VAR_pg_password:        ${{ secrets.PG_PASSWORD }}
+      TF_VAR_rabbit_password:    ${{ secrets.RABBIT_PASSWORD }}
+      TF_VAR_typesense_api_key:  ${{ secrets.TYPESENSE_API_KEY }}
+      TF_VAR_kubeconfig_path:    /home/github-runner/.kube/config
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+
+      - name: ✅ Verify Kubernetes access
+        run: kubectl cluster-info
+
+      - name: ⚙️ Terraform Init
+        run: terraform init
+
+      - name: 🔍 Terraform Validate
+        run: terraform validate
+
+      - name: 📋 Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          # exit code: 0 = no changes, 1 = error, 2 = changes present
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⏭️ No infrastructure changes — apply will be skipped"
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Infrastructure changes detected — apply will run"
+          else
+            echo "❌ Terraform plan failed"
+            exit 1
+          fi
+
+      - name: 🚀 Terraform Apply
+        # Only apply when there are actual changes AND we are on an apply-eligible branch/event
+        if: |
+          steps.plan.outputs.has_changes == 'true' && (
+            (github.ref == 'refs/heads/development' && github.event_name == 'push') ||
+            (github.ref == 'refs/heads/main'        && github.event_name == 'push') ||
+            github.event_name == 'workflow_dispatch'
+          )
+        run: terraform apply -auto-approve tfplan
+
+  # ============================================================================
+  # STAGING DEPLOYMENT (development branch → apps-staging namespace)
+  # ============================================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    needs: [build-images, terraform]
+    if: |
+      (github.ref == 'refs/heads/development' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    runs-on: self-hosted
+    environment: staging
+    env:
+      NAMESPACE: apps-staging
+      OVERLAY: staging
+    
+    steps:
+      - name: 📋 Deployment Info
+        run: |
+          echo "🎯 Deploying to: STAGING"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📦 Commit: ${{ github.sha }}"
+          echo "🔄 Trigger: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "👤 Triggered by: ${{ github.actor }}"
+          fi
+
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup environment
+        id: setup
+        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: ✅ Verify Kubernetes access
+        run: |
+          kubectl config current-context || echo "Using default context"
+          kubectl get nodes
+
+      - name: 🏷️ Update image tags
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: |
+          sed -i "s/GITHUB_USERNAME/${{ steps.setup.outputs.owner_lc }}/g" kustomization.yaml
+          sed -i "s|newTag: SHA_REPLACED_BY_CICD|newTag: ${{ env.IMAGE_TAG }}|g" kustomization.yaml
+
+      - name: 🔐 Inject secrets
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: |
+          # Inject Infisical credentials (all 3 in one Secret)
+          sed -i "s|INFISICAL_PROJECT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_PROJECT_ID: \"${{ secrets.INFISICAL_PROJECT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_ID: \"${{ secrets.INFISICAL_CLIENT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_SECRET: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_SECRET: \"${{ secrets.INFISICAL_CLIENT_SECRET }}\"|g" ../../base/infisical/secret.yaml
+          
+
+      - name: 👀 Preview manifests
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: kubectl kustomize . | head -n 100
+
+      - name: 🚀 Deploy to Kubernetes
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: kubectl apply -k .
+
+      - name: ⏳ Wait for rollout
+        run: |
+          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=10m
+
+      - name: 📊 Deployment status
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo "=== Logs from question-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=question-svc --tail=30 --prefix=true || true
+          echo "=== Logs from search-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=search-svc --tail=30 --prefix=true || true
+          echo "=== Logs from profile-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=profile-svc --tail=30 --prefix=true || true
+          echo "=== Logs from stats-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=stats-svc --tail=30 --prefix=true || true
+          echo "=== Logs from vote-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
+          echo "=== Logs from overflow-webapp ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=overflow-webapp --tail=30 --prefix=true || true
+
+      - name: 🧹 Cleanup old resources
+        run: |
+          echo "🧹 Cleaning up old Kubernetes resources..."
+          chmod +x k8s/scripts/cleanup-k8s-resources.sh
+          ./k8s/scripts/cleanup-k8s-resources.sh ${{ env.NAMESPACE }}
+        continue-on-error: true  # Don't fail deployment if cleanup has issues
+
+  # ============================================================================
+  # PRODUCTION DEPLOYMENT (main branch → apps-production namespace)
+  # ============================================================================
+  deploy-production:
+    name: 🏭 Deploy to Production
+    needs: [build-images, terraform]
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    runs-on: self-hosted
+    environment: production
+    env:
+      NAMESPACE: apps-production
+      OVERLAY: production
+    
+    steps:
+      - name: 📋 Deployment Info
+        run: |
+          echo "🎯 Deploying to: PRODUCTION"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📦 Commit: ${{ github.sha }}"
+          echo "🔄 Trigger: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "👤 Triggered by: ${{ github.actor }}"
+          fi
+
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+
+      - name: 🔧 Setup environment
+        id: setup
+        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: ✅ Verify Kubernetes access
+        run: |
+          kubectl config current-context || echo "Using default context"
+          kubectl get nodes
+
+      - name: 🏷️ Update image tags for production (use latest)
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: |
+          sed -i "s/GITHUB_USERNAME/${{ steps.setup.outputs.owner_lc }}/g" kustomization.yaml
+          # Production uses 'latest' tag for deployments
+          # Note: latest tag is created during build step for main branch
+
+      - name: 🔐 Inject secrets
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: |
+          # Inject Infisical credentials (all 3 in one Secret)
+          sed -i "s|INFISICAL_PROJECT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_PROJECT_ID: \"${{ secrets.INFISICAL_PROJECT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_ID: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_ID: \"${{ secrets.INFISICAL_CLIENT_ID }}\"|g" ../../base/infisical/secret.yaml
+          sed -i "s|INFISICAL_CLIENT_SECRET: \"PLACEHOLDER_WILL_BE_REPLACED_BY_CICD\"|INFISICAL_CLIENT_SECRET: \"${{ secrets.INFISICAL_CLIENT_SECRET }}\"|g" ../../base/infisical/secret.yaml
+          
+
+      - name: 👀 Preview manifests
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: kubectl kustomize . | head -n 100
+
+      - name: 🚀 Deploy to Kubernetes
+        working-directory: ./k8s/overlays/${{ env.OVERLAY }}
+        run: kubectl apply -k .
+
+      - name: ⏳ Wait for rollout
+        run: |
+          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=8m
+
+      - name: 📊 Deployment status
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo "=== Logs from question-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=question-svc --tail=30 --prefix=true || true
+          echo "=== Logs from search-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=search-svc --tail=30 --prefix=true || true
+          echo "=== Logs from profile-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=profile-svc --tail=30 --prefix=true || true
+          echo "=== Logs from stats-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=stats-svc --tail=30 --prefix=true || true
+          echo "=== Logs from vote-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
+
+      - name: 🧪 Smoke tests
+        run: |
+          sleep 10
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://question-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://search-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://profile-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://stats-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://vote-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://overflow-webapp:3000/ || echo "⚠️ Health check failed"
+
+      - name: 🧹 Cleanup old resources
+        run: |
+          echo "🧹 Cleaning up old Kubernetes resources..."
+          chmod +x k8s/scripts/cleanup-k8s-resources.sh
+          ./k8s/scripts/cleanup-k8s-resources.sh ${{ env.NAMESPACE }}
+        continue-on-error: false
+

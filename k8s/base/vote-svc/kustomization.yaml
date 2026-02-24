@@ -1,0 +1,29 @@
+﻿# ====================================================================================
+# VOTE SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Vote Service microservice
+#
+# This service handles:
+# - Upvote/downvote on questions
+# - Upvote/downvote on answers
+# - Vote validation (prevent self-voting, duplicate votes)
+# - Publishing VoteCasted events
+#
+# Dependencies:
+# - PostgreSQL for vote records
+# - RabbitMQ for publishing events (VoteCasted → profile-svc, stats-svc)
+# - Keycloak for user authentication (who is voting)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: vote-svc
+      app.kubernetes.io/part-of: overflow
+

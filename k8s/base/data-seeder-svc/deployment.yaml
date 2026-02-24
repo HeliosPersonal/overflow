@@ -1,0 +1,70 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-seeder-svc
+  labels:
+    app: data-seeder-svc
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-seeder-svc
+  template:
+    metadata:
+      labels:
+        app: data-seeder-svc
+        component: worker
+    spec:
+      containers:
+        - name: data-seeder-svc
+          image: ghcr.io/placeholder/overflow-data-seeder:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            # Provides SeederOptions__OllamaUrl, ConnectionStrings__messaging, etc.
+            - configMapRef:
+                name: overflow-infra-config
+          env:
+            - name: DOTNET_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: aspnetcore-environment
+            - name: SeederOptions__QuestionServiceUrl
+              value: "http://question-svc:8080"
+            - name: SeederOptions__ProfileServiceUrl
+              value: "http://profile-svc:8080"
+            - name: SeederOptions__VoteServiceUrl
+              value: "http://vote-svc:8080"
+            # LlmApiUrl is derived from SeederOptions__OllamaUrl set in overflow-infra-config
+            - name: SeederOptions__LlmApiUrl
+              value: "$(SeederOptions__OllamaUrl)/v1/chat/completions"
+            - name: SeederOptions__LlmModel
+              value: "phi3.5"
+            # Infisical credentials
+            - name: INFISICAL_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: infisical-credentials
+                  key: INFISICAL_PROJECT_ID
+                  optional: true
+            - name: INFISICAL_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_ID
+                  optional: true
+            - name: INFISICAL_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: infisical-credentials
+                  key: INFISICAL_CLIENT_SECRET
+                  optional: true
+            - name: DOTNET_USE_POLLING_FILE_WATCHER
+              value: "true"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "20m"
+            limits:
+              memory: "256Mi"

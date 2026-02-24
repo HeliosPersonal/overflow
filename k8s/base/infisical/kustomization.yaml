@@ -1,0 +1,30 @@
+﻿# ====================================================================================
+# INFISICAL CREDENTIALS - Kustomization
+# ====================================================================================
+# Manages the Infisical authentication secret used by all services
+#
+# HOW IT WORKS:
+# 1. CI/CD pipeline replaces placeholders in secret.yaml with real values
+# 2. Secret is deployed to the target namespace (apps-staging/apps-production)
+# 3. All service deployments mount this secret as environment variables
+# 4. At startup, services use Infisical SDK to fetch actual secrets
+#
+# SECRETS LOADED FROM INFISICAL:
+# - DATABASE_URL (PostgreSQL connection string)
+# - RABBITMQ_URL (RabbitMQ connection string)
+# - TYPESENSE_API_KEY (Typesense authentication)
+# - AUTH_KEYCLOAK_SECRET (Keycloak client secret)
+# - CLOUDINARY_* (Image upload credentials)
+# - And more environment-specific secrets...
+#
+# SECURITY NOTE:
+# The secret.yaml contains placeholders, NOT real credentials.
+# Real values are injected during CI/CD and never committed to Git.
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - secret.yaml    # Contains INFISICAL_PROJECT_ID, CLIENT_ID, CLIENT_SECRET
+
