@@ -100,7 +100,7 @@ NOW=$(date +%s)
 CLEANED=0
 
 while IFS=' ' read -r JOB_NAME COMPLETE_TIME; do
-    [ -z "$JOB_NAME" ] || [ -z "$COMPLETE_TIME" ] && continue
+    { [ -z "$JOB_NAME" ] || [ -z "$COMPLETE_TIME" ]; } && continue
 
     COMPLETE_EPOCH=$(date -d "$COMPLETE_TIME" +%s 2>/dev/null || echo 0)
     [ "$COMPLETE_EPOCH" -eq 0 ] && continue
