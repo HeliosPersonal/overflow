@@ -1,6 +1,6 @@
-# Overflow - Quick Start Guide
+# Overflow — Quick Start
 
-## Local Development Setup
+## Local Development
 
 ### Prerequisites
 
@@ -8,34 +8,25 @@
 - [Node.js 22+](https://nodejs.org/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Aspire Dashboard](https://learn.microsoft.com/en-us/dotnet/aspire/) (optional)
 
-### 1. Clone Repository
+### 1. Clone
 
 ```bash
-git clone https://github.com/ViacheslavMelnichenko/overflow.git
+git clone https://github.com/heliospersonal/overflow.git
 cd overflow
 ```
 
-### 2. Start with .NET Aspire (Recommended)
-
-.NET Aspire orchestrates all services locally with observability:
+### 2. Start backend with .NET Aspire
 
 ```bash
-# Start the AppHost
 cd Overflow.AppHost
 dotnet run
 ```
 
-This starts:
-- All backend microservices
-- PostgreSQL
-- RabbitMQ
-- Typesense
-- Keycloak
-- Aspire Dashboard (http://localhost:18888)
+Starts all backend microservices + PostgreSQL, RabbitMQ, Typesense, Keycloak, and the
+Aspire Dashboard at **http://localhost:18888**.
 
-### 3. Start Frontend
+### 3. Start frontend
 
 ```bash
 cd webapp
@@ -43,14 +34,13 @@ npm install
 npm run dev
 ```
 
-Access the app at http://localhost:3000
+App available at **http://localhost:3000**.
 
-### 4. Environment Configuration
+### 4. Frontend environment
 
-Create `.env.local` in the webapp directory:
+Create `webapp/.env.local`:
 
 ```env
-# Local development
 API_URL=http://localhost:5000/api
 AUTH_KEYCLOAK_ID=nextjs-local
 AUTH_KEYCLOAK_SECRET=<your-keycloak-secret>
@@ -61,117 +51,102 @@ AUTH_SECRET=<random-string>
 
 ---
 
-## Deployment to Kubernetes
+## Kubernetes Deployment
 
 ### Prerequisites
 
-- Kubernetes cluster with kubectl access
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.5
-- [Helm](https://helm.sh/docs/intro/install/) >= 3.0
+- Kubernetes cluster with `kubectl` access
+- [Terraform](https://www.terraform.io/downloads.html) ≥ 1.5
 - GitHub account with Actions enabled
-- [Infisical](https://infisical.com) account for secrets
+- [Infisical](https://infisical.com) account for secrets management
 
-### 1. Shared Infrastructure Setup (One-time)
+### 1. Deploy shared infrastructure
 
-Shared infrastructure is managed in a separate repository: `infrastructure-helios`
+Shared infrastructure lives in a separate repository:
 
 ```bash
-# Clone shared infrastructure repo
-git clone git@github.com:HeliosPersonal/infrastructure-helios.git
+git clone git@github.com:heliospersonal/infrastructure-helios.git
 cd infrastructure-helios/terraform
 
-# Initialize Terraform
 terraform init
-
-# Create terraform.tfvars and terraform.secret.tfvars with your credentials
-# (see infrastructure-helios/README.md for template)
-
-# Deploy shared infrastructure
+# Fill in terraform.tfvars and terraform.secret.tfvars (see infrastructure-helios README)
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 ```
 
-This creates:
-- Kubernetes namespaces
-- PostgreSQL databases
-- RabbitMQ message queues
-- Typesense search engine
-- Keycloak identity provider
-- NGINX Ingress controller
-- cert-manager for SSL
-- Monitoring stack
-- Ollama LLM service
-- Cloudflare DDNS
+Creates: namespaces, PostgreSQL, RabbitMQ, Typesense, Keycloak, NGINX Ingress,
+cert-manager, Grafana Alloy, Ollama, Cloudflare DDNS.
 
-### 1b. Project-Specific Terraform (Optional)
+### 2. Deploy project infrastructure
 
 ```bash
 cd overflow/terraform
 terraform init
-terraform apply
+cp terraform.tfvars.example terraform.secret.tfvars
+# Fill in pg_password, rabbit_password, typesense_api_key
+terraform apply -var-file="terraform.secret.tfvars"
 ```
 
-This reads outputs from the shared infrastructure for project-specific configuration.
-
-### 2. Deploy ClusterIssuers
-
-```bash
-kubectl apply -f k8s/cert-manager/clusterissuers.yaml
-```
+Creates: per-environment databases, RabbitMQ vhosts, and `overflow-infra-config` ConfigMaps.
 
 ### 3. Configure GitHub Secrets
 
-Add to repository secrets:
-- `INFISICAL_PROJECT_ID`
-- `INFISICAL_CLIENT_ID`
-- `INFISICAL_CLIENT_SECRET`
+Add to repository secrets (`Settings → Secrets and variables → Actions`):
 
-### 4. Deploy Application
+| Secret | Description |
+|---|---|
+| `ARM_CLIENT_ID` | Azure service principal — copy from infrastructure-helios |
+| `ARM_CLIENT_SECRET` | Azure service principal — copy from infrastructure-helios |
+| `ARM_TENANT_ID` | Azure tenant — copy from infrastructure-helios |
+| `ARM_SUBSCRIPTION_ID` | Azure subscription — copy from infrastructure-helios |
+| `PG_PASSWORD` | PostgreSQL admin password |
+| `RABBIT_PASSWORD` | RabbitMQ admin password |
+| `TYPESENSE_API_KEY` | Typesense API key |
+| `INFISICAL_PROJECT_ID` | Infisical project ID |
+| `INFISICAL_CLIENT_ID` | Infisical machine identity client ID |
+| `INFISICAL_CLIENT_SECRET` | Infisical machine identity client secret |
 
-Push to trigger deployment:
-- `development` branch → Staging
-- `main` branch → Production
+### 4. Deploy application
 
-Or use manual workflow dispatch.
+Push to trigger CI/CD:
+- `development` → Staging (`apps-staging`)
+- `main` → Production (`apps-production`)
+
+Or trigger manually via **Actions → workflow_dispatch**.
 
 ---
 
 ## Architecture Overview
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                      FRONTEND                              │
-│                   (Next.js )                               │
-│                 staging.devoverflow.org                    │
-└─────────────────────────┬──────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                  NGINX INGRESS                              │
-│              (SSL termination, routing)                     │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-    ┌─────────────────────┼─────────────────────┐
-    │                     │                     │
-┌───▼────┐    ┌───────────▼──────────┐  ┌───────▼─────┐
-│Question│    │Profile │Stats │Vote  │  │   Search    │
-│Service │    │Service │Svc   │Svc   │  │   Service   │
-│(.NET)  │    │(.NET)  │(.NET)│(.NET │  │   (.NET)    │
-└───┬────┘    └───────────┬──────────┘  └─────┬───────┘
-    │                     │                   │
-    │        ┌────────────┼────────────┐      │
-    │        │            │            │      │
-┌───▼────────▼────┐  ┌────▼────┐  ┌───▼───────▼───┐
-│   PostgreSQL    │  │RabbitMQ │  │   Typesense   │
-│   (Database)    │  │  (MQ)   │  │   (Search)    │
-└─────────────────┘  └─────────┘  └───────────────┘
+┌──────────────────────────────────────────────────┐
+│            FRONTEND (Next.js)                    │
+│         staging.devoverflow.org                  │
+└─────────────────────┬────────────────────────────┘
+                      │
+┌─────────────────────▼────────────────────────────┐
+│           NGINX INGRESS CONTROLLER               │
+│         (SSL termination, path routing)          │
+└──────┬──────────┬──────────┬──────────┬──────────┘
+       │          │          │          │
+  question    profile     stats      search
+    -svc       -svc        -svc       -svc
+   (.NET)     (.NET)      (.NET)     (.NET)
+       │          │          │          │
+       └──────────┴────┬─────┴──────────┘
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+     PostgreSQL    RabbitMQ    Typesense
+     (databases)   (events)    (search)
 ```
 
 ---
 
 ## Key URLs
 
-| Environment | URL |
-|-------------|-----|
-| Local Frontend | http://localhost:3000 |
+| | URL |
+|---|---|
+| Local app | http://localhost:3000 |
 | Local Aspire Dashboard | http://localhost:18888 |
 | Staging | https://staging.devoverflow.org |
 | Production | https://devoverflow.org |
@@ -181,55 +156,54 @@ Or use manual workflow dispatch.
 
 ## Common Commands
 
-### Local Development
+### Local development
 
 ```bash
-# Run backend with Aspire
+# Backend
 cd Overflow.AppHost && dotnet run
 
-# Run frontend
+# Frontend
 cd webapp && npm run dev
 
-# Run tests
+# Tests
 dotnet test Overflow.slnx
 ```
 
-### Kubernetes Operations
+### Kubernetes
 
 ```bash
-# Get pods
+# Pods
 kubectl get pods -n apps-staging
 
-# View logs
+# Logs (follow)
 kubectl logs -n apps-staging -l app=question-svc -f
 
-# Restart deployment
+# Restart
 kubectl rollout restart deployment/question-svc -n apps-staging
 
 # Port forward for debugging
 kubectl port-forward svc/question-svc 8080:8080 -n apps-staging
 ```
 
-### Terraform Operations
+### Terraform
 
 ```bash
-# Shared infrastructure (infrastructure-helios repo)
+# Shared infrastructure
 cd infrastructure-helios/terraform
-terraform plan -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
+terraform plan  -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 
-# Project-specific (overflow repo)
+# Project-specific
 cd overflow/terraform
-terraform plan
-terraform apply
+terraform plan  -var-file="terraform.secret.tfvars"
+terraform apply -var-file="terraform.secret.tfvars"
 ```
 
 ---
 
 ## Further Reading
 
-- [Infrastructure Documentation](./INFRASTRUCTURE.md) - Complete infrastructure guide
-- [Kubernetes Manifests](../k8s/README.md) - Kustomize and deployment
-- [Project Terraform](../terraform/README.md) - Project-specific Terraform
-- [Terraform Guide](../terraform-infra/README.md) - Infrastructure as code
-
+- [Infrastructure Documentation](./INFRASTRUCTURE.md)
+- [Network Architecture](./NETWORK_ARCHITECTURE.md)
+- [Terraform README](../terraform/README.md)
+- [Kubernetes Manifests](../k8s/README.md)
