@@ -108,7 +108,7 @@ infrastructure-helios/terraform/certs/origin.crt + origin.key
           → ingresses reference secretName: cloudflare-origin
 ```
 
-No cert-manager, no Let's Encrypt, no renewal needed (Origin Certs last up to 15 years).
+Origin Certs issued by Cloudflare are valid for up to 15 years.
 
 
 

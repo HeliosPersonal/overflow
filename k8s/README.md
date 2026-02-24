@@ -250,7 +250,6 @@ kubectl delete replicaset -n apps-staging --field-selector=status.replicas=0
 - The `cloudflare-origin` TLS secret is created in `infra-production` by `infrastructure-helios`
 - `overflow/terraform` copies it to `apps-staging` and `apps-production`
 - All ingresses reference `secretName: cloudflare-origin`
-- No cert-manager, no Let's Encrypt, no renewals needed
 
 ## Links
 

@@ -82,15 +82,17 @@ cloudflare-ddns-staging ──┼──▶ Cloudflare API ──▶ Updates A re
 cloudflare-ddns-keycloak ─┘
 ```
 
-#### SSL/TLS — cert-manager
+#### SSL/TLS — Cloudflare Origin Certificate
 
 ```
-Ingress created
-  → cert-manager detects annotation cert-manager.io/cluster-issuer
-  → Creates ACME Order with Let's Encrypt
-  → HTTP-01 challenge validates domain ownership
-  → Certificate issued (90 days), stored in TLS Secret
-  → Auto-renewed when < 30 days to expiry
+Cloudflare (Full Strict mode)
+  → Browser ──HTTPS──▶ Cloudflare edge (Universal SSL)
+  → Cloudflare ──HTTPS──▶ NGINX (Cloudflare Origin Certificate)
+  → NGINX ──HTTP──▶ pods
+
+Origin cert stored as 'cloudflare-origin' TLS secret.
+Created by infrastructure-helios in infra-production.
+Copied to apps-staging / apps-production by overflow/terraform.
 ```
 
 #### Ingress Routing
@@ -204,7 +206,7 @@ question-svc ──▶ QuestionCreated ──▶ RabbitMQ (overflow-staging vhos
 |---|---|---|
 | Identity | Keycloak | OAuth2/OIDC |
 | Secrets | Infisical | Centralized secrets vault |
-| SSL/TLS | cert-manager + Let's Encrypt | Automated certificates |
+| SSL/TLS | Cloudflare Origin Certificate | Full (Strict) end-to-end HTTPS |
 | CDN/WAF | Cloudflare | DDoS protection + DDNS |
 
 ### Observability
@@ -229,7 +231,6 @@ apps-production     — Production application services
 infra-production    — Shared: PostgreSQL, RabbitMQ, Typesense, Keycloak
 ingress             — NGINX Ingress Controller
 monitoring          — Grafana Alloy, node-exporter, kube-state-metrics
-cert-manager        — SSL certificate automation
 kube-system         — Cloudflare DDNS, core K8s components
 ```
 
@@ -316,9 +317,6 @@ k8s/
 │       ├── kustomization.yaml
 │       └── ingress.yaml
 │
-├── cert-manager/
-│   └── clusterissuers.yaml      — letsencrypt-production ClusterIssuer
-│
 └── scripts/
     └── cleanup-k8s-resources.sh
 ```
@@ -359,14 +357,15 @@ kubectl kustomize k8s/overlays/staging
 ┌─────────────────────────────────────────────────────────────────┐
 │  infrastructure-helios  (separate repo)                         │
 │  postgres · rabbitmq · keycloak · typesense · ollama            │
-│  cert-manager · NGINX ingress · Grafana Alloy · DDNS            │
+│  NGINX ingress · Grafana Alloy · DDNS · cloudflare-origin cert  │
 │  Outputs: postgres_host, rabbitmq_host, keycloak_url, ...       │
 └──────────────────────────────┬──────────────────────────────────┘
                                │ terraform_remote_state (azurerm)
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  overflow/terraform  (this repo)                                │
-│  databases · vhosts · overflow-infra-config ConfigMaps          │
+│  databases · vhosts · cloudflare-origin secret copy            │
+│  overflow-infra-config ConfigMaps                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -377,7 +376,7 @@ kubectl kustomize k8s/overlays/staging
 | `provider.tf` | Azure Blob backend, kubernetes + null providers |
 | `data.tf` | Remote state reference + locals |
 | `variables.tf` | `pg_password`, `rabbit_password`, `typesense_api_key` |
-| `main.tf` | K8s Jobs (DB/vhost init) + ConfigMaps |
+| `main.tf` | DB/vhost init (null_resource) + secret copy + ConfigMaps |
 | `outputs.tf` | Config outputs |
 
 ---
