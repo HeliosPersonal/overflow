@@ -61,14 +61,14 @@ labels:
 
 replicas:
   - name: question-svc
-    count: 0
+    count: 1
   - name: search-svc
-    count: 0
+    count: 1
   - name: profile-svc
-    count: 0
+    count: 1
   - name: stats-svc
-    count: 0
+    count: 1
   - name: vote-svc
-    count: 0
+    count: 1
   - name: overflow-webapp
-    count: 0
+    count: 1

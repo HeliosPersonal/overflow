@@ -5,10 +5,10 @@ on:
     branches:
       - development
       - main
-  pull_request:
-    branches:
-      - development
-      - main
+#  pull_request:
+#    branches:
+#      - development
+#      - main
   workflow_dispatch:
     inputs:
       environment:
