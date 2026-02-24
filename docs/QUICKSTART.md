@@ -74,7 +74,11 @@ terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 ```
 
 Creates: namespaces, PostgreSQL, RabbitMQ, Typesense, Keycloak, NGINX Ingress,
-cert-manager, Grafana Alloy, Ollama, Cloudflare DDNS.
+Grafana Alloy, Ollama, Cloudflare DDNS.
+
+> **SSL/TLS:** Uses Cloudflare Full (Strict) mode with a Cloudflare Origin Certificate.
+> The cert is stored in `infra-production` by infrastructure-helios. Overflow's Terraform
+> copies it to `apps-staging` / `apps-production` so NGINX ingresses can serve HTTPS.
 
 ### 2. Deploy project infrastructure
 

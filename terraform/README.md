@@ -12,6 +12,7 @@ state and provisions Overflow's own slice of each shared service.
 |---|---|
 | **PostgreSQL databases** | `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `production_*` variants |
 | **RabbitMQ vhosts** | `overflow-staging`, `overflow-production` |
+| **TLS Secret** | Copies `cloudflare-origin` from `infra-production` → `apps-staging` + `apps-production` |
 | **ConfigMaps** | `overflow-infra-config` in `apps-staging` and `apps-production` with all connection strings pre-assembled |
 
 ### ConfigMap keys injected into pods

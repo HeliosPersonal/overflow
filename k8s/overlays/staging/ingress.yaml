@@ -4,35 +4,19 @@
 # Domain: staging.devoverflow.org (external)
 # Namespace: apps-staging
 #
-# TRAFFIC FLOW:
-# ====================================================================================
-#
-#   Internet → Cloudflare (CDN/WAF/SSL) → Home Router → K8s Ingress → Services
-#
-#   1. User requests https://staging.devoverflow.org/api/questions/123
-#   2. Cloudflare proxies the request (DDNS updates IP dynamically)
-#   3. Request hits NGINX Ingress Controller in the cluster
-#   4. Ingress matches path /api/questions/* and routes to question-svc:8080
-#   5. NGINX rewrites path: /api/questions/123 → /questions/123
-#   6. question-svc processes request and returns response
-#
-# SSL/TLS CERTIFICATES:
-# ====================================================================================
-#   - Managed by cert-manager using Let's Encrypt (letsencrypt-production issuer)
-#   - Certificate stored in secret: webapp-staging-tls
-#   - Auto-renewed before expiration (cert-manager handles this)
+# SSL/TLS: Cloudflare Full (Strict) mode.
+#   - Cloudflare ↔ browser:  HTTPS (Cloudflare Universal SSL)
+#   - Cloudflare ↔ origin:   HTTPS using Cloudflare Origin Certificate
+#   The 'cloudflare-origin' TLS secret is copied here by overflow/terraform.
 #
 # PATH REWRITING:
-# ====================================================================================
-#   Frontend uses /api prefix for all backend calls, but services don't have /api:
-#   - /api/questions/*  → question-svc:8080/questions/*
-#   - /api/search/*     → search-svc:8080/search/*
-#   - /api/profiles/*   → profile-svc:8080/profiles/*
-#   - /api/stats/*      → stats-svc:8080/stats/*
-#   - /api/votes/*      → vote-svc:8080/votes/*
-#   - /api/auth/*       → overflow-webapp:3000/api/auth/* (NextAuth - no rewrite!)
-#   - /*                → overflow-webapp:3000/* (SSR pages)
-#
+#   /api/questions/*  → question-svc:8080/questions/*
+#   /api/tags/*       → question-svc:8080/tags/*
+#   /api/search/*     → search-svc:8080/search/*
+#   /api/stats/*      → stats-svc:8080/stats/*
+#   /api/votes/*      → vote-svc:8080/votes/*
+#   /api/auth/*       → overflow-webapp:3000/api/auth/* (no rewrite)
+#   /*                → overflow-webapp:3000/*
 # ====================================================================================
 
 # ------------------------------------------------------------------------------
@@ -44,21 +28,14 @@ metadata:
   name: question-svc-ingress
   namespace: apps-staging
   annotations:
-    # SSL certificate provisioning via cert-manager
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    # Force HTTPS redirect for all HTTP requests
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # Rewrite /api/questions/... to /questions/...
-    # $1 = optional trailing slash, $2 = rest of path
     nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls  # cert-manager creates/updates this
+      secretName: cloudflare-origin
   rules:
-    # External access via Cloudflare
     - host: staging.devoverflow.org
       http:
         paths:
@@ -79,15 +56,13 @@ metadata:
   name: tags-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /tags$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -109,15 +84,13 @@ metadata:
   name: search-svc-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /search$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -139,15 +112,13 @@ metadata:
   name: stats-svc-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /stats$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -169,15 +140,13 @@ metadata:
   name: vote-svc-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /votes$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -199,15 +168,13 @@ metadata:
   name: profile-svc-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /profiles$1$2
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -222,16 +189,8 @@ spec:
 ---
 # ------------------------------------------------------------------------------
 # NEXTAUTH API ROUTES INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/auth/* (signin, signout, callback, csrf, session, etc.)
 # NO REWRITE - NextAuth expects /api/auth/* paths as-is
-# Backend: overflow-webapp:3000
-#
-# IMPORTANT: This ingress MUST be evaluated before the main webapp ingress
-# to ensure /api/auth/* requests go to the webapp, not backend services.
-# NGINX orders rules by specificity, so /api/auth should match before /*
-#
-# Extended timeouts for auth operations (OAuth callbacks can be slow)
+# Extended timeouts for OAuth callbacks
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -239,20 +198,16 @@ metadata:
   name: webapp-auth-ingress
   namespace: apps-staging
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # Extended timeouts for OAuth flows (Keycloak token exchange, etc.)
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    # Allow larger request bodies for auth payloads
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:
@@ -267,30 +222,19 @@ spec:
 ---
 # ------------------------------------------------------------------------------
 # WEBAPP INGRESS (Catch-All)
-# ------------------------------------------------------------------------------
-# Routes: /* (all paths not matched by other ingresses)
-# NO REWRITE - serves Next.js pages and static assets
-# Backend: overflow-webapp:3000
-#
-# This is the "default" ingress that handles:
-# - SSR pages (/, /questions, /questions/[id], /profile, etc.)
-# - Static assets (/_next/*, /images/*, etc.)
-# - Client-side navigation
+# SSR pages, static assets, client-side navigation
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: overflow-webapp-ingress
   namespace: apps-staging
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - staging.devoverflow.org
-      secretName: webapp-staging-tls
+      secretName: cloudflare-origin
   rules:
     - host: staging.devoverflow.org
       http:

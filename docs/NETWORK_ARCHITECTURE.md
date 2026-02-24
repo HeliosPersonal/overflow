@@ -88,35 +88,29 @@ Home internet has a dynamic IP. Three DDNS containers in `kube-system` keep Clou
 
 ---
 
-## SSL/TLS Certificate Flow
+## SSL/TLS
+
+**Cloudflare Full (Strict)** — HTTPS all the way from browser to origin:
 
 ```
-1. Ingress created with annotation:
-   cert-manager.io/cluster-issuer: letsencrypt-production
-        │
-        ▼
-2. cert-manager detects Ingress → creates Certificate resource
-        │
-        ▼
-3. ACME Order created with Let's Encrypt
-        │
-        ▼
-4. HTTP-01 Challenge
-   Let's Encrypt: GET /.well-known/acme-challenge/{token}
-   cert-manager: creates temp Ingress to serve challenge response
-        │
-        ▼
-5. Domain ownership verified
-   → Certificate issued (90 days)
-   → Stored in TLS Secret (e.g. webapp-staging-tls)
-        │
-        ▼
-6. NGINX mounts Secret → serves HTTPS
-
-7. Auto-renewal: cert-manager checks daily, renews if < 30 days to expiry
+Browser ──HTTPS──▶ Cloudflare edge ──HTTPS──▶ NGINX Ingress ──HTTP──▶ pods
+                   (Universal SSL)    (Origin Cert)
 ```
 
----
+- **Cloudflare ↔ browser**: Cloudflare Universal SSL (automatic, no config needed)
+- **Cloudflare ↔ NGINX**: Cloudflare Origin Certificate — a long-lived cert (up to 15 years) issued by Cloudflare, trusted by Cloudflare but not by browsers directly. Stored as `cloudflare-origin` Kubernetes TLS secret.
+
+**How the secret gets to app namespaces:**
+```
+infrastructure-helios/terraform/certs/origin.crt + origin.key
+  → kubernetes_secret_v1 "cloudflare-origin" in infra-production
+      → overflow/terraform copies it to apps-staging and apps-production
+          → ingresses reference secretName: cloudflare-origin
+```
+
+No cert-manager, no Let's Encrypt, no renewal needed (Origin Certs last up to 15 years).
+
+
 
 ## Internal Service Communication
 

@@ -3,6 +3,11 @@
 # ====================================================================================
 # Domains: devoverflow.org, www.devoverflow.org
 # Namespace: apps-production
+#
+# SSL/TLS: Cloudflare Full (Strict) mode.
+#   - Cloudflare ↔ browser:  HTTPS (Cloudflare Universal SSL)
+#   - Cloudflare ↔ origin:   HTTPS using Cloudflare Origin Certificate
+#   The 'cloudflare-origin' TLS secret is copied here by overflow/terraform.
 # ====================================================================================
 
 # ------------------------------------------------------------------------------
@@ -14,8 +19,6 @@ metadata:
   name: question-svc-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
 spec:
   ingressClassName: nginx
@@ -23,7 +26,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -55,8 +58,6 @@ metadata:
   name: tags-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /tags$1$2
 spec:
   ingressClassName: nginx
@@ -64,7 +65,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -96,8 +97,6 @@ metadata:
   name: search-svc-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /search$1$2
 spec:
   ingressClassName: nginx
@@ -105,7 +104,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -137,8 +136,6 @@ metadata:
   name: stats-svc-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /stats$1$2
 spec:
   ingressClassName: nginx
@@ -146,7 +143,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -178,8 +175,6 @@ metadata:
   name: vote-svc-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /votes$1$2
 spec:
   ingressClassName: nginx
@@ -187,7 +182,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -219,8 +214,6 @@ metadata:
   name: profile-svc-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /profiles$1$2
 spec:
   ingressClassName: nginx
@@ -228,7 +221,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -254,7 +247,7 @@ spec:
 # ------------------------------------------------------------------------------
 # NEXTAUTH API ROUTES
 # NO REWRITE — NextAuth expects /api/auth/* as-is
-# Must be evaluated before the webapp catch-all
+# Extended timeouts for OAuth callbacks
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -262,8 +255,6 @@ metadata:
   name: webapp-auth-ingress
   namespace: apps-production
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
@@ -274,7 +265,7 @@ spec:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:
@@ -306,16 +297,13 @@ kind: Ingress
 metadata:
   name: overflow-webapp-ingress
   namespace: apps-production
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - devoverflow.org
         - www.devoverflow.org
-      secretName: webapp-production-tls
+      secretName: cloudflare-origin
   rules:
     - host: devoverflow.org
       http:

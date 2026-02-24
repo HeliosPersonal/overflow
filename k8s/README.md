@@ -1,4 +1,4 @@
-﻿# Kubernetes Manifests
+﻿﻿# Kubernetes Manifests
 
 ## Overview
 This directory contains Kubernetes manifests for deploying the Overflow application using Kustomize.
@@ -19,7 +19,6 @@ k8s/
 ├── overlays/                  # Environment-specific configurations
 │   ├── staging/               # Staging environment (apps-staging namespace)
 │   └── production/            # Production environment (apps-production namespace)
-├── cert-manager/              # Let's Encrypt ClusterIssuer definitions
 └── scripts/                   # Utility scripts
     └── cleanup-k8s-resources.sh  # Automated cleanup of old resources
 ```
@@ -244,13 +243,14 @@ kubectl delete replicaset -n apps-staging --field-selector=status.replicas=0
 6. **Version control** - All changes should go through Git
 7. **Never commit secrets** - Use Infisical for secrets management
 
-## Certificate Management
+## SSL/TLS
 
-ClusterIssuers are defined in `cert-manager/` for automatic SSL/TLS:
-- **letsencrypt-staging:** For testing (high rate limits)
-- **letsencrypt-prod:** For production domains
+**Cloudflare Full (Strict)** — HTTPS between Cloudflare and NGINX using a Cloudflare Origin Certificate.
 
-Certificates are automatically provisioned when Ingresses are created with proper annotations.
+- The `cloudflare-origin` TLS secret is created in `infra-production` by `infrastructure-helios`
+- `overflow/terraform` copies it to `apps-staging` and `apps-production`
+- All ingresses reference `secretName: cloudflare-origin`
+- No cert-manager, no Let's Encrypt, no renewals needed
 
 ## Links
 

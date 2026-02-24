@@ -427,14 +427,23 @@ Access: [Grafana Cloud](https://grafana.com) → Explore → select Prometheus /
 
 ## SSL/TLS Certificates
 
-Single `letsencrypt-production` ClusterIssuer for all environments.
-Certificates auto-provisioned and renewed by cert-manager.
+**Cloudflare Full (Strict)** mode — HTTPS end-to-end:
 
-| Domain | Secret |
+```
+Browser ──HTTPS──▶ Cloudflare edge ──HTTPS──▶ NGINX Ingress ──HTTP──▶ pods
+                   (Universal SSL)    (Origin Certificate)
+```
+
+- **Cloudflare ↔ browser**: Cloudflare Universal SSL (auto-managed by Cloudflare)
+- **Cloudflare ↔ origin (NGINX)**: Cloudflare Origin Certificate stored as `cloudflare-origin` K8s TLS secret
+
+The `cloudflare-origin` secret is created in `infra-production` by `infrastructure-helios` from the cert files in `terraform/certs/`. Overflow's own Terraform copies it to `apps-staging` and `apps-production` so NGINX ingresses in those namespaces can use it.
+
+| Domain | TLS Secret |
 |---|---|
-| `staging.devoverflow.org` | `webapp-staging-tls` |
-| `devoverflow.org` | `webapp-production-tls` |
-| `keycloak.devoverflow.org` | `keycloak-tls` |
+| `staging.devoverflow.org` | `cloudflare-origin` (in `apps-staging`) |
+| `devoverflow.org` / `www.devoverflow.org` | `cloudflare-origin` (in `apps-production`) |
+| `keycloak.devoverflow.org` | `cloudflare-origin` (in `infra-production`, managed by infrastructure-helios) |
 
 ---
 
@@ -481,13 +490,12 @@ kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never \
   -n apps-staging -- curl -v http://question-svc:8080/health
 ```
 
-### Certificate issues
+### SSL / 526 error
 
-```bash
-kubectl get certificates -A
-kubectl logs -n cert-manager -l app=cert-manager
-kubectl get clusterissuer
-```
+Error 526 means Cloudflare can't validate the origin certificate (Full Strict mode).
+Causes and fixes:
+- **`cloudflare-origin` secret missing** in `apps-staging`/`apps-production` → run `terraform apply` in `overflow/terraform`
+- **Origin cert expired** → regenerate at `dash.cloudflare.com` → SSL/TLS → Origin Server → update `infrastructure-helios/terraform/certs/`
 
 ### Database connection issues
 

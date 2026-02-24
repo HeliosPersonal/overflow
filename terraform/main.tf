@@ -3,13 +3,66 @@
 # ====================================================================================
 # Creates Overflow's own resources inside the shared infrastructure-helios services:
 #
-#   PostgreSQL  → 8 databases (staging + production × 4 services)
-#   RabbitMQ    → 2 vhosts (overflow-staging, overflow-production)
-#   ConfigMaps  → Connection strings injected into apps-staging / apps-production
+#   PostgreSQL    → 8 databases (staging + production × 4 services)
+#   RabbitMQ      → 2 vhosts (overflow-staging, overflow-production)
+#   TLS Secret    → copies cloudflare-origin cert to apps-staging / apps-production
+#   ConfigMaps    → Connection strings injected into apps-staging / apps-production
 #
 # Credentials (pg_password, rabbit_password, typesense_api_key) are supplied via
 # TF_VAR_* env vars in CI/CD and via terraform.secret.tfvars locally.
 # ====================================================================================
+
+
+# ====================================================================================
+# CLOUDFLARE ORIGIN CERTIFICATE — copy to app namespaces
+# ====================================================================================
+# infrastructure-helios creates the cloudflare-origin TLS secret in infra-production.
+# NGINX requires TLS secrets in the same namespace as the Ingress, so we copy it here.
+# Cloudflare Full (Strict) mode: Cloudflare validates the origin cert on every request.
+# ====================================================================================
+
+data "kubernetes_secret_v1" "cloudflare_origin" {
+  metadata {
+    name      = "cloudflare-origin"
+    namespace = local.namespace_infra
+  }
+}
+
+resource "kubernetes_secret_v1" "cloudflare_origin_staging" {
+  metadata {
+    name      = "cloudflare-origin"
+    namespace = local.namespace_staging
+    labels = {
+      app        = "overflow"
+      managed-by = "terraform"
+    }
+  }
+
+  type = "kubernetes.io/tls"
+
+  binary_data = {
+    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.crt"]
+    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.key"]
+  }
+}
+
+resource "kubernetes_secret_v1" "cloudflare_origin_production" {
+  metadata {
+    name      = "cloudflare-origin"
+    namespace = local.namespace_production
+    labels = {
+      app        = "overflow"
+      managed-by = "terraform"
+    }
+  }
+
+  type = "kubernetes.io/tls"
+
+  binary_data = {
+    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.crt"]
+    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.key"]
+  }
+}
 
 
 # ====================================================================================
