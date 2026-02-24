@@ -19,7 +19,7 @@ spec:
       containers:
         - name: data-seeder-svc
           image: ghcr.io/placeholder/overflow-data-seeder:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           envFrom:
             # Provides SeederOptions__OllamaUrl, ConnectionStrings__messaging, etc.
             - configMapRef:
