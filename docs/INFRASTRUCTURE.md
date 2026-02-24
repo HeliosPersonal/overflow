@@ -336,7 +336,7 @@ kubectl kustomize k8s/overlays/staging
 
 1. **Namespace** — all resources deployed to target namespace
 2. **Images** — CI/CD replaces `GITHUB_USERNAME` and `SHA_REPLACED_BY_CICD` at deploy time
-3. **Replicas** — 2 per service for staging, 0 for production (scale up manually)
+3. **Replicas** — 1 per service for staging, 0 for production (scale up manually)
 4. **Labels** — automatic `environment` and `managed-by` labels
 5. **ConfigMaps** — `app-config` with `ASPNETCORE_ENVIRONMENT`
 

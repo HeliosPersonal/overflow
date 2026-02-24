@@ -100,20 +100,20 @@ labels:
 # ====================================================================================
 # REPLICA COUNTS
 # ====================================================================================
-# Staging uses 2 replicas per service
+# Staging uses 1 replica per service
 replicas:
   - name: question-svc
-    count: 2
+    count: 1
   - name: search-svc
-    count: 2
+    count: 1
   - name: profile-svc
-    count: 2
+    count: 1
   - name: stats-svc
-    count: 2
+    count: 1
   - name: vote-svc
-    count: 2
+    count: 1
   - name: overflow-webapp
-    count: 2
+    count: 1
   - name: data-seeder-svc
     count: 1
 
