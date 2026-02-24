@@ -15,74 +15,46 @@
 # ====================================================================================
 # POSTGRESQL - CREATE DATABASES
 # ====================================================================================
-# Runs a one-shot Kubernetes Job inside infra-production that connects to the shared
-# PostgreSQL instance and creates the 8 required databases if they don't exist.
-# Idempotent: checks pg_database before each CREATE so re-apply is safe.
+# Uses null_resource + local-exec so the init job only re-runs when the list of
+# databases or the postgres host/password actually changes (content-addressed trigger).
+# The kubectl run command is idempotent: CREATE DATABASE IF NOT EXISTS equivalent.
 # ====================================================================================
 
-resource "kubernetes_job_v1" "create_postgres_databases" {
-  metadata {
-    name      = "overflow-create-postgres-dbs"
-    namespace = local.namespace_infra
-    labels = {
-      app        = "overflow"
-      component  = "db-init"
-      managed-by = "terraform"
-    }
+resource "null_resource" "create_postgres_databases" {
+  triggers = {
+    databases = join(",", sort(concat(
+      values(local.pg_staging_dbs),
+      values(local.pg_production_dbs)
+    )))
+    host     = local.postgres_host
+    port     = tostring(local.postgres_port)
+    # hash password so changes re-trigger, but don't store plaintext in state
+    pw_hash  = sha256(var.pg_password)
   }
 
-  spec {
-    ttl_seconds_after_finished = 300
-    backoff_limit              = 3
+  provisioner "local-exec" {
+    command = <<-SH
+      set -e
+      export KUBECONFIG='${var.kubeconfig_path}'
 
-    template {
-      metadata {
-        labels = {
-          app       = "overflow"
-          component = "db-init"
-        }
-      }
+      # Find the running postgres pod in infra-production
+      PG_POD=$(kubectl get pod -n ${local.namespace_infra} \
+        -l app.kubernetes.io/name=postgresql \
+        -o jsonpath='{.items[0].metadata.name}')
 
-      spec {
-        restart_policy = "OnFailure"
+      echo ">>> Using postgres pod: $PG_POD"
 
-        container {
-          name  = "psql"
-          image = "registry-1.docker.io/bitnami/postgresql:latest"
+      for DB in ${join(" ", concat(values(local.pg_staging_dbs), values(local.pg_production_dbs)))}; do
+        echo ">>> Ensuring database: $DB"
+        kubectl exec -n ${local.namespace_infra} "$PG_POD" \
+          -- bash -c "PGPASSWORD='${var.pg_password}' psql -U postgres -tc \
+            \"SELECT 1 FROM pg_database WHERE datname='$DB'\" \
+            | grep -q 1 || PGPASSWORD='${var.pg_password}' psql -U postgres \
+            -c \"CREATE DATABASE \\\"$DB\\\"\""
+      done
 
-          command = [
-            "/bin/sh", "-c",
-            join(" && ", [
-              for db in concat(values(local.pg_staging_dbs), values(local.pg_production_dbs)) :
-              "psql \"postgresql://postgres:$PG_PASSWORD@${local.postgres_host}:${local.postgres_port}/postgres\" -tc \"SELECT 1 FROM pg_database WHERE datname='${db}'\" | grep -q 1 || psql \"postgresql://postgres:$PG_PASSWORD@${local.postgres_host}:${local.postgres_port}/postgres\" -c \"CREATE DATABASE \\\"${db}\\\"\""
-            ])
-          ]
-
-          env {
-            name  = "PG_PASSWORD"
-            value = var.pg_password
-          }
-
-          resources {
-            requests = {
-              cpu    = "50m"
-              memory = "64Mi"
-            }
-            limits = {
-              cpu    = "200m"
-              memory = "128Mi"
-            }
-          }
-        }
-      }
-    }
-  }
-
-  wait_for_completion = true
-
-  timeouts {
-    create = "5m"
-    update = "5m"
+      echo ">>> Done."
+    SH
   }
 }
 
@@ -90,88 +62,47 @@ resource "kubernetes_job_v1" "create_postgres_databases" {
 # ====================================================================================
 # RABBITMQ - CREATE VHOSTS
 # ====================================================================================
-# Runs a one-shot Job that uses the RabbitMQ HTTP Management API to create the
-# overflow-specific vhosts and grant admin full permissions on them.
-# Idempotent: PUT on an existing vhost/permission is a no-op (returns 204).
+# Uses null_resource + local-exec. RabbitMQ PUT vhost is idempotent (204 if exists).
+# Only re-runs when vhost names or rabbit host/password change.
 # ====================================================================================
 
-resource "kubernetes_job_v1" "create_rabbitmq_vhosts" {
-  metadata {
-    name      = "overflow-create-rabbitmq-vhosts"
-    namespace = local.namespace_infra
-    labels = {
-      app        = "overflow"
-      component  = "rabbitmq-init"
-      managed-by = "terraform"
-    }
+resource "null_resource" "create_rabbitmq_vhosts" {
+  triggers = {
+    vhosts   = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
+    host     = local.rabbitmq_host
+    port     = tostring(local.rabbitmq_management_port)
+    pw_hash  = sha256(var.rabbit_password)
   }
 
-  spec {
-    ttl_seconds_after_finished = 300
-    backoff_limit              = 3
+  provisioner "local-exec" {
+    command = <<-SH
+      set -e
+      export KUBECONFIG='${var.kubeconfig_path}'
 
-    template {
-      metadata {
-        labels = {
-          app       = "overflow"
-          component = "rabbitmq-init"
-        }
-      }
+      # Find the running rabbitmq pod in infra-production
+      RMQ_POD=$(kubectl get pod -n ${local.namespace_infra} \
+        -l app.kubernetes.io/name=rabbitmq \
+        -o jsonpath='{.items[0].metadata.name}')
 
-      spec {
-        restart_policy = "OnFailure"
+      echo ">>> Using rabbitmq pod: $RMQ_POD"
 
-        container {
-          name  = "rabbitmq-init"
-          image = "curlimages/curl:8.7.1"
+      for VHOST in "${local.rabbitmq_vhost_staging}" "${local.rabbitmq_vhost_production}"; do
+        ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1],safe=''))" "$VHOST")
+        echo ">>> PUT vhost: $VHOST"
+        kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
+          curl -sf -u "admin:${var.rabbit_password}" \
+            -X PUT "http://localhost:${local.rabbitmq_management_port}/api/vhosts/$ENCODED" \
+            -H 'Content-Type: application/json' -d '{}'
+        echo ">>> Grant admin permissions on: $VHOST"
+        kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
+          curl -sf -u "admin:${var.rabbit_password}" \
+            -X PUT "http://localhost:${local.rabbitmq_management_port}/api/permissions/$ENCODED/admin" \
+            -H 'Content-Type: application/json' \
+            -d '{"configure":".*","write":".*","read":".*"}'
+      done
 
-          command = [
-            "/bin/sh", "-c",
-            <<-SH
-              set -e
-              BASE="http://${local.rabbitmq_host}:${local.rabbitmq_management_port}/api"
-
-              echo ">>> Creating vhost: ${local.rabbitmq_vhost_staging}"
-              curl -sf -u "admin:$RABBIT_PASSWORD" -X PUT "$BASE/vhosts/${local.rabbitmq_vhost_staging}" -H 'Content-Type: application/json' -d '{}'
-
-              echo ">>> Granting admin full access on: ${local.rabbitmq_vhost_staging}"
-              curl -sf -u "admin:$RABBIT_PASSWORD" -X PUT "$BASE/permissions/${local.rabbitmq_vhost_staging}/admin" -H 'Content-Type: application/json' -d '{"configure":".*","write":".*","read":".*"}'
-
-              echo ">>> Creating vhost: ${local.rabbitmq_vhost_production}"
-              curl -sf -u "admin:$RABBIT_PASSWORD" -X PUT "$BASE/vhosts/${local.rabbitmq_vhost_production}" -H 'Content-Type: application/json' -d '{}'
-
-              echo ">>> Granting admin full access on: ${local.rabbitmq_vhost_production}"
-              curl -sf -u "admin:$RABBIT_PASSWORD" -X PUT "$BASE/permissions/${local.rabbitmq_vhost_production}/admin" -H 'Content-Type: application/json' -d '{"configure":".*","write":".*","read":".*"}'
-
-              echo ">>> Done."
-            SH
-          ]
-
-          env {
-            name  = "RABBIT_PASSWORD"
-            value = var.rabbit_password
-          }
-
-          resources {
-            requests = {
-              cpu    = "50m"
-              memory = "32Mi"
-            }
-            limits = {
-              cpu    = "100m"
-              memory = "64Mi"
-            }
-          }
-        }
-      }
-    }
-  }
-
-  wait_for_completion = true
-
-  timeouts {
-    create = "3m"
-    update = "3m"
+      echo ">>> Done."
+    SH
   }
 }
 
@@ -227,8 +158,8 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
   }
 
   depends_on = [
-    kubernetes_job_v1.create_postgres_databases,
-    kubernetes_job_v1.create_rabbitmq_vhosts,
+    null_resource.create_postgres_databases,
+    null_resource.create_rabbitmq_vhosts,
   ]
 }
 
@@ -273,7 +204,7 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
   }
 
   depends_on = [
-    kubernetes_job_v1.create_postgres_databases,
-    kubernetes_job_v1.create_rabbitmq_vhosts,
+    null_resource.create_postgres_databases,
+    null_resource.create_rabbitmq_vhosts,
   ]
 }
