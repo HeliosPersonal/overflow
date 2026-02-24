@@ -297,12 +297,12 @@ jobs:
 
       - name: ⏳ Wait for rollout
         run: |
-          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=1m
-          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=1m
-          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=1m
-          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=1m
-          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=1m
-          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=1m
+          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=10m
 
       - name: 📊 Deployment status
         run: |
@@ -393,12 +393,12 @@ jobs:
 
       - name: ⏳ Wait for rollout
         run: |
-          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/question-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/search-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/profile-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=8m
 
       - name: 📊 Deployment status
         run: |
