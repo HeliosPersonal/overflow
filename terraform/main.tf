@@ -40,9 +40,9 @@ resource "kubernetes_secret_v1" "cloudflare_origin_staging" {
 
   type = "kubernetes.io/tls"
 
-  binary_data = {
-    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.crt"]
-    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.key"]
+  data = {
+    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.data["tls.crt"]
+    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.data["tls.key"]
   }
 }
 
@@ -58,9 +58,9 @@ resource "kubernetes_secret_v1" "cloudflare_origin_production" {
 
   type = "kubernetes.io/tls"
 
-  binary_data = {
-    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.crt"]
-    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.binary_data["tls.key"]
+  data = {
+    "tls.crt" = data.kubernetes_secret_v1.cloudflare_origin.data["tls.crt"]
+    "tls.key" = data.kubernetes_secret_v1.cloudflare_origin.data["tls.key"]
   }
 }
 
