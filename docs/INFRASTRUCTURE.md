@@ -20,7 +20,8 @@
 
 - **[Network Architecture](./NETWORK_ARCHITECTURE.md)** - Detailed network diagrams and connection flows
 - **[Quick Start Guide](./QUICKSTART.md)** - Getting started with local and K8s development
-- **[Terraform README](../terraform-infra/README.md)** - Infrastructure as Code documentation
+- **[Terraform README](../terraform/README.md)** - Project-specific Terraform configuration
+- **[infrastructure-helios](https://github.com/HeliosPersonal/infrastructure-helios)** - Shared infrastructure repository
 - **[Kubernetes README](../k8s/README.md)** - Kustomize and manifest documentation
 
 ---
@@ -371,18 +372,13 @@ var secrets = await infisical.GetSecretsAsync(new GetSecretsOptions {
 ├───────────────┤    ├───────────────────────┤    ├─────────────────────────┤
 │• question-svc │    │ • question-svc        │    │ • Keycloak (Auth)       │
 │• search-svc   │    │ • search-svc          │    │ • PostgreSQL (prod)     │
-│• profile-svc  │    │ • profile-svc         │    │ • RabbitMQ (prod)       │
-│• stats-svc    │    │ • stats-svc           │    │ • Typesense (prod)      │
+│• profile-svc  │    │ • profile-svc         │    │ • RabbitMQ              │
+│• stats-svc    │    │ • stats-svc           │    │ • Typesense             │
 │• vote-svc     │    │ • vote-svc            │    └─────────────────────────┘
 │• webapp       │    │ • webapp              │
-│• data-seeder  │    │ • data-seeder         │    ┌─────────────────────────┐
-│• ollama (LLM) │    │                       │    │    infra-staging        │
-└───────────────┘    └───────────────────────┘    │       namespace         │
-                                                  ├─────────────────────────┤
-                                                  │ • PostgreSQL (staging)  │
-                                                  │ • RabbitMQ (staging)    │
-                                                  │ • Typesense (staging)   │
-                                                  └─────────────────────────┘
+│• data-seeder  │    │ • data-seeder         │    (all shared services live
+│• ollama (LLM) │    │                       │     in infra-production)
+└───────────────┘    └───────────────────────┘
 ```
 
 ### Cluster Information
@@ -445,12 +441,12 @@ var secrets = await infisical.GetSecretsAsync(new GetSecretsOptions {
 ```
 ├── apps-staging        # Staging application services
 ├── apps-production     # Production application services
-├── infra-staging       # Staging infrastructure (DB, MQ, Search)
-├── infra-production    # Production infrastructure (DB, MQ, Search, Keycloak)
+├── infra-production    # Shared infrastructure (PostgreSQL, RabbitMQ, Typesense, Keycloak)
+│                       # Both staging and production apps connect here.
+│                       # Isolation via: separate databases, RabbitMQ vhosts, collection prefixes.
 ├── ingress             # NGINX Ingress Controller
 ├── monitoring          # Grafana Alloy, node-exporter, kube-state-metrics
 ├── cert-manager        # SSL certificate automation
-├── typesense-system    # Typesense operator (if using CRD)
 └── kube-system         # Cloudflare DDNS, core K8s components
 ```
 
@@ -614,85 +610,109 @@ The cleanup script (`cleanup-k8s-resources.sh`) removes:
 
 ## Terraform Infrastructure
 
-### Directory Structure
+### Architecture
+
+Infrastructure is split into two repositories:
 
 ```
-terraform-infra/
-├── provider.tf              # Kubernetes & Helm providers
-├── variables.tf             # Variable definitions
-├── terraform.tfvars         # Non-sensitive variable values
-├── terraform.secret.tfvars  # Sensitive values (gitignored)
-├── namespaces.tf            # Kubernetes namespaces
-├── postgres.tf              # PostgreSQL deployments
-├── rabbitmq.tf              # RabbitMQ deployments
-├── typesense.tf             # Typesense search engine
-├── keycloak.tf              # Identity provider
-├── ingress.tf               # NGINX Ingress + infrastructure routes
-├── cert-manager.tf          # SSL certificate automation
-├── monitoring.tf            # Grafana Alloy, exporters
-├── ollama.tf                # LLM service for data seeding
-└── ddns.tf                  # Cloudflare DDNS for dynamic IP
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    infrastructure-helios (Shared)                               │
+│                    https://github.com/[org]/infrastructure-helios               │
+│                                                                                 │
+│  PostgreSQL │ RabbitMQ │ Keycloak │ Typesense │ Ollama │ cert-manager           │
+│  NGINX Ingress │ Grafana Alloy │ DDNS │ Namespaces                              │
+│                                                                                 │
+│  Outputs: postgres_host, rabbitmq_host, keycloak_url, otlp_endpoint, etc.       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                              │
+                              │ terraform_remote_state
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    overflow/terraform (Project-Specific)                        │
+│                                                                                 │
+│  data.tf      - Reads shared infrastructure outputs                             │
+│  outputs.tf   - Project-specific configuration                                  │
+│  provider.tf  - Kubernetes backend for state                                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Shared Infrastructure (infrastructure-helios)
+
+Managed in a separate repository. Provides:
+
+| Component | Description |
+|-----------|-------------|
+| PostgreSQL | Databases for staging and production |
+| RabbitMQ | Message brokers for staging and production |
+| Keycloak | Identity provider with embedded PostgreSQL |
+| Typesense | Search engine for staging and production |
+| Ollama | LLM inference service |
+| cert-manager | SSL certificate automation |
+| NGINX Ingress | Ingress controller |
+| Grafana Alloy | Observability agent |
+| DDNS | Cloudflare DNS updates |
+| Namespaces | All K8s namespaces (infra-*, apps-*) |
+
+### Project-Specific Terraform (overflow/terraform)
+
+```
+terraform/
+├── provider.tf    # Kubernetes backend, providers
+├── data.tf        # Remote state reference to infrastructure-helios
+├── outputs.tf     # Project-specific outputs
+└── README.md
 ```
 
 ### Usage
 
 **Initialize:**
 ```bash
-cd terraform-infra
+cd terraform
 terraform init
 ```
 
 **Plan Changes:**
 ```bash
-terraform plan -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
+terraform plan
 ```
 
 **Apply Changes:**
 ```bash
-terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
+terraform apply
 ```
 
-**Destroy (Caution!):**
-```bash
-terraform destroy -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
+### Remote State Reference
+
+The project reads shared infrastructure outputs:
+
+```hcl
+data "terraform_remote_state" "infra" {
+  backend = "kubernetes"
+  config = {
+    secret_suffix = "infrastructure-helios"
+    namespace     = "kube-system"
+  }
+}
+
+# Available via locals:
+local.postgres_staging_host       # PostgreSQL staging hostname
+local.rabbitmq_staging_host       # RabbitMQ staging hostname
+local.keycloak_external_url       # Keycloak public URL
+local.typesense_staging_url       # Typesense staging URL
+local.otlp_grpc_endpoint          # OTLP endpoint for tracing
+local.base_domain                 # Base domain (devoverflow.org)
 ```
 
-### Managed Resources
+### Configurable Domains
 
-| Resource | Terraform File | Description |
-|----------|---------------|-------------|
-| Namespaces | `namespaces.tf` | All K8s namespaces |
-| PostgreSQL (staging) | `postgres.tf` | Bitnami PostgreSQL Helm |
-| PostgreSQL (production) | `postgres.tf` | Bitnami PostgreSQL Helm |
-| RabbitMQ (staging) | `rabbitmq.tf` | RabbitMQ Helm |
-| RabbitMQ (production) | `rabbitmq.tf` | RabbitMQ Helm |
-| Typesense (staging) | `typesense.tf` | StatefulSet deployment |
-| Typesense (production) | `typesense.tf` | StatefulSet deployment |
-| Keycloak | `keycloak.tf` | Identity provider with embedded PostgreSQL |
-| NGINX Ingress | `ingress.tf` | Ingress controller |
-| Infrastructure Ingresses | `ingress.tf` | Routes for Keycloak, RabbitMQ, Typesense |
-| cert-manager | `cert-manager.tf` | SSL automation |
-| Grafana Alloy | `monitoring.tf` | Observability agent |
-| kube-state-metrics | `monitoring.tf` | K8s metrics |
-| node-exporter | `monitoring.tf` | Node metrics |
-| Ollama | `ollama.tf` | LLM inference service |
-| DDNS | `ddns.tf` | Cloudflare DNS updates |
+All domains are configured as variables in `infrastructure-helios`:
 
-### Variables
-
-| Variable | Description | Sensitive |
-|----------|-------------|-----------|
-| `kubeconfig_path` | Path to kubeconfig | No |
-| `cloudflare_api_token` | Cloudflare API token | Yes |
-| `letsencrypt_email` | Email for Let's Encrypt | No |
-| `pg_staging_password` | PostgreSQL staging password | Yes |
-| `pg_production_password` | PostgreSQL production password | Yes |
-| `rabbit_staging_password` | RabbitMQ staging password | Yes |
-| `rabbit_production_password` | RabbitMQ production password | Yes |
-| `typesense_staging_api_key` | Typesense staging API key | Yes |
-| `typesense_production_api_key` | Typesense production API key | Yes |
-| `keycloak_admin_password` | Keycloak admin password | Yes |
-| `grafana_cloud_*` | Grafana Cloud credentials | Yes |
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `base_domain` | `devoverflow.org` | Base domain for all services |
+| `internal_domain` | `helios` | Internal network suffix |
+| `keycloak_subdomain` | `keycloak` | Keycloak subdomain |
+| `ddns_subdomains` | `["www", "staging", "keycloak"]` | DDNS-managed subdomains |
 
 ---
 
@@ -863,12 +883,6 @@ staging.devoverflow.org/*              → overflow-webapp:3000
 keycloak.devoverflow.org               → keycloak:8080
 ```
 
-**Internal Routes (for internal cluster communication):**
-```
-overflow-api-staging.helios/questions  → question-svc:8080
-overflow-api-staging.helios/search     → search-svc:8080
-...
-```
 
 ---
 
@@ -925,11 +939,11 @@ kubectl get clusterissuer
 #### 4. Database Connection Issues
 
 ```bash
-# Check PostgreSQL pod
-kubectl get pods -n infra-staging -l app.kubernetes.io/name=postgresql
+# Check PostgreSQL pod (shared instance in infra-production)
+kubectl get pods -n infra-production -l app.kubernetes.io/name=postgresql
 
 # Get connection details
-kubectl get secret postgres-staging -n infra-staging -o yaml
+kubectl get secret -n infra-production -l app=postgres
 ```
 
 #### 5. Infisical Secrets Not Loading
@@ -1024,11 +1038,12 @@ kubectl rollout undo deployment/question-svc -n apps-staging --to-revision=2
 ### Database Backup
 
 ```bash
-# Port-forward to PostgreSQL
-kubectl port-forward svc/postgres-staging 5432:5432 -n infra-staging
+# Port-forward to shared PostgreSQL (infra-production)
+kubectl port-forward svc/postgres 5432:5432 -n infra-production
 
-# In another terminal, dump database
-pg_dump -h localhost -U postgres -d stagingdb > backup.sql
+# In another terminal, dump a specific service database
+pg_dump -h localhost -U postgres -d staging_questions > backup_staging_questions.sql
+pg_dump -h localhost -U postgres -d production_questions > backup_production_questions.sql
 ```
 
 ### Restart All Services

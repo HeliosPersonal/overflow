@@ -200,14 +200,15 @@ Your home internet has a dynamic IP that changes periodically. DDNS containers k
          │ Authorization: Bearer {token}              ▼
          ▼                                   ┌─────────────────────────┐
   ┌─────────────────────────────────┐       │      RabbitMQ           │
-  │                                 │       │  (infra-staging:5672)   │
-  │  question-svc.apps-staging:8080 │       │                         │
-  │  search-svc.apps-staging:8080   │       │  Exchanges:             │
-  │  profile-svc.apps-staging:8080  │       │  - overflow.events      │
-  │  stats-svc.apps-staging:8080    │       │                         │
-  │  vote-svc.apps-staging:8080     │       │  Queues:                │
-  │                                 │       │  - search.question.index│
-  └─────────────────────────────────┘       │  - stats.question.count │
+  │                                 │       │ (infra-production:5672) │
+  │  question-svc.apps-staging:8080 │       │ vhost: overflow-staging │
+  │  search-svc.apps-staging:8080   │       │                         │
+  │  profile-svc.apps-staging:8080  │       │  Exchanges:             │
+  │  stats-svc.apps-staging:8080    │       │  - overflow.events      │
+  │  vote-svc.apps-staging:8080     │       │                         │
+  │                                 │       │  Queues:                │
+  └─────────────────────────────────┘       │  - search.question.index│
+                                            │  - stats.question.count │
                                             │  - profile.user.rep     │
                                             └────────────┬────────────┘
                                                          │
@@ -243,30 +244,40 @@ Your home internet has a dynamic IP that changes periodically. DDNS containers k
  │ vote-svc                    │     │       │ vote-svc                    │      │
  └─────────────────────────────┘     │       └─────────────────────────────┘      │
                                      │                                            │
-                                     ▼                                            ▼
-                      infra-staging namespace                    infra-production namespace
-                      ┌───────────────────────────┐               ┌───────────────────────────┐
-                      │ postgres-staging:5432     │               │ postgres-production:5432  │
-                      │                           │               │                           │
-                      │ Database: stagingdb       │               │ Database: productiondb    │
-                      │ User: postgres            │               │ User: postgres            │
-                      │ Password: (from Infisical)│               │ Password: (from Infisical)│
-                      └───────────────────────────┘               └───────────────────────────┘
-                      
-                      ┌─────────────────────────┐               ┌──────────────────────────┐
-                      │ rabbitmq-staging:5672   │               │ rabbitmq-production:5672 │
-                      │ (AMQP)                  │               │ (AMQP)                   │
-                      │ rabbitmq-staging:15672  │               │ rabbitmq-production:15672│
-                      │ (Management UI)         │               │ (Management UI)          │
-                      └─────────────────────────┘               └──────────────────────────┘
-                      
-                      ┌─────────────────────────┐               ┌─────────────────────────┐
-                      │ typesense:8108          │               │ typesense:8108          │
-                      │                         │               │                         │
-                      │ Collections:            │               │ Collections:            │
-                      │ - questions             │               │ - questions             │
-                      │ - users                 │               │ - users                 │
-                      └─────────────────────────┘               └─────────────────────────┘
+                                     └──────────────────┬─────────────────────────┘
+                                                        │ both connect to shared instance
+                                                        ▼
+                                         infra-production namespace
+                                         ┌─────────────────────────────────────┐
+                                         │ postgres.infra-production:5432      │
+                                         │                                     │
+                                         │ Databases (staging):                │
+                                         │  staging_questions  staging_profiles│
+                                         │  staging_votes      staging_stats   │
+                                         │ Databases (production):             │
+                                         │  production_questions  ...          │
+                                         │ User: postgres                      │
+                                         └─────────────────────────────────────┘
+
+                                         ┌─────────────────────────────────────┐
+                                         │ rabbitmq.infra-production:5672      │
+                                         │ (AMQP)                              │
+                                         │ rabbitmq.infra-production:15672     │
+                                         │ (Management UI)                     │
+                                         │                                     │
+                                         │ Vhosts:                             │
+                                         │  overflow-staging   (staging apps)  │
+                                         │  overflow-production (prod apps)    │
+                                         └─────────────────────────────────────┘
+
+                                         ┌─────────────────────────────────────┐
+                                         │ typesense.infra-production:8108     │
+                                         │                                     │
+                                         │ Collections (staging prefix):       │
+                                         │  staging_overflow_questions         │
+                                         │ Collections (production prefix):    │
+                                         │  production_overflow_questions      │
+                                         └─────────────────────────────────────┘
 
 
  SHARED INFRASTRUCTURE (both environments)
@@ -361,23 +372,27 @@ Your home internet has a dynamic IP that changes periodically. DDNS containers k
 ## Connection String Examples
 
 ```
-# PostgreSQL (from Infisical)
-DATABASE_URL=Host=postgres-staging.infra-staging;Port=5432;Database=stagingdb;Username=postgres;Password=xxx
+# PostgreSQL — per-service databases inside shared instance (injected via overflow-infra-config ConfigMap)
+ConnectionStrings__questionDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_questions;Username=postgres;Password=xxx
+ConnectionStrings__profileDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_profiles;Username=postgres;Password=xxx
+ConnectionStrings__voteDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_votes;Username=postgres;Password=xxx
+ConnectionStrings__statDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_stats;Username=postgres;Password=xxx
 
-# RabbitMQ (from Infisical)
-RABBITMQ_URL=amqp://admin:xxx@rabbitmq-staging.infra-staging:5672
+# RabbitMQ — overflow-specific vhost (injected via overflow-infra-config ConfigMap)
+ConnectionStrings__messaging=amqp://admin:xxx@rabbitmq.infra-production.svc.cluster.local:5672/overflow-staging
 
-# Typesense (from Infisical)
-TYPESENSE_URL=http://typesense.infra-staging:8108
-TYPESENSE_API_KEY=xxx
+# Typesense (injected via overflow-infra-config ConfigMap)
+TypesenseOptions__ConnectionUrl=http://typesense.infra-production.svc.cluster.local:8108
+TypesenseOptions__ApiKey=xxx
 
-# Keycloak (from Infisical)
+# Keycloak (injected via overflow-infra-config ConfigMap)
+KeycloakOptions__Url=http://keycloak.infra-production.svc.cluster.local:8080
+KeycloakOptions__Realm=overflow-staging
+# Browser-facing issuer (used by NextAuth / frontend):
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
-AUTH_KEYCLOAK_ID=nextjs
-AUTH_KEYCLOAK_SECRET=xxx
 
-# Grafana Alloy OTLP endpoint (hardcoded in service config)
-OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-alloy.monitoring:4317
+# Grafana Alloy OTLP endpoint (injected via overflow-infra-config ConfigMap)
+EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-alloy.monitoring.svc.cluster.local:4318
 ```
 
 ---

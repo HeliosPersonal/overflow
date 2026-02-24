@@ -1,5 +1,16 @@
-# Production Environment Kustomization
-# Namespace: apps-production | Replicas: 3 per service (high availability)
+# ====================================================================================
+# PRODUCTION ENVIRONMENT - Kustomization Overlay
+# ====================================================================================
+# Environment: Production (apps-production namespace)
+# Domain: devoverflow.org / www.devoverflow.org
+# Purpose: Live production workloads
+#
+# Connected Infrastructure (infra-production namespace — single shared instance):
+# - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: production_*)
+# - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-production)
+# - Typesense:  typesense.infra-production.svc.cluster.local:8108
+# - Keycloak:   keycloak.infra-production.svc.cluster.local:8080  (realm: overflow-production)
+# ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -16,25 +27,25 @@ resources:
   - ../../base/overflow-webapp
   - ingress.yaml
 
-# Image tags updated by CI/C
+# Image tags set to latest for production (built from main branch)
 images:
   - name: ghcr.io/placeholder/overflow-question
-    newName: ghcr.io/viacheslavmelnichenko/overflow-question
+    newName: ghcr.io/GITHUB_USERNAME/overflow-question
     newTag: latest
   - name: ghcr.io/placeholder/overflow-search
-    newName: ghcr.io/viacheslavmelnichenko/overflow-search
+    newName: ghcr.io/GITHUB_USERNAME/overflow-search
     newTag: latest
   - name: ghcr.io/placeholder/overflow-profile
-    newName: ghcr.io/viacheslavmelnichenko/overflow-profile
+    newName: ghcr.io/GITHUB_USERNAME/overflow-profile
     newTag: latest
   - name: ghcr.io/placeholder/overflow-stats
-    newName: ghcr.io/viacheslavmelnichenko/overflow-stats
+    newName: ghcr.io/GITHUB_USERNAME/overflow-stats
     newTag: latest
   - name: ghcr.io/placeholder/overflow-vote
-    newName: ghcr.io/viacheslavmelnichenko/overflow-vote
+    newName: ghcr.io/GITHUB_USERNAME/overflow-vote
     newTag: latest
   - name: ghcr.io/placeholder/overflow-webapp
-    newName: ghcr.io/viacheslavmelnichenko/overflow-webapp
+    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
     newTag: latest
 
 configMapGenerator:
@@ -42,8 +53,6 @@ configMapGenerator:
     behavior: create
     literals:
       - aspnetcore-environment=Production
-
-# No more secrets needed - all loaded from Infisical
 
 labels:
   - pairs:
@@ -63,119 +72,3 @@ replicas:
     count: 0
   - name: overflow-webapp
     count: 0
-
-# Production-specific resource adjustments
-patches:
-  # Ingress host configuration for production
-  - target:
-      kind: Ingress
-      name: question-svc
-    patch: |-
-      - op: replace
-        path: /spec/rules/0/host
-        value: overflow-api.helios
-  - target:
-      kind: Ingress
-      name: search-svc
-    patch: |-
-      - op: replace
-        path: /spec/rules/0/host
-        value: overflow-api.helios
-  
-  # Resource adjustments for production (higher than staging)
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 256Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 50m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 500m
-    target:
-      kind: Deployment
-      name: question-svc
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
-    target:
-      kind: Deployment
-      name: search-svc
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
-    target:
-      kind: Deployment
-      name: profile-svc
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
-    target:
-      kind: Deployment
-      name: stats-svc
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
-    target:
-      kind: Deployment
-      name: vote-svc
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 500m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 1000m
-    target:
-      kind: Deployment
-      name: overflow-webapp

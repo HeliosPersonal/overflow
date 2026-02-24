@@ -71,18 +71,22 @@ AUTH_SECRET=<random-string>
 - GitHub account with Actions enabled
 - [Infisical](https://infisical.com) account for secrets
 
-### 1. Infrastructure Setup (One-time)
+### 1. Shared Infrastructure Setup (One-time)
+
+Shared infrastructure is managed in a separate repository: `infrastructure-helios`
 
 ```bash
-cd terraform-infra
+# Clone shared infrastructure repo
+git clone git@github.com:HeliosPersonal/infrastructure-helios.git
+cd infrastructure-helios/terraform
 
 # Initialize Terraform
 terraform init
 
-# Create terraform.secret.tfvars with your credentials
-# (see terraform-infra/README.md for template)
+# Create terraform.tfvars and terraform.secret.tfvars with your credentials
+# (see infrastructure-helios/README.md for template)
 
-# Deploy infrastructure
+# Deploy shared infrastructure
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 ```
 
@@ -95,6 +99,18 @@ This creates:
 - NGINX Ingress controller
 - cert-manager for SSL
 - Monitoring stack
+- Ollama LLM service
+- Cloudflare DDNS
+
+### 1b. Project-Specific Terraform (Optional)
+
+```bash
+cd overflow/terraform
+terraform init
+terraform apply
+```
+
+This reads outputs from the shared infrastructure for project-specific configuration.
 
 ### 2. Deploy ClusterIssuers
 
@@ -197,13 +213,15 @@ kubectl port-forward svc/question-svc 8080:8080 -n apps-staging
 ### Terraform Operations
 
 ```bash
-cd terraform-infra
-
-# Plan changes
+# Shared infrastructure (infrastructure-helios repo)
+cd infrastructure-helios/terraform
 terraform plan -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
-
-# Apply changes
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
+
+# Project-specific (overflow repo)
+cd overflow/terraform
+terraform plan
+terraform apply
 ```
 
 ---
@@ -212,5 +230,6 @@ terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 
 - [Infrastructure Documentation](./INFRASTRUCTURE.md) - Complete infrastructure guide
 - [Kubernetes Manifests](../k8s/README.md) - Kustomize and deployment
+- [Project Terraform](../terraform/README.md) - Project-specific Terraform
 - [Terraform Guide](../terraform-infra/README.md) - Infrastructure as code
 

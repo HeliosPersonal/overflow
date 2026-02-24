@@ -23,7 +23,7 @@ on:
         required: false
         type: string
 
-# Add permissions for GITHUB_TOKEN to push to GitHub Container Registry
+# Permissions for GITHUB_TOKEN to push to GitHub Container Registry
 permissions:
   contents: read
   packages: write
@@ -31,6 +31,7 @@ permissions:
 env:
   DOCKER_REGISTRY: ghcr.io
   IMAGE_TAG: ${{ github.sha }}
+  KUBECONFIG: /home/github-runner/.kube/config
 
 jobs:
   # ============================================================================
@@ -157,18 +158,94 @@ jobs:
           fi
 
   # ============================================================================
+  # TERRAFORM - Apply overflow infrastructure (databases, vhosts, ConfigMaps)
+  # Runs after images are built, before k8s deployment.
+  # - On PRs / development branch: plan only (no apply) to review infra changes
+  # - On main branch: plan + apply (infra changes land together with production)
+  # - Skipped entirely when no terraform files changed (except workflow_dispatch)
+  # Must complete successfully so overflow-infra-config ConfigMap exists
+  # in the target namespace before pods start.
+  # ============================================================================
+  terraform:
+    name: 🏗️ Terraform (overflow infra)
+    needs: build-images
+    if: |
+      (github.event_name == 'push' && (
+        github.ref == 'refs/heads/development' ||
+        github.ref == 'refs/heads/main'
+      )) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: terraform
+
+    env:
+      # Azure Blob state backend auth (same service principal as infrastructure-helios)
+      ARM_CLIENT_ID:       ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET:   ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID:       ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      # Terraform variables (passed as TF_VAR_* to avoid a tfvars file in CI)
+      TF_VAR_pg_password:        ${{ secrets.PG_PASSWORD }}
+      TF_VAR_rabbit_password:    ${{ secrets.RABBIT_PASSWORD }}
+      TF_VAR_typesense_api_key:  ${{ secrets.TYPESENSE_API_KEY }}
+      TF_VAR_kubeconfig_path:    /home/github-runner/.kube/config
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+
+      - name: ✅ Verify Kubernetes access
+        run: kubectl cluster-info
+
+      - name: ⚙️ Terraform Init
+        run: terraform init
+
+      - name: 🔍 Terraform Validate
+        run: terraform validate
+
+      - name: 📋 Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          # exit code: 0 = no changes, 1 = error, 2 = changes present
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⏭️ No infrastructure changes — apply will be skipped"
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Infrastructure changes detected — apply will run"
+          else
+            echo "❌ Terraform plan failed"
+            exit 1
+          fi
+
+      - name: 🚀 Terraform Apply
+        # Only apply when there are actual changes AND we are on an apply-eligible branch/event
+        if: |
+          steps.plan.outputs.has_changes == 'true' && (
+            (github.ref == 'refs/heads/development' && github.event_name == 'push') ||
+            (github.ref == 'refs/heads/main'        && github.event_name == 'push') ||
+            github.event_name == 'workflow_dispatch'
+          )
+        run: terraform apply -auto-approve tfplan
+
+  # ============================================================================
   # STAGING DEPLOYMENT (development branch → apps-staging namespace)
   # ============================================================================
   deploy-staging:
     name: 🚀 Deploy to Staging
-    needs: build-images
+    needs: [build-images, terraform]
     if: |
       (github.ref == 'refs/heads/development' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     runs-on: self-hosted
     environment: staging
     env:
-      KUBECONFIG: /home/github-runner/.kube/config
       NAMESPACE: apps-staging
       OVERLAY: staging
     
@@ -256,14 +333,13 @@ jobs:
   # ============================================================================
   deploy-production:
     name: 🏭 Deploy to Production
-    needs: build-images
+    needs: [build-images, terraform]
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     runs-on: self-hosted
     environment: production
     env:
-      KUBECONFIG: /home/github-runner/.kube/config
       NAMESPACE: apps-production
       OVERLAY: production
     
@@ -280,6 +356,7 @@ jobs:
 
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
 
       - name: 🔧 Setup environment
         id: setup

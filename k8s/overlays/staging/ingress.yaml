@@ -1,7 +1,7 @@
 # ====================================================================================
 # STAGING INGRESS - Traffic Routing Configuration
 # ====================================================================================
-# Domain: staging.devoverflow.org (external) + *.helios (internal LAN)
+# Domain: staging.devoverflow.org (external)
 # Namespace: apps-staging
 #
 # TRAFFIC FLOW:
@@ -33,21 +33,10 @@
 #   - /api/auth/*       → overflow-webapp:3000/api/auth/* (NextAuth - no rewrite!)
 #   - /*                → overflow-webapp:3000/* (SSR pages)
 #
-# INTERNAL ACCESS (*.helios):
-# ====================================================================================
-#   For local network access without going through Cloudflare:
-#   - overflow-api-staging.helios - Direct API access
-#   - overflow-staging.helios - Direct webapp access
-#   Requires local DNS or /etc/hosts entry pointing to cluster IP
-#
 # ====================================================================================
 
 # ------------------------------------------------------------------------------
 # QUESTION SERVICE INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/questions/*, /api/questions/{id}/answers, etc.
-# Rewrites: /api/questions/123 → /questions/123
-# Backend: question-svc:8080
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -80,24 +69,9 @@ spec:
                 name: question-svc
                 port:
                   number: 8080
-    # Internal LAN access (no Cloudflare, no SSL)
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /questions
-            pathType: Prefix
-            backend:
-              service:
-                name: question-svc
-                port:
-                  number: 8080
 ---
 # ------------------------------------------------------------------------------
 # TAGS INGRESS (via Question Service)
-# ------------------------------------------------------------------------------
-# Routes: /api/tags/*
-# Rewrites: /api/tags → /tags
-# Backend: question-svc:8080 (tags are part of question service)
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -125,24 +99,9 @@ spec:
                 name: question-svc
                 port:
                   number: 8080
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /tags
-            pathType: Prefix
-            backend:
-              service:
-                name: question-svc
-                port:
-                  number: 8080
 ---
 # ------------------------------------------------------------------------------
 # SEARCH SERVICE INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/search/*
-# Rewrites: /api/search/query → /search/query
-# Backend: search-svc:8080
-# Uses Typesense for full-text search
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -170,24 +129,9 @@ spec:
                 name: search-svc
                 port:
                   number: 8080
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /search
-            pathType: Prefix
-            backend:
-              service:
-                name: search-svc
-                port:
-                  number: 8080
 ---
 # ------------------------------------------------------------------------------
 # STATS SERVICE INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/stats/*
-# Rewrites: /api/stats/trending → /stats/trending
-# Backend: stats-svc:8080
-# Provides platform statistics and trending content
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -215,24 +159,9 @@ spec:
                 name: stats-svc
                 port:
                   number: 8080
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /stats
-            pathType: Prefix
-            backend:
-              service:
-                name: stats-svc
-                port:
-                  number: 8080
 ---
 # ------------------------------------------------------------------------------
 # VOTE SERVICE INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/votes/*
-# Rewrites: /api/votes → /votes
-# Backend: vote-svc:8080
-# Handles upvote/downvote operations on Q&A
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -260,24 +189,9 @@ spec:
                 name: vote-svc
                 port:
                   number: 8080
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /votes
-            pathType: Prefix
-            backend:
-              service:
-                name: vote-svc
-                port:
-                  number: 8080
 ---
 # ------------------------------------------------------------------------------
 # PROFILE SERVICE INGRESS
-# ------------------------------------------------------------------------------
-# Routes: /api/profiles/*
-# Rewrites: /api/profiles/me → /profiles/me
-# Backend: profile-svc:8080
-# Manages user profiles, reputation, and statistics
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -300,16 +214,6 @@ spec:
         paths:
           - path: /api/profiles(/|$)(.*)
             pathType: ImplementationSpecific
-            backend:
-              service:
-                name: profile-svc
-                port:
-                  number: 8080
-    - host: overflow-api-staging.helios
-      http:
-        paths:
-          - path: /profiles
-            pathType: Prefix
             backend:
               service:
                 name: profile-svc
@@ -389,16 +293,6 @@ spec:
       secretName: webapp-staging-tls
   rules:
     - host: staging.devoverflow.org
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: overflow-webapp
-                port:
-                  number: 3000
-    - host: overflow-staging.helios
       http:
         paths:
           - path: /

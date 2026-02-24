@@ -16,13 +16,13 @@
 # - Automatic: Push to 'development' branch
 # - Manual: GitHub Actions workflow_dispatch
 #
-# Connected Infrastructure (infra-staging namespace):
-# - PostgreSQL: postgres-staging:5432
-# - RabbitMQ: rabbitmq-staging:5672
-# - Typesense: typesense:8108
+# Connected Infrastructure (infra-production namespace — single shared instance):
+# - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: staging_*)
+# - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-staging)
+# - Typesense:  typesense.infra-production.svc.cluster.local:8108
 #
 # Shared Infrastructure (infra-production namespace):
-# - Keycloak: keycloak:8080 (single instance for both environments)
+# - Keycloak: keycloak.infra-production.svc.cluster.local:8080 (single instance)
 # ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -55,25 +55,25 @@ resources:
 # This ensures every deployment uses the exact version that was built and tested
 images:
   - name: ghcr.io/placeholder/overflow-question
-    newName: ghcr.io/viacheslavmelnichenko/overflow-question
+    newName: ghcr.io/GITHUB_USERNAME/overflow-question
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-search
-    newName: ghcr.io/viacheslavmelnichenko/overflow-search
+    newName: ghcr.io/GITHUB_USERNAME/overflow-search
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-profile
-    newName: ghcr.io/viacheslavmelnichenko/overflow-profile
+    newName: ghcr.io/GITHUB_USERNAME/overflow-profile
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-stats
-    newName: ghcr.io/viacheslavmelnichenko/overflow-stats
+    newName: ghcr.io/GITHUB_USERNAME/overflow-stats
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-vote
-    newName: ghcr.io/viacheslavmelnichenko/overflow-vote
+    newName: ghcr.io/GITHUB_USERNAME/overflow-vote
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-webapp
-    newName: ghcr.io/viacheslavmelnichenko/overflow-webapp
+    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-data-seeder
-    newName: ghcr.io/viacheslavmelnichenko/overflow-data-seeder
+    newName: ghcr.io/GITHUB_USERNAME/overflow-data-seeder
     newTag: SHA_REPLACED_BY_CICD
 
 # ====================================================================================
@@ -100,7 +100,7 @@ labels:
 # ====================================================================================
 # REPLICA COUNTS
 # ====================================================================================
-# Staging uses 2 replicas per service for high availability testing
+# Staging uses 2 replicas per service
 replicas:
   - name: question-svc
     count: 2
@@ -114,14 +114,14 @@ replicas:
     count: 2
   - name: overflow-webapp
     count: 2
+  - name: data-seeder-svc
+    count: 1
 
 # ====================================================================================
 # PATCHES
 # ====================================================================================
-# Strategic merge patches for environment-specific overrides
-# Used to modify specific fields in base resources
 patches:
-  # Override APP_ENV for webapp to use staging configuration
+  # Set APP_ENV=staging for webapp (NODE_ENV stays "production" for Next.js build)
   - target:
       kind: Deployment
       name: overflow-webapp

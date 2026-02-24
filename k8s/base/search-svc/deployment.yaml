@@ -24,6 +24,9 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: overflow-infra-config
           env:
             # ASP.NET Core configuration
             - name: ASPNETCORE_HTTP_PORTS

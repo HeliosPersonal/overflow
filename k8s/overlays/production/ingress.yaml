@@ -1,11 +1,13 @@
 # ====================================================================================
 # PRODUCTION INGRESS - Traffic Routing
 # ====================================================================================
-# Routes external traffic to all services in production environment
-# Domains: devoverflow.org, www.devoverflow.org + overflow-api.helios (internal)
+# Domains: devoverflow.org, www.devoverflow.org
+# Namespace: apps-production
 # ====================================================================================
 
-# Question Service - routes /api/questions/* to question-svc
+# ------------------------------------------------------------------------------
+# QUESTION SERVICE
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -43,18 +45,10 @@ spec:
                 name: question-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /questions
-            pathType: Prefix
-            backend:
-              service:
-                name: question-svc
-                port:
-                  number: 8080
 ---
-# Tags endpoint (via Question Service): /api/tags -> question-svc:8080/tags
+# ------------------------------------------------------------------------------
+# TAGS (via Question Service)
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -92,18 +86,10 @@ spec:
                 name: question-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /tags
-            pathType: Prefix
-            backend:
-              service:
-                name: question-svc
-                port:
-                  number: 8080
 ---
-# Search Service: /api/search -> search-svc:8080/search
+# ------------------------------------------------------------------------------
+# SEARCH SERVICE
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -141,18 +127,10 @@ spec:
                 name: search-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /search
-            pathType: Prefix
-            backend:
-              service:
-                name: search-svc
-                port:
-                  number: 8080
 ---
-# Stats Service: /api/stats -> stats-svc:8080/stats
+# ------------------------------------------------------------------------------
+# STATS SERVICE
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -190,18 +168,10 @@ spec:
                 name: stats-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /stats
-            pathType: Prefix
-            backend:
-              service:
-                name: stats-svc
-                port:
-                  number: 8080
 ---
-# Vote Service: /api/votes -> vote-svc:8080/votes
+# ------------------------------------------------------------------------------
+# VOTE SERVICE
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -239,18 +209,10 @@ spec:
                 name: vote-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /votes
-            pathType: Prefix
-            backend:
-              service:
-                name: vote-svc
-                port:
-                  number: 8080
 ---
-# Profile Service: /api/profiles -> profile-svc:8080/profiles
+# ------------------------------------------------------------------------------
+# PROFILE SERVICE
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -288,19 +250,12 @@ spec:
                 name: profile-svc
                 port:
                   number: 8080
-    - host: overflow-api.helios
-      http:
-        paths:
-          - path: /profiles
-            pathType: Prefix
-            backend:
-              service:
-                name: profile-svc
-                port:
-                  number: 8080
 ---
-# NextAuth API Routes: /api/auth/* -> overflow-webapp:3000/api/auth/*
-# IMPORTANT: This must come BEFORE the main webapp ingress to ensure proper routing
+# ------------------------------------------------------------------------------
+# NEXTAUTH API ROUTES
+# NO REWRITE — NextAuth expects /api/auth/* as-is
+# Must be evaluated before the webapp catch-all
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -309,11 +264,9 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # Increase timeouts for auth operations
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    # Ensure large enough buffer for auth responses
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   ingressClassName: nginx
@@ -344,7 +297,10 @@ spec:
                 port:
                   number: 3000
 ---
-# WebApp: / -> overflow-webapp:3000/
+# ------------------------------------------------------------------------------
+# WEBAPP (Catch-All)
+# SSR pages, static assets, client-side navigation
+# ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -372,16 +328,6 @@ spec:
                 port:
                   number: 3000
     - host: www.devoverflow.org
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: overflow-webapp
-                port:
-                  number: 3000
-    - host: overflow.helios
       http:
         paths:
           - path: /
