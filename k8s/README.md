@@ -1,4 +1,4 @@
-﻿﻿# Kubernetes Manifests
+﻿# Kubernetes Manifests
 
 ## Overview
 This directory contains Kubernetes manifests for deploying the Overflow application using Kustomize.
