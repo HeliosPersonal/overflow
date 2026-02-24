@@ -79,7 +79,6 @@ resource "null_resource" "create_rabbitmq_vhosts" {
       set -e
       export KUBECONFIG='${var.kubeconfig_path}'
 
-      # Find the running rabbitmq pod in infra-production
       RMQ_POD=$(kubectl get pod -n ${local.namespace_infra} \
         -l app.kubernetes.io/name=rabbitmq \
         -o jsonpath='{.items[0].metadata.name}')
@@ -87,18 +86,13 @@ resource "null_resource" "create_rabbitmq_vhosts" {
       echo ">>> Using rabbitmq pod: $RMQ_POD"
 
       for VHOST in "${local.rabbitmq_vhost_staging}" "${local.rabbitmq_vhost_production}"; do
-        ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1],safe=''))" "$VHOST")
-        echo ">>> PUT vhost: $VHOST"
+        echo ">>> Ensuring vhost: $VHOST"
         kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-          curl -sf -u "admin:${var.rabbit_password}" \
-            -X PUT "http://localhost:${local.rabbitmq_management_port}/api/vhosts/$ENCODED" \
-            -H 'Content-Type: application/json' -d '{}'
-        echo ">>> Grant admin permissions on: $VHOST"
+          rabbitmqctl add_vhost "$VHOST" 2>&1 | grep -v "already exists" || true
+
+        echo ">>> Granting admin permissions on: $VHOST"
         kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-          curl -sf -u "admin:${var.rabbit_password}" \
-            -X PUT "http://localhost:${local.rabbitmq_management_port}/api/permissions/$ENCODED/admin" \
-            -H 'Content-Type: application/json' \
-            -d '{"configure":".*","write":".*","read":".*"}'
+          rabbitmqctl set_permissions -p "$VHOST" admin ".*" ".*" ".*"
       done
 
       echo ">>> Done."
