@@ -26,10 +26,8 @@ resource "null_resource" "create_postgres_databases" {
       values(local.pg_staging_dbs),
       values(local.pg_production_dbs)
     )))
-    host     = local.postgres_host
-    port     = tostring(local.postgres_port)
-    # hash password so changes re-trigger, but don't store plaintext in state
-    pw_hash  = sha256(var.pg_password)
+    host    = local.postgres_host
+    pw_hash = sha256(var.pg_password)
   }
 
   provisioner "local-exec" {
@@ -68,10 +66,9 @@ resource "null_resource" "create_postgres_databases" {
 
 resource "null_resource" "create_rabbitmq_vhosts" {
   triggers = {
-    vhosts   = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
-    host     = local.rabbitmq_host
-    port     = tostring(local.rabbitmq_management_port)
-    pw_hash  = sha256(var.rabbit_password)
+    vhosts  = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
+    host    = local.rabbitmq_host
+    pw_hash = sha256(var.rabbit_password)
   }
 
   provisioner "local-exec" {
@@ -137,8 +134,7 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
     # --- Typesense ---
     "TypesenseOptions__ConnectionUrl" = local.typesense_url
     "TypesenseOptions__ApiKey"        = var.typesense_api_key
-
-    # --- Keycloak (internal URL for pod-to-pod, realm per environment) ---
+    "TypesenseOptions__CollectionName" = "staging_questions"
     "KeycloakOptions__Url"      = local.keycloak_internal_url
     "KeycloakOptions__Realm"    = "overflow-staging"
     "KeycloakOptions__Audience" = "overflow-staging"
@@ -184,8 +180,9 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
     "ConnectionStrings__messaging" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_production}"
 
     # --- Typesense ---
-    "TypesenseOptions__ConnectionUrl" = local.typesense_url
-    "TypesenseOptions__ApiKey"        = var.typesense_api_key
+    "TypesenseOptions__ConnectionUrl"  = local.typesense_url
+    "TypesenseOptions__ApiKey"         = var.typesense_api_key
+    "TypesenseOptions__CollectionName" = "production_questions"
 
     # --- Keycloak ---
     "KeycloakOptions__Url"      = local.keycloak_internal_url

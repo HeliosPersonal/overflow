@@ -5,6 +5,7 @@ using Overflow.SearchService.Extensions;
 using Overflow.SearchService.Models;
 using Overflow.ServiceDefaults;
 using Typesense;
+using Overflow.SearchService.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapDefaultEndpoints();
+
+var typesenseOptions = app.Services.GetRequiredService<TypesenseOptions>();
 
 app.MapGet("/search", async (string query, ITypesenseClient client, ILogger<Program> logger) =>
 {
@@ -53,8 +56,8 @@ app.MapGet("/search", async (string query, ITypesenseClient client, ILogger<Prog
 
     try
     {
-        var result = await client.Search<SearchQuestion>("questions", searchParams);
-        logger.LogInformation("Search completed: query='{Query}', tag='{Tag}', found={Count}", 
+        var result = await client.Search<SearchQuestion>(typesenseOptions.CollectionName, searchParams);
+        logger.LogInformation("Search completed: query='{Query}', tag='{Tag}', found={Count}",
             query, tag, result.Found);
         return Results.Ok(result.Hits.Select(hit => hit.Document));
     }
@@ -77,7 +80,7 @@ app.MapGet("/search/similar-titles", async (string query, ITypesenseClient clien
 
     try
     {
-        var result = await client.Search<SearchQuestion>("questions", searchParams);
+        var result = await client.Search<SearchQuestion>(typesenseOptions.CollectionName, searchParams);
         logger.LogDebug("Similar titles search: query='{Query}', found={Count}", query, result.Found);
         return Results.Ok(result.Hits.Select(hit => hit.Document));
     }
@@ -90,6 +93,6 @@ app.MapGet("/search/similar-titles", async (string query, ITypesenseClient clien
 
 using var scope = app.Services.CreateScope();
 var client = scope.ServiceProvider.GetRequiredService<ITypesenseClient>();
-await SearchInitializer.EnsureIndexExists(client);
+await SearchInitializer.EnsureIndexExists(client, typesenseOptions.CollectionName);
 
 app.Run();
