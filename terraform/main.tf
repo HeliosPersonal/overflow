@@ -239,8 +239,8 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
 
     # --- Keycloak ---
     "KeycloakOptions__Url"      = local.keycloak_internal_url
-    "KeycloakOptions__Realm"    = "overflow-production"
-    "KeycloakOptions__Audience" = "overflow-production"
+    "KeycloakOptions__Realm"    = "overflow"
+    "KeycloakOptions__Audience" = "overflow"
 
     # --- OpenTelemetry ---
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT" = local.otlp_http_endpoint

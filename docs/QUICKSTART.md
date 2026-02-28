@@ -208,5 +208,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 
 - [Infrastructure Documentation](./INFRASTRUCTURE.md)
 - [Network Architecture](./NETWORK_ARCHITECTURE.md)
+- [Keycloak Setup & Secret Propagation](./KEYCLOAK_SETUP.md)
+- [Infisical Secret Management](./INFISICAL_SETUP.md)
 - [Terraform README](../terraform/README.md)
 - [Kubernetes Manifests](../k8s/README.md)

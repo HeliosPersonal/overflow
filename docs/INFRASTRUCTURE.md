@@ -4,6 +4,8 @@
 
 - [Network Architecture](./NETWORK_ARCHITECTURE.md) — Detailed network diagrams and connection flows
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
+- [Keycloak Setup & Secret Propagation](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
+- [Infisical Secret Management](./INFISICAL_SETUP.md) — All 27 secrets, how they flow, GitHub Actions sync
 - [Terraform README](../terraform/README.md) — Project-specific Terraform
 - [infrastructure-helios](https://github.com/heliospersonal/infrastructure-helios) — Shared infrastructure repository
 - [Kubernetes README](../k8s/README.md) — Kustomize and manifests

@@ -9,7 +9,7 @@
 # - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: production_*)
 # - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-production)
 # - Typesense:  typesense.infra-production.svc.cluster.local:8108
-# - Keycloak:   keycloak.infra-production.svc.cluster.local:8080  (realm: overflow-production)
+# - Keycloak:   keycloak.infra-production.svc.cluster.local:8080  (realm: overflow)
 # ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1

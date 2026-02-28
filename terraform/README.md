@@ -30,8 +30,8 @@ All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core ma
 | `TypesenseOptions__ConnectionUrl` | Typesense URL |
 | `TypesenseOptions__ApiKey` | Typesense API key |
 | `KeycloakOptions__Url` | Keycloak internal URL |
-| `KeycloakOptions__Realm` | `overflow-staging` / `overflow-production` |
-| `KeycloakOptions__Audience` | `overflow-staging` / `overflow-production` |
+| `KeycloakOptions__Realm` | `overflow-staging` / `overflow` |
+| `KeycloakOptions__Audience` | `overflow-staging` / `overflow` |
 | `EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Alloy OTLP HTTP endpoint |
 | `SeederOptions__OllamaUrl` | Ollama URL *(staging only)* |
 
