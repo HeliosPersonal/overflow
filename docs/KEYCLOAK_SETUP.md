@@ -362,9 +362,9 @@ Ready-to-import Postman collections are in [`docs/postman/`](./postman/):
 
 | File | Description |
 |---|---|
-| [`overflow-staging.postman_collection.json`](./postman/overflow-staging.postman_collection.json) | All API endpoints (same collection for both envs) |
-| [`overflow-staging.postman_environment.json`](./postman/overflow-staging.postman_environment.json) | Staging environment (`staging.devoverflow.org`, realm `overflow-staging`) |
-| [`overflow-production.postman_environment.json`](./postman/overflow-production.postman_environment.json) | Production environment (`devoverflow.org`, realm `overflow`) |
+| [`overflow-api.postman_collection.json`](./postman/overflow-api.postman_collection.json) | All API endpoints (works with any environment) |
+| [`overflow-staging.postman_environment.json`](./postman/overflow-staging.postman_environment.json) | Staging (`staging.devoverflow.org`, realm `overflow-staging`) |
+| [`overflow-production.postman_environment.json`](./postman/overflow-production.postman_environment.json) | Production (`devoverflow.org`, realm `overflow`) |
 
 Import the collection + both environments into Postman. Switch between staging and
 production using the environment selector. Both use the `overflow-postman` public client

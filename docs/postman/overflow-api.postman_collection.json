@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Overflow API (Staging)",
-    "description": "Complete API collection for Overflow Q&A platform.\n\n## Setup\n1. Import the **Overflow Staging** environment\n2. Set `username` and `password` to a valid Keycloak user\n3. Run **Auth → Get Token** first — it auto-sets `access_token`\n4. All authenticated requests use `{{access_token}}` automatically\n\nThe `overflow-postman` client is public (no secret needed).",
+    "name": "Overflow API",
+    "description": "Complete API collection for Overflow Q&A platform.\n\n## Setup\n1. Import this collection + both environment files\n2. Select an environment (Staging or Production)\n3. Set `username` and `password` to a valid Keycloak user\n4. Run **Auth → Get Token** first — it auto-sets `access_token`\n5. All authenticated requests use `{{access_token}}` automatically\n\nThe `overflow-postman` client is public (no secret needed).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
