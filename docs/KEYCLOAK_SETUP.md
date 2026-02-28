@@ -362,10 +362,12 @@ Ready-to-import Postman collections are in [`docs/postman/`](./postman/):
 
 | File | Description |
 |---|---|
-| [`overflow-staging.postman_collection.json`](./postman/overflow-staging.postman_collection.json) | All API endpoints against staging |
-| [`overflow-staging.postman_environment.json`](./postman/overflow-staging.postman_environment.json) | Staging environment variables |
+| [`overflow-staging.postman_collection.json`](./postman/overflow-staging.postman_collection.json) | All API endpoints (same collection for both envs) |
+| [`overflow-staging.postman_environment.json`](./postman/overflow-staging.postman_environment.json) | Staging environment (`staging.devoverflow.org`, realm `overflow-staging`) |
+| [`overflow-production.postman_environment.json`](./postman/overflow-production.postman_environment.json) | Production environment (`devoverflow.org`, realm `overflow`) |
 
-Import both files into Postman. The environment uses the `overflow-postman` public client
+Import the collection + both environments into Postman. Switch between staging and
+production using the environment selector. Both use the `overflow-postman` public client
 (no secret needed) with `grant_type=password` to obtain tokens automatically.
 
 ---
