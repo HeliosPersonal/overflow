@@ -122,7 +122,7 @@ Terraform state stored in Azure Blob Storage.
 ### Slide 13 — Local Development
 Two options:
 1. **Full stack with .NET Aspire** — `dotnet run` starts all services + infrastructure containers
-2. **Frontend only against staging** — `nextjs-local` Keycloak client, point at staging API
+2. **Frontend only against staging** — `overflow-web-local` Keycloak client, point at staging API
 
 Aspire Dashboard at localhost:18888 for service discovery and telemetry.
 

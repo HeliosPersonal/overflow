@@ -20,8 +20,9 @@
 7. [Infisical — Keycloak-Related Secrets](#infisical--keycloak-related-secrets)
 8. [Config Values Already Wired](#config-values-already-wired)
 9. [Local Development Setup](#local-development-setup)
-10. [Verification & Test Commands](#verification--test-commands)
-11. [Troubleshooting](#troubleshooting)
+10. [Postman Collections](#postman-collections)
+11. [Verification & Test Commands](#verification--test-commands)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -35,7 +36,7 @@ There are **two realms**:
 | Realm | Purpose | Used by |
 |---|---|---|
 | `overflow` | **Production** | `devoverflow.org` and .NET backend in `apps-production` |
-| `overflow-staging` | **Staging + local development** | `staging.devoverflow.org`, .NET backend in `apps-staging`, and local webapp via `nextjs-local` client |
+| `overflow-staging` | **Staging + local development** | `staging.devoverflow.org`, .NET backend in `apps-staging`, and local webapp via `overflow-web-local` client |
 
 ---
 
@@ -45,24 +46,28 @@ There are **two realms**:
 keycloak.devoverflow.org
 │
 ├── overflow  (production realm)
-│   ├── nextjs               — confidential, used by devoverflow.org
-│   └── overflow             — public/bearer-only, backend resource server (audience)
+│   ├── overflow-web         — confidential, webapp (devoverflow.org)
+│   ├── overflow-postman     — public, API testing with Postman
+│   └── overflow             — public, backend resource server (audience)
 │
 └── overflow-staging  (staging realm)
-    ├── nextjs               — confidential, used by staging.devoverflow.org
-    ├── nextjs-local         — confidential, used when running webapp locally against staging
-    ├── data-seeder-admin    — confidential + service account, used by DataSeederService
-    └── overflow-staging     — public/bearer-only, backend resource server (audience)
+    ├── overflow-web         — confidential, webapp (staging.devoverflow.org)
+    ├── overflow-web-local   — confidential, webapp running locally against staging
+    ├── overflow-postman     — public, API testing with Postman
+    ├── data-seeder-admin    — confidential + service account, DataSeederService
+    └── overflow-staging     — public, backend resource server (audience)
 ```
 
 ### Client Roster
 
 | Realm | Client ID | Type | Used by | Secret in |
 |---|---|---|---|---|
-| `overflow` | `nextjs` | Confidential | `devoverflow.org` webapp | Infisical `production` |
+| `overflow` | `overflow-web` | Confidential | `devoverflow.org` webapp | Infisical `production` |
+| `overflow` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
 | `overflow` | `overflow` | Public (resource server) | .NET services (JWT audience) | — |
-| `overflow-staging` | `nextjs` | Confidential | `staging.devoverflow.org` webapp | Infisical `staging` |
-| `overflow-staging` | `nextjs-local` | Confidential | Local dev (`localhost:3000`) | `.env.development` |
+| `overflow-staging` | `overflow-web` | Confidential | `staging.devoverflow.org` webapp | Infisical `staging` |
+| `overflow-staging` | `overflow-web-local` | Confidential | Local dev (`localhost:3000`) | `.env.development` |
+| `overflow-staging` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
 | `overflow-staging` | `data-seeder-admin` | Confidential + service account | DataSeederService (Admin API) | Infisical `staging` |
 | `overflow-staging` | `overflow-staging` | Public (resource server) | .NET services (JWT audience) | — |
 
@@ -74,8 +79,8 @@ Two ready-to-import JSON files are provided in [`docs/keycloak/`](./keycloak/):
 
 | File | Realm | Clients included |
 |---|---|---|
-| [`overflow-realm.json`](./keycloak/overflow-realm.json) | `overflow` | `nextjs`, `overflow` |
-| [`overflow-staging-realm.json`](./keycloak/overflow-staging-realm.json) | `overflow-staging` | `nextjs`, `nextjs-local`, `data-seeder-admin`, `overflow-staging` |
+| [`overflow-realm.json`](./keycloak/overflow-realm.json) | `overflow` | `overflow-web`, `overflow-postman`, `overflow` |
+| [`overflow-staging-realm.json`](./keycloak/overflow-staging-realm.json) | `overflow-staging` | `overflow-web`, `overflow-web-local`, `overflow-postman`, `data-seeder-admin`, `overflow-staging` |
 
 ### How to Import
 
@@ -99,10 +104,10 @@ kubectl exec -n infra-production <keycloak-pod> -- \
 
 ### After Import
 
-1. **Generate client secrets** — the import creates clients without secrets. Go to
-   **Clients → nextjs → Credentials** → **Regenerate** → copy the secret.
+1. **Generate client secrets** — the import creates confidential clients without secrets. Go to
+   **Clients → overflow-web → Credentials** → **Regenerate** → copy the secret.
 2. **Store the secret** in Infisical (see [§ Keycloak Secrets](#keycloak-secrets-in-infisical)).
-3. For `nextjs-local`, copy the generated secret to `webapp/.env.development` as `AUTH_KEYCLOAK_SECRET`.
+3. For `overflow-web-local`, copy the generated secret to `webapp/.env.development` as `AUTH_KEYCLOAK_SECRET`.
 4. For `data-seeder-admin` (staging only):
    - Copy the generated secret → store in Infisical as `KeycloakOptions__AdminClientSecret`.
    - **Grant Admin API roles**: Clients → `data-seeder-admin` → **Service account roles** tab
@@ -129,7 +134,7 @@ These are already configured in both realm import files:
 
 ## Client Details
 
-### `nextjs` — Webapp Frontend (Confidential)
+### `overflow-web` — Webapp Frontend (Confidential)
 
 Used by the Next.js app for two sign-in flows (see [`auth.ts`](../webapp/src/auth.ts)):
 
@@ -150,22 +155,34 @@ Used by the Next.js app for two sign-in flows (see [`auth.ts`](../webapp/src/aut
 | `overflow` | `https://devoverflow.org/*`, `https://www.devoverflow.org/*` | `https://devoverflow.org`, `https://www.devoverflow.org` |
 | `overflow-staging` | `https://staging.devoverflow.org/*` | `https://staging.devoverflow.org` |
 
-**Audience Mapper** — each `nextjs` client has a dedicated protocol mapper (`oidc-audience-mapper`)
+**Audience Mapper** — each `overflow-web` client has a protocol mapper (`oidc-audience-mapper`)
 that adds the backend resource server client to the `aud` claim:
 - `overflow` realm → maps audience `overflow`
 - `overflow-staging` realm → maps audience `overflow-staging`
 
-This is already included in the realm import files.
+### `overflow-web-local` — Local Dev Against Staging (Confidential)
 
-### `nextjs-local` — Local Dev Against Staging (Confidential)
-
-Identical to `nextjs` but with `localhost` redirect URIs. Only exists in `overflow-staging`.
+Identical to `overflow-web` but with `localhost` redirect URIs. Only exists in `overflow-staging`.
 
 | Setting | Value |
 |---|---|
 | Redirect URIs | `http://localhost:3000/*`, `http://localhost:4000/*` |
 | Web Origins | `http://localhost:3000`, `http://localhost:4000` |
-| Audience mapper | Same as `nextjs` — adds `overflow-staging` to `aud` |
+| Audience mapper | Same as `overflow-web` — adds `overflow-staging` to `aud` |
+
+### `overflow-postman` — API Testing (Public)
+
+Public client for testing APIs with Postman. Exists in both realms. No secret needed.
+
+| Setting | Value |
+|---|---|
+| Client authentication | `OFF` (public) |
+| Standard flow | `ON` (for OAuth2 Authorization Code in Postman) |
+| Direct access grants | `ON` (for password grant in Postman) |
+| Redirect URIs | `https://oauth.pstmn.io/v1/callback` |
+| Audience mapper | Same as `overflow-web` — adds the correct `aud` claim |
+
+See [Postman collections](#postman-collections) in `docs/postman/` for ready-to-import workspace files.
 
 ### `overflow` / `overflow-staging` — Backend Resource Server (Public)
 
@@ -183,7 +200,7 @@ using Ollama. It needs Keycloak access for two things:
 1. **Admin API** — creates real Keycloak users via `client_credentials` grant using this
    client. See [`KeycloakAdminService.cs`](../Overflow.DataSeederService/Services/KeycloakAdminService.cs).
 2. **User tokens** — obtains access tokens for created users via `grant_type=password`
-   using the `nextjs` client, so it can call question-svc, profile-svc, vote-svc as those users.
+   using the `overflow-web` client, so it can call question-svc, profile-svc, vote-svc as those users.
 
 | Setting | Value |
 |---|---|
@@ -202,8 +219,8 @@ using Ollama. It needs Keycloak access for two things:
 |---|---|---|
 | `KeycloakOptions:AdminClientId` | `KeycloakOptions__AdminClientId` | `data-seeder-admin` |
 | `KeycloakOptions:AdminClientSecret` | `KeycloakOptions__AdminClientSecret` | Client secret from Keycloak |
-| `KeycloakOptions:NextJsClientId` | `KeycloakOptions__NextJsClientId` | `nextjs` |
-| `KeycloakOptions:NextJsClientSecret` | `KeycloakOptions__NextJsClientSecret` | `nextjs` client secret |
+| `KeycloakOptions:NextJsClientId` | `KeycloakOptions__NextJsClientId` | `overflow-web` |
+| `KeycloakOptions:NextJsClientSecret` | `KeycloakOptions__NextJsClientSecret` | `overflow-web` client secret |
 
 ---
 
@@ -225,7 +242,7 @@ openid  profile  email  offline_access
 | `given_name` | `profile` scope | `UserProfileCreationMiddleware` |
 | `family_name` | `profile` scope | `UserProfileCreationMiddleware` |
 | `preferred_username` | `profile` scope | Fallback display name |
-| `aud` | Audience mapper on `nextjs` client | Backend JWT validation |
+| `aud` | Audience mapper on `overflow-web` client | Backend JWT validation |
 
 All mappers are included in the realm import files.
 
@@ -249,12 +266,12 @@ After importing a realm and generating client secrets, store them in Infisical:
 
 | Infisical Key | Environments | Value | Consumer |
 |---|---|---|---|
-| `Auth__KeycloakSecret` | staging + production | `nextjs` client secret | Webapp (NextAuth.js) |
+| `Auth__KeycloakSecret` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
 | `Auth__Secret` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
 | `KeycloakOptions__AdminClientId` | staging only | `data-seeder-admin` | DataSeederService |
 | `KeycloakOptions__AdminClientSecret` | staging only | `data-seeder-admin` client secret | DataSeederService |
-| `KeycloakOptions__NextJsClientId` | staging only | `nextjs` | DataSeederService |
-| `KeycloakOptions__NextJsClientSecret` | staging only | `nextjs` client secret | DataSeederService |
+| `KeycloakOptions__NextJsClientId` | staging only | `overflow-web` | DataSeederService |
+| `KeycloakOptions__NextJsClientSecret` | staging only | `overflow-web` client secret | DataSeederService |
 | `KeycloakOptions__ClientId` | staging + production | Backend client ID | `KeycloakOptions` model |
 | `KeycloakOptions__ClientSecret` | staging + production | Backend client secret | `KeycloakOptions` model |
 
@@ -291,7 +308,7 @@ Non-secret values in `.env.staging` / `.env.production` (committed, baked at bui
 
 | Variable | Staging | Production |
 |---|---|---|
-| `AUTH_KEYCLOAK_ID` | `nextjs` | `nextjs` |
+| `AUTH_KEYCLOAK_ID` | `overflow-web` | `overflow-web` |
 | `AUTH_KEYCLOAK_ISSUER` | `https://keycloak.devoverflow.org/realms/overflow-staging` | `https://keycloak.devoverflow.org/realms/overflow` |
 | `AUTH_KEYCLOAK_ISSUER_INTERNAL` | `https://keycloak.devoverflow.org/realms/overflow-staging` | `https://keycloak.devoverflow.org/realms/overflow` |
 | `AUTH_URL` | `https://staging.devoverflow.org` | `https://devoverflow.org` |
@@ -320,8 +337,8 @@ Update `webapp/.env.development`:
 ```dotenv
 APP_ENV=development
 API_URL=https://staging.devoverflow.org/api
-AUTH_KEYCLOAK_ID=nextjs-local
-AUTH_KEYCLOAK_SECRET=<secret from nextjs-local client in overflow-staging realm>
+AUTH_KEYCLOAK_ID=overflow-web-local
+AUTH_KEYCLOAK_SECRET=<secret from overflow-web-local client in overflow-staging realm>
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 AUTH_KEYCLOAK_ISSUER_INTERNAL=https://keycloak.devoverflow.org/realms/overflow-staging
 AUTH_URL=http://localhost:3000
@@ -330,7 +347,7 @@ AUTH_SECRET=<any random string>
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dis52nqgma
 ```
 
-The `nextjs-local` client in the `overflow-staging` realm has `http://localhost:3000/*`
+The `overflow-web-local` client in the `overflow-staging` realm has `http://localhost:3000/*`
 and `http://localhost:4000/*` as valid redirect URIs.
 
 ```bash
@@ -339,17 +356,30 @@ cd webapp && npm run dev
 
 ---
 
+## Postman Collections
+
+Ready-to-import Postman collections are in [`docs/postman/`](./postman/):
+
+| File | Description |
+|---|---|
+| [`overflow-staging.postman_collection.json`](./postman/overflow-staging.postman_collection.json) | All API endpoints against staging |
+| [`overflow-staging.postman_environment.json`](./postman/overflow-staging.postman_environment.json) | Staging environment variables |
+
+Import both files into Postman. The environment uses the `overflow-postman` public client
+(no secret needed) with `grant_type=password` to obtain tokens automatically.
+
+---
+
 ## Verification & Test Commands
 
 ### 1. Get a Token (Direct Access Grant)
 
 ```bash
-# Against staging
+# Against staging using overflow-postman (public client, no secret needed)
 TOKEN=$(curl -s -X POST \
   https://keycloak.devoverflow.org/realms/overflow-staging/protocol/openid-connect/token \
   -d grant_type=password \
-  -d client_id=nextjs \
-  -d "client_secret=<secret>" \
+  -d client_id=overflow-postman \
   -d "username=user@example.com" \
   -d "password=yourpassword" \
   -d "scope=openid profile email offline_access" \
@@ -390,7 +420,7 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 
 - Decode the token → check `iss` matches a `ValidIssuer` in appsettings
 - Check `aud` contains the resource server client ID (`overflow-staging` / `overflow`)
-- If `aud` is wrong → audience mapper missing on `nextjs` client
+- If `aud` is wrong → audience mapper missing on the client
 
 ### NextAuth error on login page
 
@@ -399,7 +429,7 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 
 ### Direct Access Grants disabled error
 
-`unauthorized_client` → enable **Direct access grants** on the `nextjs` client in Keycloak.
+`unauthorized_client` → enable **Direct access grants** on the `overflow-web` client in Keycloak.
 
 ### Refresh token expired
 

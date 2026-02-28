@@ -1,0 +1,484 @@
+{
+  "info": {
+    "name": "Overflow API (Staging)",
+    "description": "Complete API collection for Overflow Q&A platform.\n\n## Setup\n1. Import the **Overflow Staging** environment\n2. Set `username` and `password` to a valid Keycloak user\n3. Run **Auth → Get Token** first — it auto-sets `access_token`\n4. All authenticated requests use `{{access_token}}` automatically\n\nThe `overflow-postman` client is public (no secret needed).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Keycloak token management. Run **Get Token** first to authenticate all other requests.",
+      "item": [
+        {
+          "name": "Get Token (Password Grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('access_token', json.access_token);",
+                  "    console.log('Token set, expires in ' + json.expires_in + 's');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "username", "value": "{{username}}" },
+                { "key": "password", "value": "{{password}}" },
+                { "key": "scope", "value": "openid profile email offline_access" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            }
+          }
+        },
+        {
+          "name": "Inspect Token (Decode JWT)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/userinfo",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "userinfo"]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "description": "CRUD operations for questions and answers",
+      "item": [
+        {
+          "name": "List Questions",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/questions?page=1&pageSize=10&sort=newest",
+              "host": ["{{base_url}}"],
+              "path": ["questions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "sort", "value": "newest", "description": "newest | active | unanswered" },
+                { "key": "tag", "value": "", "disabled": true, "description": "Filter by tag slug" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Question by ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('question_id', json.id);",
+                  "    console.log('Created question: ' + json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET?\",\n  \"content\": \"<p>I'm trying to set up JWT validation in ASP.NET Core with Keycloak as the identity provider. What's the recommended approach?</p>\",\n  \"tags\": [\"csharp\", \"keycloak\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/questions",
+              "host": ["{{base_url}}"],
+              "path": ["questions"]
+            }
+          }
+        },
+        {
+          "name": "Update Question",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET? (Updated)\",\n  \"content\": \"<p>Updated content here.</p>\",\n  \"tags\": [\"csharp\", \"keycloak\", \"jwt\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Post Answer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('answer_id', json.id);",
+                  "    console.log('Created answer: ' + json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"<p>You should use <code>AddAuthentication().AddJwtBearer()</code> with the Keycloak issuer URL.</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}/answers",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}", "answers"]
+            }
+          }
+        },
+        {
+          "name": "Update Answer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"<p>Updated answer content.</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Answer",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Accept Answer",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}/accept",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}", "accept"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "description": "Tag management (via question-svc)",
+      "item": [
+        {
+          "name": "List Tags",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tags?sort=popular",
+              "host": ["{{base_url}}"],
+              "path": ["tags"],
+              "query": [
+                { "key": "sort", "value": "popular", "description": "popular | name (default)" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profiles",
+      "description": "User profile operations",
+      "item": [
+        {
+          "name": "List Profiles",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/profiles?sortBy=reputation",
+              "host": ["{{base_url}}"],
+              "path": ["profiles"],
+              "query": [
+                { "key": "sortBy", "value": "reputation", "description": "reputation | displayName (default)" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Profile by ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/profiles/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/profiles/me",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "me"]
+            }
+          }
+        },
+        {
+          "name": "Edit My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Updated Name\",\n  \"description\": \"Software developer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/profiles/edit",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "edit"]
+            }
+          }
+        },
+        {
+          "name": "Batch Get Profiles",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/profiles/batch?ids={{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "batch"],
+              "query": [
+                { "key": "ids", "value": "{{user_id}}", "description": "Comma-separated user IDs" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "description": "Full-text search (via Typesense)",
+      "item": [
+        {
+          "name": "Search Questions",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search?query=keycloak",
+              "host": ["{{base_url}}"],
+              "path": ["search"],
+              "query": [
+                { "key": "query", "value": "keycloak", "description": "Search text. Use [tag] for tag filter, e.g. 'jwt [csharp]'" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Similar Titles",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search/similar-titles?query=how to configure",
+              "host": ["{{base_url}}"],
+              "path": ["search", "similar-titles"],
+              "query": [
+                { "key": "query", "value": "how to configure" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Votes",
+      "description": "Upvote / downvote questions and answers",
+      "item": [
+        {
+          "name": "Cast Vote",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetId\": \"{{question_id}}\",\n  \"targetType\": \"Question\",\n  \"targetUserId\": \"{{user_id}}\",\n  \"questionId\": \"{{question_id}}\",\n  \"voteValue\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/votes",
+              "host": ["{{base_url}}"],
+              "path": ["votes"]
+            }
+          }
+        },
+        {
+          "name": "Get My Votes for Question",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/votes/{{question_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["votes", "{{question_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "description": "Aggregated statistics (event-sourced)",
+      "item": [
+        {
+          "name": "Trending Tags (7 days)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stats/trending-tags",
+              "host": ["{{base_url}}"],
+              "path": ["stats", "trending-tags"]
+            }
+          }
+        },
+        {
+          "name": "Top Users (7 days)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stats/top-users",
+              "host": ["{{base_url}}"],
+              "path": ["stats", "top-users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Debug (internal only)",
+      "description": "Test endpoints on question-svc. Only accessible via kubectl port-forward (no ingress route). Run: kubectl port-forward -n apps-staging svc/question-svc 8080:8080, then use http://localhost:8080 as base URL for these.",
+      "item": [
+        {
+          "name": "Test Auth",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/test/auth",
+              "host": ["{{base_url}}"],
+              "path": ["test", "auth"]
+            }
+          }
+        },
+        {
+          "name": "Test Error Responses",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/test/errors?code=400",
+              "host": ["{{base_url}}"],
+              "path": ["test", "errors"],
+              "query": [
+                { "key": "code", "value": "400", "description": "400 | 401 | 403 | 404 | 500 | 0 (validation)" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

@@ -113,9 +113,9 @@
   ],
   "clients": [
     {
-      "clientId": "nextjs",
-      "name": "Overflow Next.js App (Staging)",
-      "description": "NextAuth.js frontend client — used by staging.devoverflow.org",
+      "clientId": "overflow-web",
+      "name": "Overflow Web App (Staging)",
+      "description": "Confidential OIDC client for the Next.js frontend — used by staging.devoverflow.org",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
@@ -164,9 +164,9 @@
       ]
     },
     {
-      "clientId": "nextjs-local",
-      "name": "Overflow Next.js App (Local Development)",
-      "description": "NextAuth.js frontend client — used when running webapp locally against staging Keycloak",
+      "clientId": "overflow-web-local",
+      "name": "Overflow Web App (Local Development)",
+      "description": "Confidential OIDC client — used when running webapp locally against staging Keycloak",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
@@ -280,6 +280,57 @@
         "offline_access",
         "microprofile-jwt",
         "organization"
+      ]
+    },
+    {
+      "clientId": "overflow-postman",
+      "name": "Overflow Postman (Staging)",
+      "description": "Public OIDC client for API testing with Postman — uses password grant to obtain tokens",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "https://oauth.pstmn.io/v1/callback"
+      ],
+      "webOrigins": [
+        "https://oauth.pstmn.io"
+      ],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt",
+        "organization"
+      ],
+      "protocolMappers": [
+        {
+          "name": "overflow-staging-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "overflow-staging",
+            "id.token.claim": "false",
+            "lightweight.claim": "false",
+            "introspection.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
       ]
     }
   ],

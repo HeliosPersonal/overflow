@@ -431,8 +431,8 @@ Secrets come from:
 Secrets come from `webapp/.env.development`:
 
 ```dotenv
-AUTH_KEYCLOAK_ID=nextjs-local
-AUTH_KEYCLOAK_SECRET=<from nextjs-local client in overflow-staging realm>
+AUTH_KEYCLOAK_ID=overflow-web-local
+AUTH_KEYCLOAK_SECRET=<from overflow-web-local client in overflow-staging realm>
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 # ... etc
 ```
