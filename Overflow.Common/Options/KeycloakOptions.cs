@@ -12,10 +12,6 @@ public class KeycloakOptions
 
     public required List<string> ValidIssuers { get; set; }
     
-    public required string? ClientId { get; set; }
-    
-    public required string? ClientSecret { get; set; }
-    
     public required string? AdminClientId { get; set; }
     
     public required string? AdminClientSecret { get; set; }

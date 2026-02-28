@@ -35,16 +35,6 @@ public static class KeycloakConfigurationExtensions
                     builder.Configuration[$"KeycloakOptions:ValidIssuers:{i}"] = options.ValidIssuers[i];
                 }
                 
-                if (!string.IsNullOrEmpty(options.ClientId))
-                {
-                    builder.Configuration["KeycloakOptions:ClientId"] = options.ClientId;
-                }
-                
-                if (!string.IsNullOrEmpty(options.ClientSecret))
-                {
-                    builder.Configuration["KeycloakOptions:ClientSecret"] = options.ClientSecret;
-                }
-                
                 if (!string.IsNullOrEmpty(options.AdminClientId))
                 {
                     builder.Configuration["KeycloakOptions:AdminClientId"] = options.AdminClientId;

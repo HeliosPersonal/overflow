@@ -135,7 +135,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET?\",\n  \"content\": \"<p>I'm trying to set up JWT validation in ASP.NET Core with Keycloak as the identity provider. What's the recommended approach?</p>\",\n  \"tags\": [\"csharp\", \"keycloak\"]\n}"
+              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET?\",\n  \"content\": \"<p>I'm trying to set up JWT validation in ASP.NET Core with Keycloak as the identity provider. What's the recommended approach?</p>\",\n  \"tags\": [\"aspire\", \"keycloak\"]\n}"
             },
             "url": {
               "raw": "{{base_url}}/questions",
@@ -153,7 +153,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET? (Updated)\",\n  \"content\": \"<p>Updated content here.</p>\",\n  \"tags\": [\"csharp\", \"keycloak\", \"jwt\"]\n}"
+              "raw": "{\n  \"title\": \"How to configure Keycloak with .NET? (Updated)\",\n  \"content\": \"<p>Updated content here.</p>\",\n  \"tags\": [\"aspire\", \"keycloak\", \"jwt\"]\n}"
             },
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}",
@@ -360,7 +360,7 @@
               "host": ["{{base_url}}"],
               "path": ["search"],
               "query": [
-                { "key": "query", "value": "keycloak", "description": "Search text. Use [tag] for tag filter, e.g. 'jwt [csharp]'" }
+                { "key": "query", "value": "keycloak", "description": "Search text. Use [tag] for tag filter, e.g. 'jwt [aspire]'" }
               ]
             }
           }

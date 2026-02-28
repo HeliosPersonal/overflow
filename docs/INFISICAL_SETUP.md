@@ -33,8 +33,8 @@
 │                    Infisical (eu.infisical.com)                   │
 │                                                                  │
 │   Project: Overflow                                              │
-│   ├── Environment: staging      (27 secrets)                     │
-│   └── Environment: production   (27 secrets)                     │
+│   ├── Environment: staging      (25 secrets)                     │
+│   └── Environment: production   (25 secrets)                     │
 │                                                                  │
 │   Syncs to GitHub Actions:                                       │
 │   └── INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET,             │
@@ -121,7 +121,7 @@ Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, u
 
 ## Complete Secret Inventory
 
-All 27 secrets that should exist in Infisical, grouped by purpose.
+All 25 secrets that should exist in Infisical, grouped by purpose.
 
 ### 🔐 Infisical Bootstrap (synced to GitHub Actions)
 
@@ -197,8 +197,6 @@ Infisical values take precedence at runtime since they're loaded after the Confi
 | `KeycloakOptions__AdminClientSecret` | `KeycloakOptions:AdminClientSecret` | DataSeederService — Admin API client secret |
 | `KeycloakOptions__NextJsClientId` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID |
 | `KeycloakOptions__NextJsClientSecret` | `KeycloakOptions:NextJsClientSecret` | DataSeederService — user token client secret |
-| `KeycloakOptions__ClientId` | `KeycloakOptions:ClientId` | Available on `KeycloakOptions` model (currently unused by services) |
-| `KeycloakOptions__ClientSecret` | `KeycloakOptions:ClientSecret` | Available on `KeycloakOptions` model (currently unused by services) |
 
 > **Production note:** `KeycloakOptions__AdminClientId`, `AdminClientSecret`,
 > `NextJsClientId`, and `NextJsClientSecret` are only meaningful in staging

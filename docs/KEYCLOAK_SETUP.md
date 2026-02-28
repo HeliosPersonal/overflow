@@ -272,8 +272,6 @@ After importing a realm and generating client secrets, store them in Infisical:
 | `KeycloakOptions__AdminClientSecret` | staging only | `data-seeder-admin` client secret | DataSeederService |
 | `KeycloakOptions__NextJsClientId` | staging only | `overflow-web` | DataSeederService |
 | `KeycloakOptions__NextJsClientSecret` | staging only | `overflow-web` client secret | DataSeederService |
-| `KeycloakOptions__ClientId` | staging + production | Backend client ID | `KeycloakOptions` model |
-| `KeycloakOptions__ClientSecret` | staging + production | Backend client secret | `KeycloakOptions` model |
 
 ---
 
