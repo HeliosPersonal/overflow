@@ -1,4 +1,4 @@
-# Overflow — Keycloak Setup & Secret Propagation
+# Overflow — Keycloak Setup
 
 ### Related Documentation
 

@@ -38,16 +38,9 @@ App available at **http://localhost:3000**.
 
 ### 4. Frontend environment
 
-Create `webapp/.env.local`:
-
-```env
-API_URL=http://localhost:5000/api
-AUTH_KEYCLOAK_ID=nextjs-local
-AUTH_KEYCLOAK_SECRET=<your-keycloak-secret>
-AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/overflow-dev
-AUTH_URL=http://localhost:3000
-AUTH_SECRET=<random-string>
-```
+The webapp reads `webapp/.env.development` which already exists in the repo.
+For local Aspire development, the defaults should work. For local-against-staging
+setup, see [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-development-setup).
 
 ---
 
@@ -208,7 +201,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 
 - [Infrastructure Documentation](./INFRASTRUCTURE.md)
 - [Network Architecture](./NETWORK_ARCHITECTURE.md)
-- [Keycloak Setup & Secret Propagation](./KEYCLOAK_SETUP.md)
+- [Keycloak Setup](./KEYCLOAK_SETUP.md)
 - [Infisical Secret Management](./INFISICAL_SETUP.md)
 - [Terraform README](../terraform/README.md)
 - [Kubernetes Manifests](../k8s/README.md)

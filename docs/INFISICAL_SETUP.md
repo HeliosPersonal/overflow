@@ -229,23 +229,13 @@ Infisical values take precedence at runtime since they're loaded after the Confi
 
 ## GitHub Actions Integration
 
-Infisical syncs a subset of secrets to GitHub Actions repository secrets. This is
-configured in **Infisical → Project → Integrations → GitHub**.
+Infisical syncs 10 secrets to GitHub Actions via **Infisical → Project → Integrations → GitHub**:
 
-### Secrets Synced to GitHub Actions
+- **Bootstrap:** `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`
+- **Azure:** `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID`
+- **Terraform vars:** `PG_PASSWORD`, `RABBIT_PASSWORD`, `TYPESENSE_API_KEY`
 
-| Infisical Key | GitHub Secret Name | Why synced |
-|---|---|---|
-| `INFISICAL_CLIENT_ID` | `INFISICAL_CLIENT_ID` | Bootstrap: K8s Secret + Docker build |
-| `INFISICAL_CLIENT_SECRET` | `INFISICAL_CLIENT_SECRET` | Bootstrap: K8s Secret + Docker build |
-| `INFISICAL_PROJECT_ID` | `INFISICAL_PROJECT_ID` | Bootstrap: K8s Secret + Docker build |
-| `ARM_CLIENT_ID` | `ARM_CLIENT_ID` | Terraform Azure auth |
-| `ARM_CLIENT_SECRET` | `ARM_CLIENT_SECRET` | Terraform Azure auth |
-| `ARM_TENANT_ID` | `ARM_TENANT_ID` | Terraform Azure auth |
-| `ARM_SUBSCRIPTION_ID` | `ARM_SUBSCRIPTION_ID` | Terraform Azure auth |
-| `PG_PASSWORD` | `PG_PASSWORD` | Terraform `TF_VAR_pg_password` |
-| `RABBIT_PASSWORD` | `RABBIT_PASSWORD` | Terraform `TF_VAR_rabbit_password` |
-| `TYPESENSE_API_KEY` | `TYPESENSE_API_KEY` | Terraform `TF_VAR_typesense_api_key` |
+These are the only secrets that exist in GitHub — everything else stays in Infisical.
 
 ### How CI/CD Uses Them
 

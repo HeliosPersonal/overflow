@@ -4,7 +4,7 @@
 
 - [Network Architecture](./NETWORK_ARCHITECTURE.md) — Detailed network diagrams and connection flows
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
-- [Keycloak Setup & Secret Propagation](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
+- [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
 - [Infisical Secret Management](./INFISICAL_SETUP.md) — All 27 secrets, how they flow, GitHub Actions sync
 - [Terraform README](../terraform/README.md) — Project-specific Terraform
 - [infrastructure-helios](https://github.com/heliospersonal/infrastructure-helios) — Shared infrastructure repository
@@ -385,30 +385,15 @@ kubectl kustomize k8s/overlays/staging
 
 ## Secrets Management
 
-### Infisical
+All secrets live in **Infisical** (single source of truth). Pods load them at startup via
+the Infisical SDK. CI/CD only needs three bootstrap credentials (`INFISICAL_CLIENT_ID`,
+`INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`) stored as a K8s Secret.
 
-Secrets stored in [Infisical](https://infisical.com) and loaded by the SDK at pod startup.
-CI/CD only injects the three Infisical credentials as a Kubernetes Secret — everything else
-(`DATABASE_URL`, `RABBITMQ_URL`, API keys, etc.) is pulled from Infisical at runtime.
+Infrastructure config (connection strings, URLs) is also injected via the
+`overflow-infra-config` Terraform ConfigMap — Infisical values override if duplicated.
 
-```
-K8s Secret (infisical-credentials)
-  INFISICAL_PROJECT_ID
-  INFISICAL_CLIENT_ID      ──▶ Pod startup ──▶ Infisical SDK ──▶ all other secrets
-  INFISICAL_CLIENT_SECRET
-```
-
-### Infrastructure Secrets (overflow-infra-config ConfigMap)
-
-Connection strings and URLs injected via Terraform-managed ConfigMap — no Infisical needed
-for infrastructure config:
-
-```
-ConnectionStrings__questionDb  ConnectionStrings__profileDb
-ConnectionStrings__voteDb      ConnectionStrings__statDb
-ConnectionStrings__messaging   TypesenseOptions__*
-KeycloakOptions__*             OTEL_EXPORTER_OTLP_ENDPOINT
-```
+→ **[INFISICAL_SETUP.md](./INFISICAL_SETUP.md)** — Full secret inventory, flow diagrams, GitHub Actions sync
+→ **[KEYCLOAK_SETUP.md](./KEYCLOAK_SETUP.md)** — Keycloak-specific secrets and realm setup
 
 ---
 
