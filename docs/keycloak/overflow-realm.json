@@ -213,7 +213,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": false,
-      "fullScopeAllowed": false,
+      "fullScopeAllowed": true,
       "defaultClientScopes": [
         "web-origins",
         "acr",
