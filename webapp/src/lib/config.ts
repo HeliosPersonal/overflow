@@ -29,6 +29,8 @@ export const authConfig = {
     get kcInternal() { return getEnv('AUTH_KEYCLOAK_ISSUER_INTERNAL', 'https://placeholder.local'); },
     get secret() { return getEnv('AUTH_SECRET', 'placeholder-secret'); },
     get authUrl() { return getEnv('AUTH_URL', 'https://placeholder.local'); },
+    get kcAdminClientId() { return getEnv('KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID', 'placeholder-admin-client'); },
+    get kcAdminClientSecret() { return getEnv('KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET', 'placeholder-admin-secret'); },
 };
 
 export const apiConfig = {

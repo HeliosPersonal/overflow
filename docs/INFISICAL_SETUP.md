@@ -189,17 +189,18 @@ Infisical values take precedence at runtime since they're loaded after the Confi
 | `Auth__KeycloakSecret` | `AUTH_KEYCLOAK_SECRET` | Webapp — NextAuth.js Keycloak provider |
 | `Auth__Secret` | `AUTH_SECRET` | Webapp — NextAuth.js session encryption |
 
-### 🔑 Keycloak — DataSeeder (consumed by data-seeder-svc via Infisical SDK, staging only)
+### 🔑 Keycloak — Admin API (consumed by webapp + data-seeder-svc via Infisical SDK)
 
-| Infisical Key | .NET Config Key | Consumer |
+| Infisical Key | .NET Config Key / Webapp env var | Consumer |
 |---|---|---|
-| `KeycloakOptions__AdminClientId` | `KeycloakOptions:AdminClientId` | DataSeederService — Admin API client ID |
-| `KeycloakOptions__AdminClientSecret` | `KeycloakOptions:AdminClientSecret` | DataSeederService — Admin API client secret |
-| `KeycloakOptions__NextJsClientId` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID |
+| `KeycloakOptions__AdminClientId` | `KeycloakOptions:AdminClientId` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | Webapp signup route + DataSeederService — Admin API client ID (`overflow-admin`) |
+| `KeycloakOptions__AdminClientSecret` | `KeycloakOptions:AdminClientSecret` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | Webapp signup route + DataSeederService — Admin API client secret |
+| `KeycloakOptions__NextJsClientId` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID (`overflow-web`) |
 | `KeycloakOptions__NextJsClientSecret` | `KeycloakOptions:NextJsClientSecret` | DataSeederService — user token client secret |
 
-> **Production note:** `KeycloakOptions__AdminClientId`, `AdminClientSecret`,
-> `NextJsClientId`, and `NextJsClientSecret` are only meaningful in staging
+> **Note:** `KeycloakOptions__AdminClientId` and `AdminClientSecret` are needed in **both**
+> staging and production (webapp signup uses them in both environments).
+> `KeycloakOptions__NextJsClientId` and `NextJsClientSecret` are only meaningful in staging
 > (DataSeederService doesn't run in production). They should still exist in the
 > production environment to avoid breaking the SDK fetch, but can have placeholder values.
 
@@ -339,6 +340,8 @@ The webapp transformation is different from .NET — it converts to `UPPER_SNAKE
 |---|---|---|
 | `Auth__KeycloakSecret` | `AUTH_KEYCLOAK_SECRET` | `authConfig.kcSecret` |
 | `Auth__Secret` | `AUTH_SECRET` | `authConfig.secret` |
+| `KeycloakOptions__AdminClientId` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | `authConfig.kcAdminClientId` |
+| `KeycloakOptions__AdminClientSecret` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | `authConfig.kcAdminClientSecret` |
 | `Cloudinary__ApiKey` | `CLOUDINARY_API_KEY` | `cloudinaryConfig.apiKey` |
 
 ---

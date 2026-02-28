@@ -167,8 +167,8 @@
     },
     {
       "clientId": "overflow",
-      "name": "Overflow Backend (Production)",
-      "description": "Resource server — .NET backend services validate JWTs with this audience",
+      "name": "Overflow Audience (Production)",
+      "description": "Resource server audience — not a real service. All tokens include this clientId in the 'aud' claim. Backend .NET services validate JWT audience against this value.",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [],
@@ -189,6 +189,39 @@
         "roles",
         "basic",
         "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt",
+        "organization"
+      ]
+    },
+    {
+      "clientId": "overflow-admin",
+      "name": "Overflow Admin (Production)",
+      "description": "Service account client — used by the webapp signup route to create users via Keycloak Admin API",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email",
+        "service_account"
       ],
       "optionalClientScopes": [
         "address",
@@ -248,6 +281,19 @@
           }
         }
       ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-overflow-admin",
+      "enabled": true,
+      "serviceAccountClientId": "overflow-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users"
+        ]
+      }
     }
   ],
   "clientScopes": [

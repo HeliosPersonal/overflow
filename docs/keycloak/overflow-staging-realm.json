@@ -218,8 +218,8 @@
     },
     {
       "clientId": "overflow-staging",
-      "name": "Overflow Backend (Staging)",
-      "description": "Resource server — .NET backend services validate JWTs with this audience",
+      "name": "Overflow Audience (Staging)",
+      "description": "Resource server audience — not a real service. All tokens include this clientId in the 'aud' claim. Backend .NET services validate JWT audience against this value.",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [],
@@ -250,9 +250,9 @@
       ]
     },
     {
-      "clientId": "data-seeder-admin",
-      "name": "Data Seeder Admin (Staging)",
-      "description": "Service account client — used by DataSeederService to create users and manage the staging realm via Keycloak Admin API",
+      "clientId": "overflow-admin",
+      "name": "Overflow Admin (Staging)",
+      "description": "Service account client — used by the webapp signup route and DataSeederService to create/manage users via Keycloak Admin API",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [],
@@ -332,6 +332,19 @@
           }
         }
       ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-overflow-admin",
+      "enabled": true,
+      "serviceAccountClientId": "overflow-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users"
+        ]
+      }
     }
   ],
   "clientScopes": [

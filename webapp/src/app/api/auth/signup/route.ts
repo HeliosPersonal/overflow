@@ -14,11 +14,11 @@ export async function POST(request: NextRequest) {
 
         console.log('Signup request for:', email, username);
 
-        // Get admin access token to create user
+        // Get admin access token to create user (uses service account client, not the user-facing client)
         const tokenUrl = `${authConfig.kcInternal}/protocol/openid-connect/token`;
         console.log('Getting admin token from:', tokenUrl);
-        console.log('Client ID:', authConfig.kcClientId);
-        console.log('Has client secret:', !!authConfig.kcSecret);
+        console.log('Admin Client ID:', authConfig.kcAdminClientId);
+        console.log('Has admin client secret:', !!authConfig.kcAdminClientSecret);
         
         const adminTokenResponse = await fetch(tokenUrl, {
             method: 'POST',
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
             },
             body: new URLSearchParams({
                 grant_type: 'client_credentials',
-                client_id: authConfig.kcClientId,
-                client_secret: authConfig.kcSecret,
+                client_id: authConfig.kcAdminClientId,
+                client_secret: authConfig.kcAdminClientSecret,
             }),
         });
 
