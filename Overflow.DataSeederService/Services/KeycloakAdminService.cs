@@ -261,9 +261,95 @@ public class KeycloakAdminService
         public string? TokenType { get; set; }
     }
 
+    /// <summary>
+    /// Search for Keycloak users whose username starts with the given prefix.
+    /// </summary>
+    public async Task<List<(string keycloakUserId, string username)>> SearchUsersByPrefixAsync(
+        string usernamePrefix, int max = 100, CancellationToken cancellationToken = default)
+    {
+        var adminToken = await GetAdminTokenAsync(cancellationToken);
+        if (adminToken == null) return new List<(string, string)>();
+
+        try
+        {
+            var searchUrl = $"{_keycloakOptions.Url}/admin/realms/{_keycloakOptions.Realm}/users?search={usernamePrefix}&max={max}";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, searchUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to search users by prefix '{Prefix}': {StatusCode}", 
+                    usernamePrefix, response.StatusCode);
+                return new List<(string, string)>();
+            }
+
+            var users = await response.Content.ReadFromJsonAsync<List<KeycloakUser>>(cancellationToken);
+            return users?
+                .Where(u => u.Id != null && u.Username != null && u.Username.StartsWith(usernamePrefix))
+                .Select(u => (u.Id!, u.Username!))
+                .ToList() ?? new List<(string, string)>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching users by prefix '{Prefix}'", usernamePrefix);
+            return new List<(string, string)>();
+        }
+    }
+
+    /// <summary>
+    /// Reset a user's password in Keycloak so the seeder can re-authenticate as them.
+    /// </summary>
+    public async Task<bool> ResetUserPasswordAsync(string keycloakUserId, string newPassword, 
+        CancellationToken cancellationToken = default)
+    {
+        var adminToken = await GetAdminTokenAsync(cancellationToken);
+        if (adminToken == null) return false;
+
+        try
+        {
+            var resetUrl = $"{_keycloakOptions.Url}/admin/realms/{_keycloakOptions.Realm}/users/{keycloakUserId}/reset-password";
+
+            var credential = new
+            {
+                type = "password",
+                value = newPassword,
+                temporary = false
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Put, resetUrl)
+            {
+                Content = JsonContent.Create(credential)
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to reset password for user {UserId}: {StatusCode}", 
+                    keycloakUserId, response.StatusCode);
+                return false;
+            }
+
+            _logger.LogDebug("Reset password for user {UserId}", keycloakUserId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UserId}", keycloakUserId);
+            return false;
+        }
+    }
+
     private class KeycloakUser
     {
         [JsonPropertyName("id")]
         public string? Id { get; init; }
+
+        [JsonPropertyName("username")]
+        public string? Username { get; init; }
     }
 }

@@ -53,7 +53,7 @@ Table or icon grid showing:
 | vote-svc | Upvotes, downvotes | PostgreSQL |
 | stats-svc | Aggregated statistics | PostgreSQL (Marten) |
 | search-svc | Full-text search | Typesense |
-| data-seeder-svc | AI-generated test content | — (staging only) |
+| data-seeder-svc | LLM-powered seed data generation | — (staging only) |
 
 ### Slide 6 — Event-Driven Communication
 Show message flow:
@@ -119,14 +119,27 @@ Terraform state stored in Azure Blob Storage.
 - Ships to Grafana Cloud (Prometheus, Loki, Tempo)
 - Dashboards for: request latency, error rates, RabbitMQ queue depth, pod health
 
-### Slide 13 — Local Development
+### Slide 13 — Data Seeder Service
+Background worker that generates realistic Q&A content using an LLM:
+- Manages a fixed pool of 20 Keycloak users (seeder-* prefix) — restart-safe via password resets
+- Each cycle: create question → generate answers → accept best → cast votes
+- **Content Variability System** — every question/answer is randomized across 4 dimensions:
+  - Length (short / medium / long)
+  - Depth (beginner / intermediate / expert)
+  - Complexity (simple / moderate / complex)
+  - Answer style (conversational / formal / step-by-step / code-heavy / pros-cons / opinionated)
+- LLM prompts centralized in `Templates/LlmPrompts.cs` — LlmClient is pure HTTP
+- Falls back to 80+ static templates when LLM is unavailable
+- Staging: Ollama (phi3.5), 60-min cycles. Local: llama.cpp / Ollama, 1-min cycles
+
+### Slide 14 — Local Development
 Two options:
 1. **Full stack with .NET Aspire** — `dotnet run` starts all services + infrastructure containers
 2. **Frontend only against staging** — `overflow-web-local` Keycloak client, point at staging API
 
 Aspire Dashboard at localhost:18888 for service discovery and telemetry.
 
-### Slide 14 — Key Design Decisions
+### Slide 15 — Key Design Decisions
 - Event sourcing for stats (Marten) — audit trail + replay
 - Separate databases per service — true data isolation
 - Infisical over Vault — simpler, managed, SDK-native
@@ -134,7 +147,7 @@ Aspire Dashboard at localhost:18888 for service discovery and telemetry.
 - K3s over full K8s — single-node efficiency
 - Cloudflare proxy — zero-cost DDoS + CDN for self-hosted
 
-### Slide 15 — Summary
+### Slide 16 — Summary
 - Production-grade microservices architecture
 - End-to-end automated deployment pipeline
 - Self-hosted with enterprise-level security practices

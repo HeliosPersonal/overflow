@@ -1,4 +1,7 @@
-﻿namespace Overflow.DataSeederService.Services;
+﻿using Microsoft.Extensions.Options;
+using Overflow.DataSeederService.Models;
+
+namespace Overflow.DataSeederService.Services;
 
 /// <summary>
 /// Authentication service for DataSeeder.
@@ -7,15 +10,61 @@
 public class AuthenticationService
 {
     private readonly KeycloakAdminService _keycloakAdminService;
+    private readonly SeederOptions _options;
     private readonly ILogger<AuthenticationService> _logger;
     private readonly Dictionary<string, (string keycloakUserId, string username, string password)> _userCredentials = new();
 
     public AuthenticationService(
         KeycloakAdminService keycloakAdminService,
+        IOptions<SeederOptions> options,
         ILogger<AuthenticationService> logger)
     {
         _keycloakAdminService = keycloakAdminService;
+        _options = options.Value;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Re-adopt an existing Keycloak seeder user by resetting their password and obtaining a fresh token.
+    /// </summary>
+    public async Task<(string? keycloakUserId, string? token)> RehydrateExistingUserAsync(
+        string keycloakUserId, string username, CancellationToken cancellationToken = default)
+    {
+        // Check if already cached
+        if (_userCredentials.TryGetValue(keycloakUserId, out var cached))
+        {
+            var existingToken = await _keycloakAdminService.GetUserTokenAsync(
+                cached.username, cached.password, cancellationToken);
+            if (existingToken != null)
+                return (keycloakUserId, existingToken);
+        }
+
+        // Reset password so we can authenticate as this user
+        var newPassword = GeneratePassword();
+        var resetSuccess = await _keycloakAdminService.ResetUserPasswordAsync(
+            keycloakUserId, newPassword, cancellationToken);
+
+        if (!resetSuccess)
+        {
+            _logger.LogWarning("Failed to reset password for existing seeder user {Username} ({UserId})", 
+                username, keycloakUserId);
+            return (keycloakUserId, null);
+        }
+
+        // Cache credentials
+        _userCredentials[keycloakUserId] = (keycloakUserId, username, newPassword);
+
+        // Get token
+        var token = await _keycloakAdminService.GetUserTokenAsync(username, newPassword, cancellationToken);
+
+        if (token == null)
+        {
+            _logger.LogWarning("Failed to obtain token for rehydrated user {Username}", username);
+            return (keycloakUserId, null);
+        }
+
+        _logger.LogInformation("Rehydrated existing seeder user {Username} ({UserId})", username, keycloakUserId);
+        return (keycloakUserId, token);
     }
 
     /// <summary>
@@ -95,7 +144,7 @@ public class AuthenticationService
 
     private string GenerateUsername(string displayName)
     {
-        // Create a username from display name with random suffix
+        // Create a username from display name with seeder prefix and random suffix
         var namePart = displayName
             .ToLowerInvariant()
             .Replace(" ", "")
@@ -107,7 +156,7 @@ public class AuthenticationService
         var namePrefix = namePart.Length > 10 ? namePart.Substring(0, 10) : namePart;
         var randomSuffix = Random.Shared.Next(1000, 9999);
 
-        return $"{namePrefix}{randomSuffix}";
+        return $"{_options.SeederUsernamePrefix}{namePrefix}{randomSuffix}";
     }
 
     private string GeneratePassword()

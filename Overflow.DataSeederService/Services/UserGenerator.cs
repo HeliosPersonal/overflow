@@ -1,7 +1,6 @@
 ﻿using Bogus;
 using Microsoft.Extensions.Options;
 using Overflow.DataSeederService.Models;
-using System.Net.Http.Json;
 
 namespace Overflow.DataSeederService.Services;
 
@@ -10,91 +9,104 @@ public class UserGenerator
     private readonly HttpClient _httpClient;
     private readonly SeederOptions _options;
     private readonly AuthenticationService _authService;
+    private readonly KeycloakAdminService _keycloakAdminService;
     private readonly ILogger<UserGenerator> _logger;
     private readonly Faker _faker;
-    private const int MaxUserPoolSize = 1000;
-    private const int MinUsersForSeeding = 10;
 
     public UserGenerator(
         HttpClient httpClient, 
         IOptions<SeederOptions> options,
         AuthenticationService authService,
+        KeycloakAdminService keycloakAdminService,
         ILogger<UserGenerator> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
         _authService = authService;
+        _keycloakAdminService = keycloakAdminService;
         _logger = logger;
         _faker = new Faker();
     }
 
     /// <summary>
-    /// Smart user pool management: maintains a pool of up to 1000 users.
-    /// Always creates fresh users for each seeding cycle to ensure valid authentication tokens.
+    /// Manages a fixed pool of seeder users (default 20).
+    /// On each cycle: discovers existing seeder-* users in Keycloak, rehydrates them
+    /// (reset password + get token), and creates new ones only if under the limit.
+    /// Non-seeder users in the system are never touched.
     /// </summary>
     public async Task<List<UserProfileWithAuth>> GetOrCreateUserPoolAsync(CancellationToken cancellationToken = default)
     {
+        var maxUsers = _options.MaxSeederUsers;
+        var prefix = _options.SeederUsernamePrefix;
 
         try
         {
-            // Fetch existing profiles from Profile Service to check pool size
-            var response = await _httpClient.GetAsync(
-                $"{_options.ProfileServiceUrl}/profiles?take={MaxUserPoolSize}", 
-                cancellationToken);
-
-            int existingProfileCount = 0;
-            
-            if (response.IsSuccessStatusCode)
-            {
-                var existingProfiles = await response.Content.ReadFromJsonAsync<List<UserProfile>>(cancellationToken) 
-                                   ?? new List<UserProfile>();
-                existingProfileCount = existingProfiles.Count;
-                _logger.LogInformation("[UserPool] Found {Count} existing profiles", existingProfileCount);
-            }
-            else
-            {
-                _logger.LogWarning("[UserPool] Failed to fetch profiles: {StatusCode}", response.StatusCode);
-            }
+            // Step 1: Discover existing seeder users in Keycloak
+            _logger.LogInformation("[UserPool] Searching for existing seeder users (prefix: '{Prefix}')...", prefix);
+            var existingSeederUsers = await _keycloakAdminService.SearchUsersByPrefixAsync(
+                prefix, maxUsers, cancellationToken);
+            _logger.LogInformation("[UserPool] Found {Count} existing seeder users in Keycloak", existingSeederUsers.Count);
 
             var userPool = new List<UserProfileWithAuth>();
 
-            // Calculate how many new users we need to create
-            int currentPoolSize = existingProfileCount;
-            int usersNeeded = 0;
+            // Step 2: Rehydrate existing seeder users (reset password + get fresh tokens)
+            foreach (var (keycloakUserId, username) in existingSeederUsers)
+            {
+                if (userPool.Count >= maxUsers) break;
 
-            if (currentPoolSize < MinUsersForSeeding)
-            {
-                // We need at least MinUsersForSeeding users to start
-                usersNeeded = MinUsersForSeeding - currentPoolSize;
-                _logger.LogInformation("[UserPool] Pool too small ({Current} users), creating {ToCreate} users to reach minimum", 
-                    currentPoolSize, usersNeeded);
-            }
-            else if (currentPoolSize < MaxUserPoolSize)
-            {
-                // Gradually grow the pool - add 5-20 users each time until we reach max
-                usersNeeded = Random.Shared.Next(5, Math.Min(21, MaxUserPoolSize - currentPoolSize + 1));
-                _logger.LogInformation("[UserPool] Growing pool: {Current} → {Target} (max {Max})", 
-                    currentPoolSize, currentPoolSize + usersNeeded, MaxUserPoolSize);
-            }
-            else
-            {
-                _logger.LogInformation("[UserPool] At maximum ({Count}/{Max}), creating fresh users for cycle", 
-                    currentPoolSize, MaxUserPoolSize);
-                // Even at max capacity, create a few fresh users for seeding with valid tokens
-                usersNeeded = Random.Shared.Next(3, 8);
+                var (userId, token) = await _authService.RehydrateExistingUserAsync(
+                    keycloakUserId, username, cancellationToken);
+
+                if (userId != null && token != null)
+                {
+                    // Trigger profile middleware to ensure profile exists
+                    await TriggerProfileMiddlewareAsync(token, cancellationToken);
+
+                    userPool.Add(new UserProfileWithAuth
+                    {
+                        Profile = new UserProfile
+                        {
+                            Id = keycloakUserId,
+                            DisplayName = username
+                        },
+                        KeycloakUserId = keycloakUserId,
+                        Token = token
+                    });
+                    _logger.LogDebug("[UserPool] Rehydrated: {Username} ({UserId})", username, keycloakUserId);
+                }
+                else
+                {
+                    _logger.LogWarning("[UserPool] Failed to rehydrate: {Username} ({UserId})", username, keycloakUserId);
+                }
+
+                // Small delay between rehydrations
+                await Task.Delay(Random.Shared.Next(50, 200), cancellationToken);
             }
 
-            // Always create fresh users for the current seeding cycle
-            if (usersNeeded > 0)
+            _logger.LogInformation("[UserPool] Rehydrated {Count}/{Found} existing seeder users", 
+                userPool.Count, existingSeederUsers.Count);
+
+            // Step 3: Create new seeder users if under the limit
+            var usersToCreate = maxUsers - userPool.Count;
+            if (usersToCreate > 0)
             {
-                _logger.LogInformation("[UserPool] Creating {Count} fresh users...", usersNeeded);
-                var newUsers = await CreateMultipleUsersAsync(usersNeeded, cancellationToken);
-                userPool.AddRange(newUsers);
-                _logger.LogInformation("[UserPool] ✅ Created {Count}/{Needed} users successfully", newUsers.Count, usersNeeded);
+                _logger.LogInformation("[UserPool] Creating {Count} new seeder users to reach limit of {Max}...", 
+                    usersToCreate, maxUsers);
+
+                for (int i = 0; i < usersToCreate; i++)
+                {
+                    var user = await CreateRandomUserAsync(cancellationToken);
+                    if (user != null)
+                    {
+                        userPool.Add(user);
+                    }
+                    // Small delay between user creation
+                    await Task.Delay(Random.Shared.Next(100, 500), cancellationToken);
+                }
             }
 
-            _logger.LogInformation("[UserPool] 📊 Ready: {Created} users | System total: {Total}/1000", 
-                userPool.Count, currentPoolSize + userPool.Count);
+            _logger.LogInformation("[UserPool] 📊 Pool ready: {Count}/{Max} seeder users", 
+                userPool.Count, maxUsers);
 
             return userPool;
         }
@@ -102,10 +114,9 @@ public class UserGenerator
         {
             _logger.LogError(ex, "[UserPool] ❌ Error managing user pool");
             
-            // Fallback: create minimum required users
-            _logger.LogWarning("[UserPool] Falling back: creating {Count} new users", MinUsersForSeeding);
-            var fallbackUsers = await CreateMultipleUsersAsync(MinUsersForSeeding, cancellationToken);
-            
+            // Fallback: create a few new users
+            _logger.LogWarning("[UserPool] Falling back: creating 3 new seeder users");
+            var fallbackUsers = await CreateMultipleUsersAsync(3, cancellationToken);
             return fallbackUsers;
         }
     }
@@ -133,56 +144,41 @@ public class UserGenerator
                 return null;
             }
 
-            _logger.LogDebug("[UserGen] Triggering profile auto-creation via middleware...");
-            
             // Trigger UserProfileCreationMiddleware by making an authenticated request
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{_options.ProfileServiceUrl}/profiles/me");
-            request.Headers.Add("Authorization", $"Bearer {token}");
+            await TriggerProfileMiddlewareAsync(token, cancellationToken);
             
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            _logger.LogInformation("[UserGen] ✅ Created user: {DisplayName} (Keycloak ID: {KeycloakId})", 
+                displayName, keycloakUserId);
             
-            if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return new UserProfileWithAuth
             {
-                // 200 OK = profile already exists (returned)
-                // 404 Not Found = profile was just created by middleware but endpoint returns NotFound
-                // Either way, the middleware has run and created the profile
-                _logger.LogInformation("[UserGen] ✅ Created user: {DisplayName} (Keycloak ID: {KeycloakId})", 
-                    displayName, keycloakUserId);
-                
-                // Profile was auto-created by UserProfileCreationMiddleware
-                return new UserProfileWithAuth
+                Profile = new UserProfile
                 {
-                    Profile = new UserProfile
-                    {
-                        Id = keycloakUserId,
-                        DisplayName = displayName
-                    },
-                    KeycloakUserId = keycloakUserId,
-                    Token = token
-                };
-            }
-            else
-            {
-                _logger.LogWarning("[UserGen] ⚠️  Middleware trigger returned {StatusCode} for {DisplayName}", 
-                    response.StatusCode, displayName);
-                
-                // Still return the user - profile might have been created anyway
-                return new UserProfileWithAuth
-                {
-                    Profile = new UserProfile
-                    {
-                        Id = keycloakUserId,
-                        DisplayName = displayName
-                    },
-                    KeycloakUserId = keycloakUserId,
-                    Token = token
-                };
-            }
+                    Id = keycloakUserId,
+                    DisplayName = displayName
+                },
+                KeycloakUserId = keycloakUserId,
+                Token = token
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[UserGen] ❌ Error creating user: {DisplayName}", displayName);
             return null;
+        }
+    }
+
+    private async Task TriggerProfileMiddlewareAsync(string token, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{_options.ProfileServiceUrl}/profiles/me");
+            request.Headers.Add("Authorization", $"Bearer {token}");
+            await _httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "[UserGen] Profile middleware trigger failed (non-critical)");
         }
     }
 

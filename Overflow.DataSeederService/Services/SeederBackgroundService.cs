@@ -67,7 +67,7 @@ public class SeederBackgroundService : BackgroundService
             // STEP 1: User Pool Management
             // ═══════════════════════════════════════════════════════════════
             _logger.LogInformation("");
-            _logger.LogInformation("📋 STEP 1: Managing User Pool (max 1000 users)");
+            _logger.LogInformation("📋 STEP 1: Managing Seeder User Pool");
             _logger.LogInformation("─────────────────────────────────────────────────");
             
             var userPool = await userGenerator.GetOrCreateUserPoolAsync(cancellationToken);
