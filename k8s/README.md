@@ -20,7 +20,8 @@ k8s/
 │   ├── staging/               # Staging environment (apps-staging namespace)
 │   └── production/            # Production environment (apps-production namespace)
 └── scripts/                   # Utility scripts
-    └── cleanup-k8s-resources.sh  # Automated cleanup of old resources
+    ├── cleanup-k8s-resources.sh  # Automated cleanup of old resources
+    └── reset-staging.sh          # Full staging data reset (drops all DBs + Typesense collection)
 ```
 
 ## Deployment
@@ -116,6 +117,27 @@ The `cleanup-k8s-resources.sh` script automatically removes old Kubernetes resou
 ```bash
 ./k8s/scripts/cleanup-k8s-resources.sh apps-staging --dry-run
 ```
+
+## Staging Reset
+
+The `reset-staging.sh` script wipes all staging data for a clean slate:
+
+- Scales down all deployments in `apps-staging` to 0
+- Drops and recreates all 4 PostgreSQL databases: `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`
+- Drops the Typesense collection `staging_questions` (auto-recreated by search-svc on startup)
+- Scales all deployments back up to 1
+
+**Usage:**
+```bash
+export PGPASSWORD=<postgres-password>
+export TYPESENSE_API_KEY=<typesense-api-key>
+./k8s/scripts/reset-staging.sh
+
+# Preview without making changes
+./k8s/scripts/reset-staging.sh --dry-run
+```
+
+> ⚠️ **Destructive** — all staging data will be permanently deleted. Never run against production.
 
 ## Common Operations
 
