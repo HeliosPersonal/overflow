@@ -6,6 +6,7 @@ import { loginSchema } from "@/lib/validators/auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     debug: true, // Enable detailed NextAuth logging
+    trustHost: true,
     pages: {
         signIn: '/login',
         error: '/login',
