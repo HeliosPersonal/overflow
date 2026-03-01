@@ -134,6 +134,38 @@ These are already configured in both realm import files:
 
 ---
 
+## Email / SMTP (Mailgun)
+
+Both realms are configured to send transactional emails (password reset, email verification)
+via **Mailgun** over SMTP. The configuration is included in the realm import JSONs.
+
+| Setting | Staging | Production |
+|---|---|---|
+| SMTP Host | `smtp.eu.mailgun.org` | `smtp.eu.mailgun.org` |
+| Port | `587` | `587` |
+| Encryption | STARTTLS | STARTTLS |
+| Auth | `ON` | `ON` |
+| SMTP User | `overflow@staging.devoverflow.org` | `overflow@staging.devoverflow.org` |
+| SMTP Password | Mailgun SMTP password | Same credential |
+| From | `noreply@staging.devoverflow.org` | `noreply@devoverflow.org` |
+| From Display Name | `Overflow Staging` | `Overflow` |
+
+### Setup Steps
+
+1. **Mailgun** — ensure the sending domains (`staging.devoverflow.org` and `devoverflow.org`)
+   are verified in your Mailgun account (EU region).
+2. **DNS** — add the MX, TXT (SPF), and DKIM records Mailgun provides for each domain.
+3. **Realm import** — the `smtpServer` block is already in both realm JSONs.
+   After import, go to **Realm Settings → Email** and update the SMTP password
+   (it's masked as `**********` in the JSON for security).
+4. **Test** — click **Test connection** in the Email tab to verify.
+
+> **Note:** The SMTP password is intentionally masked in the realm JSON files.
+> After importing a realm, you must manually enter the real Mailgun SMTP password
+> in **Realm Settings → Email → Connection & Authentication → Password**.
+
+---
+
 ## Client Details
 
 ### `overflow-web` — Webapp Frontend (Confidential)

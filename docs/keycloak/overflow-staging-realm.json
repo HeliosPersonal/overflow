@@ -1012,7 +1012,20 @@
     "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
-  "smtpServer": {},
+  "smtpServer": {
+    "replyToDisplayName": "",
+    "starttls": "true",
+    "auth": "true",
+    "port": "587",
+    "host": "smtp.eu.mailgun.org",
+    "replyTo": "",
+    "from": "noreply@staging.devoverflow.org",
+    "fromDisplayName": "Overflow Staging",
+    "ssl": "false",
+    "user": "overflow@staging.devoverflow.org",
+    "password": "**********",
+    "envelopeFrom": "noreply@staging.devoverflow.org"
+  },
   "eventsEnabled": false,
   "eventsListeners": [
     "jboss-logging"
