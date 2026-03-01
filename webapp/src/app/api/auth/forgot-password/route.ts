@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
                 },
                 body: new URLSearchParams({
                     grant_type: 'client_credentials',
-                    client_id: authConfig.kcClientId,
-                    client_secret: authConfig.kcSecret,
+                    client_id: authConfig.kcAdminClientId,
+                    client_secret: authConfig.kcAdminClientSecret,
                 }),
             }
         );
