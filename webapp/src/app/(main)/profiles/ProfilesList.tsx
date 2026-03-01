@@ -31,6 +31,7 @@ export default function ProfilesList({profiles}: Props) {
     return (
         <Table
             onSortChange={(sort) => onSortChange(sort)}
+            sortDescriptor={{column: 'reputation', direction: 'descending'}}
             aria-label='User profiles'
             selectionMode='single'
             onRowAction={(key) => router.push(`/profiles/${key}`)}

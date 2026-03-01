@@ -6,9 +6,8 @@ import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 
 export async function getUserProfiles(sortBy?: string) {
-    let url = '/profiles';
-    if (sortBy) url += '?sortBy=' + sortBy;
-    return fetchClient<Profile[]>(url, 'GET');
+    const effectiveSort = sortBy ?? 'reputation';
+    return fetchClient<Profile[]>(`/profiles?sortBy=${effectiveSort}`, 'GET');
 }
 
 export async function getProfileById(id: string) {
