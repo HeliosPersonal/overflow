@@ -174,72 +174,100 @@ public class LlmClient
     }
 
     /// <summary>
-    /// Safety net: converts any leftover markdown to HTML in case the model
-    /// ignored the "HTML only" instruction. Handles the most common patterns.
+    /// Safety net: strips markdown fences and converts leftover markdown to HTML
+    /// in case the model ignored the "HTML only" instruction.
     /// </summary>
     private static string SanitizeHtml(string content)
     {
-        // Strip wrapping ```html ... ``` or ``` ... ``` fences
-        content = System.Text.RegularExpressions.Regex.Replace(
-            content,
-            @"^```[a-zA-Z]*\r?\n([\s\S]*?)```\s*$",
-            "$1",
-            System.Text.RegularExpressions.RegexOptions.Multiline).Trim();
+        content = content.Trim();
 
-        // If the content starts with an HTML tag already, trust it as-is
+        // Strip outer ```html ... ``` or ``` ... ``` wrapper (anywhere, not just anchored)
+        var fenceMatch = System.Text.RegularExpressions.Regex.Match(
+            content, @"^```[a-zA-Z]*\r?\n([\s\S]*?)```\s*$",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+        if (fenceMatch.Success)
+            content = fenceMatch.Groups[1].Value.Trim();
+
+        // After fence stripping, if it starts with an HTML tag treat as HTML
         if (content.TrimStart().StartsWith('<'))
             return content;
 
-        // Content is plain markdown — convert common patterns to HTML
+        // Convert markdown → HTML line by line
         var lines = content.Split('\n');
         var sb = new System.Text.StringBuilder();
         bool inCodeBlock = false;
-        bool inList = false;
+        string listTag = "";   // "ul" or "ol" — tracks which list is open
 
         foreach (var rawLine in lines)
         {
             var line = rawLine.TrimEnd();
 
-            // Fenced code block start/end
-            if (line.StartsWith("```"))
+            // ── Fenced code block ─────────────────────────────────────────
+            if (line.TrimStart().StartsWith("```"))
             {
-                if (!inCodeBlock) { if (inList) { sb.Append("</ul>"); inList = false; } sb.Append("<pre><code>"); inCodeBlock = true; }
-                else { sb.Append("</code></pre>"); inCodeBlock = false; }
+                if (!inCodeBlock)
+                {
+                    if (listTag != "") { sb.Append($"</{listTag}>"); listTag = ""; }
+                    sb.Append("<pre><code>");
+                    inCodeBlock = true;
+                }
+                else
+                {
+                    // trim trailing newline inside the code block
+                    if (sb.Length > 0 && sb[sb.Length - 1] == '\n')
+                        sb.Length--;
+                    sb.Append("</code></pre>");
+                    inCodeBlock = false;
+                }
                 continue;
             }
-            if (inCodeBlock) { sb.Append(System.Net.WebUtility.HtmlEncode(line)).Append('\n'); continue; }
+            if (inCodeBlock)
+            {
+                sb.Append(System.Net.WebUtility.HtmlEncode(line)).Append('\n');
+                continue;
+            }
 
-            // Blank line
-            if (string.IsNullOrWhiteSpace(line)) { if (inList) { sb.Append("</ul>"); inList = false; } continue; }
+            // ── Blank line ────────────────────────────────────────────────
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                if (listTag != "") { sb.Append($"</{listTag}>"); listTag = ""; }
+                continue;
+            }
 
-            // Bullet list item (- item or * item)
+            // ── Bullet list  (- item  or  * item) ─────────────────────────
             if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^[\-\*] "))
             {
-                if (!inList) { sb.Append("<ul>"); inList = true; }
+                if (listTag != "ul") { if (listTag != "") sb.Append($"</{listTag}>"); sb.Append("<ul>"); listTag = "ul"; }
                 sb.Append("<li>").Append(InlineMarkdown(line[2..])).Append("</li>");
                 continue;
             }
 
-            // Numbered list item (1. item)
+            // ── Numbered list  (1. item) ───────────────────────────────────
             var numMatch = System.Text.RegularExpressions.Regex.Match(line, @"^\d+\. (.+)");
             if (numMatch.Success)
             {
-                if (!inList) { sb.Append("<ol>"); inList = true; }
+                if (listTag != "ol") { if (listTag != "") sb.Append($"</{listTag}>"); sb.Append("<ol>"); listTag = "ol"; }
                 sb.Append("<li>").Append(InlineMarkdown(numMatch.Groups[1].Value)).Append("</li>");
                 continue;
             }
 
-            if (inList) { sb.Append("</ul>"); inList = false; }
+            // Close any open list before non-list content
+            if (listTag != "") { sb.Append($"</{listTag}>"); listTag = ""; }
 
-            // Heading → strong paragraph
+            // ── Heading  (# / ## / ###) → bold paragraph ──────────────────
             var headingMatch = System.Text.RegularExpressions.Regex.Match(line, @"^#{1,3} (.+)");
-            if (headingMatch.Success) { sb.Append("<p><strong>").Append(InlineMarkdown(headingMatch.Groups[1].Value)).Append("</strong></p>"); continue; }
+            if (headingMatch.Success)
+            {
+                sb.Append("<p><strong>").Append(InlineMarkdown(headingMatch.Groups[1].Value)).Append("</strong></p>");
+                continue;
+            }
 
-            // Normal paragraph
+            // ── Normal paragraph ──────────────────────────────────────────
             sb.Append("<p>").Append(InlineMarkdown(line)).Append("</p>");
         }
 
-        if (inList) sb.Append("</ul>");
+        // Close anything still open
+        if (listTag != "") sb.Append($"</{listTag}>");
         if (inCodeBlock) sb.Append("</code></pre>");
 
         return sb.ToString();
