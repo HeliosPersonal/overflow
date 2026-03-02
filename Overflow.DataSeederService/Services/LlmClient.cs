@@ -145,7 +145,7 @@ public class LlmClient
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
             return (null, null);
 
-        return (title, body);
+        return (title, SanitizeHtml(body));
     }
 
     public async Task<string?> GenerateQuestionTitleAsync(string tag, CancellationToken cancellationToken = default)
@@ -159,16 +159,102 @@ public class LlmClient
         CancellationToken cancellationToken = default)
     {
         var prompt = LlmPrompts.QuestionContent(title, tag);
-        return await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
             maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+        return result is null ? null : SanitizeHtml(result);
     }
 
     public async Task<string?> GenerateAnswerAsync(string questionTitle, string questionContent,
         CancellationToken cancellationToken = default)
     {
         var prompt = LlmPrompts.Answer(questionTitle, questionContent);
-        return await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
             maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+        return result is null ? null : SanitizeHtml(result);
+    }
+
+    /// <summary>
+    /// Safety net: converts any leftover markdown to HTML in case the model
+    /// ignored the "HTML only" instruction. Handles the most common patterns.
+    /// </summary>
+    private static string SanitizeHtml(string content)
+    {
+        // Strip wrapping ```html ... ``` or ``` ... ``` fences
+        content = System.Text.RegularExpressions.Regex.Replace(
+            content,
+            @"^```[a-zA-Z]*\r?\n([\s\S]*?)```\s*$",
+            "$1",
+            System.Text.RegularExpressions.RegexOptions.Multiline).Trim();
+
+        // If the content starts with an HTML tag already, trust it as-is
+        if (content.TrimStart().StartsWith('<'))
+            return content;
+
+        // Content is plain markdown — convert common patterns to HTML
+        var lines = content.Split('\n');
+        var sb = new System.Text.StringBuilder();
+        bool inCodeBlock = false;
+        bool inList = false;
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+
+            // Fenced code block start/end
+            if (line.StartsWith("```"))
+            {
+                if (!inCodeBlock) { if (inList) { sb.Append("</ul>"); inList = false; } sb.Append("<pre><code>"); inCodeBlock = true; }
+                else { sb.Append("</code></pre>"); inCodeBlock = false; }
+                continue;
+            }
+            if (inCodeBlock) { sb.Append(System.Net.WebUtility.HtmlEncode(line)).Append('\n'); continue; }
+
+            // Blank line
+            if (string.IsNullOrWhiteSpace(line)) { if (inList) { sb.Append("</ul>"); inList = false; } continue; }
+
+            // Bullet list item (- item or * item)
+            if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^[\-\*] "))
+            {
+                if (!inList) { sb.Append("<ul>"); inList = true; }
+                sb.Append("<li>").Append(InlineMarkdown(line[2..])).Append("</li>");
+                continue;
+            }
+
+            // Numbered list item (1. item)
+            var numMatch = System.Text.RegularExpressions.Regex.Match(line, @"^\d+\. (.+)");
+            if (numMatch.Success)
+            {
+                if (!inList) { sb.Append("<ol>"); inList = true; }
+                sb.Append("<li>").Append(InlineMarkdown(numMatch.Groups[1].Value)).Append("</li>");
+                continue;
+            }
+
+            if (inList) { sb.Append("</ul>"); inList = false; }
+
+            // Heading → strong paragraph
+            var headingMatch = System.Text.RegularExpressions.Regex.Match(line, @"^#{1,3} (.+)");
+            if (headingMatch.Success) { sb.Append("<p><strong>").Append(InlineMarkdown(headingMatch.Groups[1].Value)).Append("</strong></p>"); continue; }
+
+            // Normal paragraph
+            sb.Append("<p>").Append(InlineMarkdown(line)).Append("</p>");
+        }
+
+        if (inList) sb.Append("</ul>");
+        if (inCodeBlock) sb.Append("</code></pre>");
+
+        return sb.ToString();
+    }
+
+    private static string InlineMarkdown(string text)
+    {
+        // **bold** → <strong>
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        // *italic* or _italic_ → <em>
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\*(.+?)\*", "<em>$1</em>");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"_(.+?)_", "<em>$1</em>");
+        // `code` → <code>
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"`(.+?)`", "<code>$1</code>");
+        return text;
     }
 
     public async Task<int> SelectBestAnswerAsync(string questionTitle, List<string> answers,
