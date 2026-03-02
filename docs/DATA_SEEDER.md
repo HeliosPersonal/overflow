@@ -369,7 +369,7 @@ In staging, the seeder runs as a single-replica Deployment in the `apps-staging`
 | Aspect | Local | Staging (K8s) |
 |---|---|---|
 | LLM backend | llama.cpp / Ollama on host | Ollama pod in `apps-staging` |
-| LLM model | `ai/smollm2` | `phi3.5` |
+| LLM model | `ai/smollm2` | `qwen2.5:3b` |
 | Interval | 1 minute | 60 minutes |
 | Service URLs | `localhost:PORT` | Kubernetes service names (`http://question-svc`) |
 | Secrets | `appsettings.json` / user-secrets | Infisical SDK at runtime |

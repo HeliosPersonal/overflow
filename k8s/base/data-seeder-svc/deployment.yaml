@@ -40,7 +40,7 @@ spec:
             - name: SeederOptions__LlmApiUrl
               value: "$(SeederOptions__OllamaUrl)/v1/chat/completions"
             - name: SeederOptions__LlmModel
-              value: "phi3.5"
+              value: "qwen2.5:3b"
             # Infisical credentials
             - name: INFISICAL_PROJECT_ID
               valueFrom:

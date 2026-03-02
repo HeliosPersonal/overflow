@@ -131,7 +131,7 @@ Background worker that generates realistic Q&A content using an LLM:
   - Answer style (conversational / formal / step-by-step / code-heavy / pros-cons / opinionated)
 - LLM prompts centralized in `Templates/LlmPrompts.cs` — LlmClient is pure HTTP
 - Falls back to 80+ static templates when LLM is unavailable
-- Staging: Ollama (phi3.5), 60-min cycles. Local: llama.cpp / Ollama, 1-min cycles
+- Staging: Ollama (qwen2.5:3b), 60-min cycles. Local: llama.cpp / Ollama, 1-min cycles
 
 ### Slide 14 — Local Development
 Two options:
