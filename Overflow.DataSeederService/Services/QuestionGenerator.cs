@@ -73,43 +73,62 @@ public class QuestionGenerator
         string title;
         string content;
 
-        // Try to generate with LLM first
+        // Try to generate with LLM first — unified call ensures title+body are about the same topic
         if (_options.EnableLlmGeneration)
         {
-            _logger.LogInformation("Attempting LLM generation for tag: {Tag}", primaryTag);
-            var titleStart = DateTime.UtcNow;
+            _logger.LogInformation("Attempting unified LLM generation (title+body) for tag: {Tag}", primaryTag);
+            var variability = ContentVariability.RandomForQuestion();
+            var genStart = DateTime.UtcNow;
             
-            var llmTitle = await _llmClient.GenerateQuestionTitleAsync(primaryTag, cancellationToken);
-            var titleElapsed = (DateTime.UtcNow - titleStart).TotalSeconds;
+            var (llmTitle, llmContent) = await _llmClient.GenerateQuestionTitleAndContentAsync(
+                primaryTag, variability, cancellationToken);
+            var genElapsed = (DateTime.UtcNow - genStart).TotalSeconds;
             
-            if (!string.IsNullOrWhiteSpace(llmTitle))
+            if (!string.IsNullOrWhiteSpace(llmTitle) && !string.IsNullOrWhiteSpace(llmContent))
             {
-                _logger.LogInformation("LLM title generated in {Elapsed}s: '{Title}'", titleElapsed, llmTitle);
+                _logger.LogInformation("LLM generated title+body in {Elapsed}s: '{Title}' ({BodyLength} chars)", 
+                    genElapsed, llmTitle, llmContent.Length);
                 title = llmTitle;
-                
-                var contentStart = DateTime.UtcNow;
-                var llmContent = await _llmClient.GenerateQuestionContentAsync(title, primaryTag, cancellationToken);
-                var contentElapsed = (DateTime.UtcNow - contentStart).TotalSeconds;
-                
-                if (!string.IsNullOrWhiteSpace(llmContent))
-                {
-                    _logger.LogInformation("LLM content generated in {Elapsed}s ({Length} chars)", 
-                        contentElapsed, llmContent.Length);
-                    content = llmContent;
-                }
-                else
-                {
-                    _logger.LogWarning("LLM content generation failed after {Elapsed}s, using template fallback", 
-                        contentElapsed);
-                    content = QuestionTemplates.GetRandomQuestion(primaryTag).content;
-                }
+                content = llmContent;
             }
             else
             {
-                _logger.LogWarning("LLM title generation failed after {Elapsed}s, using template fallback", 
-                    titleElapsed);
-                // Fallback to templates
-                (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
+                _logger.LogWarning("Unified LLM generation failed after {Elapsed}s, falling back to separate calls", 
+                    genElapsed);
+                
+                // Fallback: try separate title + content generation
+                var titleStart = DateTime.UtcNow;
+                var fallbackTitle = await _llmClient.GenerateQuestionTitleAsync(primaryTag, cancellationToken);
+                var titleElapsed = (DateTime.UtcNow - titleStart).TotalSeconds;
+                
+                if (!string.IsNullOrWhiteSpace(fallbackTitle))
+                {
+                    _logger.LogInformation("Fallback LLM title generated in {Elapsed}s: '{Title}'", titleElapsed, fallbackTitle);
+                    title = fallbackTitle;
+                    
+                    var contentStart = DateTime.UtcNow;
+                    var fallbackContent = await _llmClient.GenerateQuestionContentAsync(title, primaryTag, cancellationToken);
+                    var contentElapsed = (DateTime.UtcNow - contentStart).TotalSeconds;
+                    
+                    if (!string.IsNullOrWhiteSpace(fallbackContent))
+                    {
+                        _logger.LogInformation("Fallback LLM content generated in {Elapsed}s ({Length} chars)", 
+                            contentElapsed, fallbackContent.Length);
+                        content = fallbackContent;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Fallback LLM content generation failed after {Elapsed}s, using template", 
+                            contentElapsed);
+                        content = QuestionTemplates.GetRandomQuestion(primaryTag).content;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Fallback LLM title generation failed after {Elapsed}s, using template", 
+                        titleElapsed);
+                    (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
+                }
             }
         }
         else

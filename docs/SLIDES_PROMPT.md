@@ -123,6 +123,7 @@ Terraform state stored in Azure Blob Storage.
 Background worker that generates realistic Q&A content using an LLM:
 - Manages a fixed pool of 20 Keycloak users (seeder-* prefix) — restart-safe via password resets
 - Each cycle: create question → generate answers → accept best → cast votes
+- **Unified title+body generation** — title and body produced in a single LLM call to guarantee topic consistency
 - **Content Variability System** — every question/answer is randomized across 4 dimensions:
   - Length (short / medium / long)
   - Depth (beginner / intermediate / expert)

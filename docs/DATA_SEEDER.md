@@ -97,7 +97,8 @@ Step 2  │  Select Random Asker
 Step 3  │  Generate Question
         │  → Fetch available tags from question-svc
         │  → Select 1-3 random tags
-        │  → Generate title + content via LLM (or fallback to templates)
+        │  → Generate title + content in a single LLM call (ensures topic consistency)
+        │  → Fallback: separate title/content calls, then static templates
         │  → POST to question-svc
         │
 Step 4  │  Realistic Delay (5-15 seconds)
@@ -188,6 +189,16 @@ All prompt templates and variability logic are centralized in the `Templates/` f
 | `AnswerTemplates.cs` | Fallback answers organized by style (7 categories, 25+ templates) |
 
 The `LlmClient` itself contains **no prompt strings** — it only handles HTTP communication.
+
+### Topic Consistency
+
+Questions are generated using a **unified title+body** LLM call — both the title and the body
+are produced in a single request using a `===TITLE===` / `===BODY===` separator format. This
+guarantees that the body directly elaborates on the title's topic (e.g., a title about exception
+handling will always have a body about exception handling).
+
+If the unified call fails, the service falls back to separate title → content calls, and
+ultimately to static templates.
 
 ---
 

@@ -112,6 +112,42 @@ public class LlmClient
         }
     }
 
+    public async Task<(string? title, string? content)> GenerateQuestionTitleAndContentAsync(
+        string tag, ContentVariability variability, CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.QuestionTitleAndContent(tag, variability);
+        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+
+        if (string.IsNullOrWhiteSpace(result))
+            return (null, null);
+
+        // Parse the ===TITLE=== / ===BODY=== format
+        var titleMarker = "===TITLE===";
+        var bodyMarker = "===BODY===";
+
+        var titleIdx = result.IndexOf(titleMarker, StringComparison.OrdinalIgnoreCase);
+        var bodyIdx = result.IndexOf(bodyMarker, StringComparison.OrdinalIgnoreCase);
+
+        if (titleIdx < 0 || bodyIdx < 0 || bodyIdx <= titleIdx)
+        {
+            _logger.LogWarning("LLM response did not follow ===TITLE===/===BODY=== format, attempting fallback parse");
+            // Fallback: treat first line as title, rest as body
+            var lines = result.Split('\n', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (lines.Length >= 2)
+                return (lines[0], lines[1]);
+            return (null, null);
+        }
+
+        var title = result.Substring(titleIdx + titleMarker.Length, bodyIdx - titleIdx - titleMarker.Length).Trim();
+        var body = result.Substring(bodyIdx + bodyMarker.Length).Trim();
+
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+            return (null, null);
+
+        return (title, body);
+    }
+
     public async Task<string?> GenerateQuestionTitleAsync(string tag, CancellationToken cancellationToken = default)
     {
         var prompt = LlmPrompts.QuestionTitle(tag);
