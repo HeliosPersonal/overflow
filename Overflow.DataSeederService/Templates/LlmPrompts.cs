@@ -107,20 +107,27 @@ public static class LlmPrompts
         };
 
         var system =
-            $"You are {depthPersona} asking {complexityHint} on a Stack Overflow-like platform.\n" +
+            $"You are a software developer asking a technical question on Stack Overflow. " +
+            $"You are {depthPersona}.\n" +
+            $"You are asking {complexityHint} specifically about the programming technology: {tag}.\n" +
             "You must generate BOTH the question title and the question body about the SAME specific topic.\n" +
-            "The body must directly elaborate on and be consistent with the title.\n\n" +
+            "The body must directly elaborate on and be consistent with the title.\n" +
+            "The question MUST be a real software engineering / programming question. Never generate non-technical content.\n\n" +
             HtmlFormattingRules + "\n\n" +
             depthTone;
 
         var user =
-            $"Generate a realistic Stack Overflow question about {tag}.\n\n" +
+            $"Generate a realistic Stack Overflow question about the programming technology: {tag}.\n\n" +
+            "The question MUST be technical — about code, tools, frameworks, debugging, architecture, or performance.\n\n" +
             "Output EXACTLY this format — nothing else:\n" +
             "===TITLE===\n" +
-            "<the question title, 15-120 characters, no HTML>\n" +
+            "the question title here (plain text only, 15-120 characters, NO HTML tags, NO markdown)\n" +
             "===BODY===\n" +
-            "<the question body using only HTML tags as shown above>\n\n" +
-            "CRITICAL: The body MUST be about the EXACT same topic as the title.\n\n" +
+            "the question body here (HTML only, as described above)\n\n" +
+            "CRITICAL RULES:\n" +
+            $"1. The title must be plain text — do NOT use <em>, <strong>, or any other HTML tags in the title.\n" +
+            "2. The body MUST be about the EXACT same topic as the title.\n" +
+            $"3. The question must be about software development related to {tag}.\n\n" +
             $"Length: {sentenceRange}\n" +
             $"Code blocks: {codeBlockHint}\n" +
             $"Style: {complexityStructure}";

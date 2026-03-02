@@ -145,6 +145,12 @@ public class LlmClient
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
             return (null, null);
 
+        // Strip any HTML tags the model may have added to the title despite instructions
+        title = System.Text.RegularExpressions.Regex.Replace(title, "<[^>]+>", "").Trim();
+
+        if (string.IsNullOrWhiteSpace(title))
+            return (null, null);
+
         return (title, SanitizeHtml(body));
     }
 
