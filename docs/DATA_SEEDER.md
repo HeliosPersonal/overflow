@@ -20,7 +20,7 @@ intervention.
 2. [Architecture](#architecture)
 3. [Seeding Cycle](#seeding-cycle)
 4. [User Pool Management](#user-pool-management)
-5. [Content Variability](#content-variability)
+5. [Content Generation](#content-generation)
 6. [LLM Integration](#llm-integration)
 7. [Configuration](#configuration)
 8. [Project Structure](#project-structure)
@@ -39,6 +39,7 @@ intervention.
 | **Purpose** | Generate realistic seed data (users, questions, answers, votes) |
 | **Runs in** | Staging environment (also available locally via Aspire) |
 | **LLM Backend** | Any OpenAI-compatible API (Ollama, llama.cpp, etc.) |
+| **LLM Model** | `qwen2.5:3b` (staging), configurable per environment |
 | **User Pool** | Fixed pool of 20 seeder-prefixed Keycloak users |
 
 The service is **not** deployed to production — it exists to populate the staging environment
@@ -97,7 +98,7 @@ Step 2  │  Select Random Asker
 Step 3  │  Generate Question
         │  → Fetch available tags from question-svc
         │  → Select 1-3 random tags
-        │  → Generate title + content in a single LLM call (ensures topic consistency)
+        │  → Generate title + body in a single LLM call
         │  → Fallback: separate title/content calls, then static templates
         │  → POST to question-svc
         │
@@ -155,50 +156,41 @@ Example: `seeder-johndoe4521`, `seeder-janesmith8734`
 
 ---
 
-## Content Variability
+## Content Generation
 
-A key design goal is that generated content should be **diverse** — varying in length, depth,
-complexity, and style. This is achieved through a `ContentVariability` system that randomizes
-generation parameters for each piece of content.
+The service uses a **simple, LLM-friendly approach** designed for small models (3B parameters):
+
+- **Prompts tell the LLM to write in Markdown** — small models produce clean Markdown naturally.
+- **`LlmClient.SanitizeHtml`** converts the Markdown output to HTML for storage and display.
+- **Variability** is kept to two dimensions: **Length** and **Answer Style**.
 
 ### Variability Dimensions
 
 | Dimension | Values | Affects |
 |---|---|---|
-| **Length** | Short, Medium, Long | Sentence count, max_tokens, code block count |
-| **Depth** | Beginner, Intermediate, Expert | Persona, terminology, assumed knowledge |
-| **Complexity** | Simple, Moderate, Complex | Question structure, problem scope |
-| **Style** (answers) | Neutral, Conversational, Formal, ProsAndCons, StepByStep, CodeHeavy, Opinionated | Tone, structure, formatting |
+| **Length** | Short, Medium, Long | Sentence count, max_tokens |
+| **Style** (answers only) | Neutral, Conversational, Formal, StepByStep, CodeHeavy | Tone and structure |
 
-### Examples
+### Prompt Architecture
 
-| Variability | Question Example | Answer Example |
-|---|---|---|
-| Short + Beginner + Simple | "How do I convert a string to int?" (2-3 sentences) | One-liner with `int.TryParse()` |
-| Medium + Intermediate | Specific scenario with code block, expected vs actual behavior | Step-by-step solution with explanation |
-| Long + Expert + Complex | Multi-layered debugging scenario with environment details, profiling results, and attempted fixes | Comprehensive analysis with alternatives, trade-offs, and code |
-
-### Where Variability Lives
-
-All prompt templates and variability logic are centralized in the `Templates/` folder:
-
-| File | Purpose |
-|---|---|
-| `LlmPrompts.cs` | Builds system + user prompts for the LLM with randomized variability |
-| `QuestionTemplates.cs` | Fallback question titles and content (short/medium/long per tag) |
-| `AnswerTemplates.cs` | Fallback answers organized by style (7 categories, 25+ templates) |
-
-The `LlmClient` itself contains **no prompt strings** — it only handles HTTP communication.
+All prompt templates live in `Templates/LlmPrompts.cs`. The `LlmClient` contains **no prompt
+strings** — it only handles HTTP communication and Markdown-to-HTML conversion.
 
 ### Topic Consistency
 
-Questions are generated using a **unified title+body** LLM call — both the title and the body
-are produced in a single request using a `===TITLE===` / `===BODY===` separator format. This
-guarantees that the body directly elaborates on the title's topic (e.g., a title about exception
-handling will always have a body about exception handling).
+Questions are generated using a **unified title+body** LLM call — both the title and body are
+produced in a single request using a `===TITLE===` / `===BODY===` separator format. This
+guarantees that the body directly elaborates on the title's topic.
 
 If the unified call fails, the service falls back to separate title → content calls, and
-ultimately to static templates.
+ultimately to paired static templates (where title and content are always about the same topic).
+
+### Fallback Templates
+
+When LLM generation fails or is disabled:
+
+- **Questions** — 12 paired (title, content) templates covering common programming topics
+- **Answers** — 12 varied answer templates (concise fixes, step-by-step guides, code examples)
 
 ---
 
@@ -215,19 +207,11 @@ The service communicates with any OpenAI-compatible chat completions API.
 | **OpenAI** | `https://api.openai.com/v1/chat/completions` | Works but costs money |
 | **Any compatible** | Varies | Must support `/v1/chat/completions` endpoint |
 
-### Request Format
+### Model Choice
 
-```json
-{
-  "model": "phi3.5",
-  "messages": [
-    { "role": "system", "content": "..." },
-    { "role": "user", "content": "..." }
-  ],
-  "temperature": 0.7,
-  "max_tokens": 500
-}
-```
+The staging environment uses **`qwen2.5:3b`** via Ollama — a good balance of quality and
+resource usage for a homelab. The model writes Markdown natively, which the service converts
+to HTML.
 
 ### Timeout & Resilience
 
@@ -256,7 +240,7 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 | `ProfileServiceUrl` | string | — | URL of the Profile Service API |
 | `VoteServiceUrl` | string | — | URL of the Vote Service API |
 | `LlmApiUrl` | string | — | URL of the OpenAI-compatible LLM API |
-| `LlmModel` | string | — | Model name to use (e.g., `phi3.5`, `ai/smollm2`) |
+| `LlmModel` | string | — | Model name (e.g., `qwen2.5:3b`) |
 | `IntervalMinutes` | int | 10 | Minutes between seeding cycles |
 | `MinAnswersPerQuestion` | int | 2 | Minimum answers to generate per question |
 | `MaxAnswersPerQuestion` | int | 4 | Maximum answers to generate per question |
@@ -282,7 +266,7 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 |---|---|---|---|
 | **Local (default)** | `ai/smollm2` | 10 min | `appsettings.json` |
 | **Development (Aspire)** | `ai/smollm2` | 1 min | `appsettings.Development.json` |
-| **Staging (K8s)** | `phi3.5` | 60 min | `appsettings.Staging.json` |
+| **Staging (K8s)** | `qwen2.5:3b` | 60 min | `appsettings.Staging.json` |
 
 ---
 
@@ -293,22 +277,22 @@ Overflow.DataSeederService/
 ├── Program.cs                  # Host setup, DI registration, HttpClient config
 ├── Models/
 │   ├── SeederOptions.cs        # Configuration options
-│   ├── ContentVariability.cs   # Variability enums and random profile generator
+│   ├── ContentVariability.cs   # Length + AnswerStyle enums, random profile generator
 │   ├── Dtos.cs                 # DTOs for API communication
 │   └── LlmModels.cs           # LLM request/response models
 ├── Services/
-│   ├── SeederBackgroundService.cs  # Main orchestration loop
+│   ├── SeederBackgroundService.cs  # Main orchestration loop (8-step cycle)
 │   ├── UserGenerator.cs        # User pool management (create/rehydrate)
 │   ├── QuestionGenerator.cs    # Question creation via API
 │   ├── AnswerGenerator.cs      # Answer creation + accept via API
 │   ├── VotingService.cs        # Random voting on questions/answers
-│   ├── LlmClient.cs           # HTTP client for LLM API (no prompt logic)
+│   ├── LlmClient.cs           # HTTP client for LLM API + Markdown→HTML conversion
 │   ├── AuthenticationService.cs    # Keycloak user creation + token management
 │   └── KeycloakAdminService.cs # Keycloak Admin API operations
 └── Templates/
-    ├── LlmPrompts.cs           # All LLM prompt templates with variability
-    ├── QuestionTemplates.cs    # Fallback question titles + content
-    └── AnswerTemplates.cs      # Fallback answer templates by style
+    ├── LlmPrompts.cs           # All LLM prompt templates (simple, Markdown-based)
+    ├── QuestionTemplates.cs    # 12 paired (title, content) fallback templates
+    └── AnswerTemplates.cs      # 12 fallback answer templates
 ```
 
 ---
@@ -424,4 +408,3 @@ kubectl rollout restart deployment/data-seeder-svc -n apps-staging
 # Disable LLM temporarily (edit ConfigMap or env var)
 kubectl set env deployment/data-seeder-svc -n apps-staging SeederOptions__EnableLlmGeneration=false
 ```
-

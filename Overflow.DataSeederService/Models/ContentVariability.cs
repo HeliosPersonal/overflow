@@ -2,12 +2,11 @@ namespace Overflow.DataSeederService.Models;
 
 /// <summary>
 /// Defines the variability dimensions for generated content to ensure diversity.
+/// Kept intentionally simple so small LLMs (3B params) can follow the instructions reliably.
 /// </summary>
 public record ContentVariability
 {
     public ContentLength Length { get; init; }
-    public ContentDepth Depth { get; init; }
-    public ContentComplexity Complexity { get; init; }
     public AnswerStyle Style { get; init; }
 
     /// <summary>
@@ -18,8 +17,6 @@ public record ContentVariability
         return new ContentVariability
         {
             Length = Pick<ContentLength>(),
-            Depth = Pick<ContentDepth>(),
-            Complexity = Pick<ContentComplexity>(),
             Style = AnswerStyle.Neutral // not used for questions
         };
     }
@@ -32,8 +29,6 @@ public record ContentVariability
         return new ContentVariability
         {
             Length = Pick<ContentLength>(),
-            Depth = Pick<ContentDepth>(),
-            Complexity = Pick<ContentComplexity>(),
             Style = Pick<AnswerStyle>()
         };
     }
@@ -52,28 +47,11 @@ public enum ContentLength
     Long
 }
 
-public enum ContentDepth
-{
-    Beginner,
-    Intermediate,
-    Expert
-}
-
-public enum ContentComplexity
-{
-    Simple,
-    Moderate,
-    Complex
-}
-
 public enum AnswerStyle
 {
     Neutral,
     Conversational,
     Formal,
-    ProsAndCons,
     StepByStep,
-    CodeHeavy,
-    Opinionated
+    CodeHeavy
 }
-

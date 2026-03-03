@@ -11,7 +11,7 @@ Create a professional slide deck for the **Overflow** project — a Stack Overfl
 ### Slide 1 — Title
 **Overflow — Microservices Q&A Platform**
 Subtitle: Full-stack application with .NET 10, Next.js 15, Kubernetes, and GitOps
-Author: [Your Name]
+Author: Viacheslav Melnichenko
 
 ### Slide 2 — What Is Overflow
 - Stack Overflow-inspired Q&A platform built from scratch
@@ -123,14 +123,11 @@ Terraform state stored in Azure Blob Storage.
 Background worker that generates realistic Q&A content using an LLM:
 - Manages a fixed pool of 20 Keycloak users (seeder-* prefix) — restart-safe via password resets
 - Each cycle: create question → generate answers → accept best → cast votes
-- **Unified title+body generation** — title and body produced in a single LLM call to guarantee topic consistency
-- **Content Variability System** — every question/answer is randomized across 4 dimensions:
-  - Length (short / medium / long)
-  - Depth (beginner / intermediate / expert)
-  - Complexity (simple / moderate / complex)
-  - Answer style (conversational / formal / step-by-step / code-heavy / pros-cons / opinionated)
-- LLM prompts centralized in `Templates/LlmPrompts.cs` — LlmClient is pure HTTP
-- Falls back to 80+ static templates when LLM is unavailable
+- **Unified title+body generation** — single LLM call guarantees topic consistency
+- **Simple variability** — randomized across Length (short/medium/long) and Answer Style (conversational/formal/step-by-step/code-heavy)
+- LLM writes Markdown → `LlmClient.SanitizeHtml` converts to HTML
+- Prompts centralized in `Templates/LlmPrompts.cs` — LlmClient is pure HTTP + Markdown→HTML
+- Falls back to paired static templates when LLM is unavailable
 - Staging: Ollama (qwen2.5:3b), 60-min cycles. Local: llama.cpp / Ollama, 1-min cycles
 
 ### Slide 14 — Local Development
