@@ -11,6 +11,7 @@ import { loginSchema, type LoginFormData } from '@/lib/validators/auth';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { AcademicCapIcon } from '@heroicons/react/24/solid';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -168,6 +169,8 @@ export default function LoginPage() {
                                 </span>
                             </div>
                         </div>
+
+                        <GoogleSignInButton callbackUrl={callbackUrl} />
 
                         <div className="text-center text-sm">
                             Don&apos;t have an account?{' '}

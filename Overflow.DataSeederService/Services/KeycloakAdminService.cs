@@ -87,8 +87,9 @@ public class KeycloakAdminService
 
     /// <summary>
     /// Create a new user in Keycloak and return the user ID.
+    /// Email is used as the username (registrationEmailAsUsername is enabled).
     /// </summary>
-    public async Task<string?> CreateUserAsync(string username, string email, string firstName, string lastName, string password, CancellationToken cancellationToken = default)
+    public async Task<string?> CreateUserAsync(string email, string firstName, string lastName, string password, CancellationToken cancellationToken = default)
     {
         var adminToken = await GetAdminTokenAsync(cancellationToken);
         if (adminToken == null)
@@ -101,9 +102,10 @@ public class KeycloakAdminService
         {
             var createUserUrl = $"{_keycloakOptions.Url}/admin/realms/{_keycloakOptions.Realm}/users";
 
+            // registrationEmailAsUsername is enabled in Keycloak — email is the username
             var userRepresentation = new
             {
-                username,
+                username = email,
                 email,
                 firstName,
                 lastName,
@@ -130,16 +132,16 @@ public class KeycloakAdminService
 
             if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
-                _logger.LogWarning("User {Username} already exists", username);
-                // Try to get existing user ID
-                return await GetUserIdByUsernameAsync(username, cancellationToken);
+                _logger.LogWarning("User {Email} already exists", email);
+                // Try to get existing user ID (email is the username due to registrationEmailAsUsername)
+                return await GetUserIdByUsernameAsync(email, cancellationToken);
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Failed to create user {Username}: {StatusCode} - {Error}",
-                    username, response.StatusCode, error);
+                _logger.LogError("Failed to create user {Email}: {StatusCode} - {Error}",
+                    email, response.StatusCode, error);
                 return null;
             }
 
@@ -148,16 +150,16 @@ public class KeycloakAdminService
             if (locationHeader != null)
             {
                 var userId = locationHeader.Split('/').Last();
-                _logger.LogInformation("Created user {Username} with ID {UserId}", username, userId);
+                _logger.LogInformation("Created user {Email} with ID {UserId}", email, userId);
                 return userId;
             }
 
             _logger.LogError("User created but no Location header returned");
-            return await GetUserIdByUsernameAsync(username, cancellationToken);
+            return await GetUserIdByUsernameAsync(email, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating user {Username}", username);
+            _logger.LogError(ex, "Error creating user {Email}", email);
             return null;
         }
     }

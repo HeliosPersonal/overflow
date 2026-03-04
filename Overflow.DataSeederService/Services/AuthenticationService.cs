@@ -75,13 +75,14 @@ public class AuthenticationService
         string displayName, 
         CancellationToken cancellationToken = default)
     {
-        // Generate username and password
-        var username = GenerateUsername(displayName);
+        // Generate username-part and password
+        var usernamePart = GenerateUsername(displayName);
+        var email = $"{usernamePart}@overflow.local";
         var password = GeneratePassword();
 
-        // Check if we already created this user (by display name)
+        // Check if we already created this user (by email, which is the Keycloak username)
         var existingUser = _userCredentials.Values.FirstOrDefault(u => 
-            u.username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            u.username.Equals(email, StringComparison.OrdinalIgnoreCase));
         
         if (existingUser != default)
         {
@@ -92,10 +93,9 @@ public class AuthenticationService
             return (existingUser.keycloakUserId, token);
         }
 
-        // Create user in Keycloak
+        // Create user in Keycloak (email is used as username due to registrationEmailAsUsername)
         var keycloakUserId = await _keycloakAdminService.CreateUserAsync(
-            username,
-            $"{username}@overflow.local",
+            email,
             displayName.Split(' ').FirstOrDefault() ?? displayName,
             displayName.Split(' ').Skip(1).FirstOrDefault() ?? "",
             password,
@@ -107,20 +107,20 @@ public class AuthenticationService
             return (null, null);
         }
 
-        // Cache credentials
-        _userCredentials[keycloakUserId] = (keycloakUserId, username, password);
+        // Cache credentials using email as the username (Keycloak login identifier)
+        _userCredentials[keycloakUserId] = (keycloakUserId, email, password);
 
-        // Get token for this user
-        var userToken = await _keycloakAdminService.GetUserTokenAsync(username, password, cancellationToken);
+        // Get token for this user (using email as username)
+        var userToken = await _keycloakAdminService.GetUserTokenAsync(email, password, cancellationToken);
 
         if (userToken == null)
         {
-            _logger.LogError("Failed to obtain token for user {Username}", username);
+            _logger.LogError("Failed to obtain token for user {Email}", email);
             return (keycloakUserId, null);
         }
 
-        _logger.LogInformation("Created Keycloak user {Username} ({DisplayName}) with ID {KeycloakUserId}", 
-            username, displayName, keycloakUserId);
+        _logger.LogInformation("Created Keycloak user {Email} ({DisplayName}) with ID {KeycloakUserId}", 
+            email, displayName, keycloakUserId);
 
         return (keycloakUserId, userToken);
     }

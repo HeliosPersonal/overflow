@@ -3,16 +3,16 @@ import { authConfig } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, username, firstName, lastName, password } = await request.json();
+        const { email, firstName, lastName, password } = await request.json();
 
-        if (!email || !username || !firstName || !lastName || !password) {
+        if (!email || !firstName || !lastName || !password) {
             return NextResponse.json(
                 { error: 'All fields are required' },
                 { status: 400 }
             );
         }
 
-        console.log('Signup request for:', email, username);
+        console.log('Signup request for:', email);
 
         // Get admin access token to create user (uses service account client, not the user-facing client)
         const tokenUrl = `${authConfig.kcInternal}/protocol/openid-connect/token`;
@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
         console.log('Realm:', realmName);
 
         // Create user in Keycloak
+        // Note: registrationEmailAsUsername is enabled in Keycloak,
+        // so we pass email as username for consistency.
         const createUserResponse = await fetch(createUserUrl, {
             method: 'POST',
             headers: {
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${adminToken.access_token}`,
             },
             body: JSON.stringify({
-                username: username,
+                username: email,
                 email: email,
                 firstName: firstName,
                 lastName: lastName,
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
             // Check for duplicate user
             if (createUserResponse.status === 409) {
                 return NextResponse.json(
-                    { error: 'User with this email or username already exists' },
+                    { error: 'An account with this email already exists' },
                     { status: 409 }
                 );
             }

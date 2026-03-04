@@ -126,14 +126,14 @@ Step 8  │  Random Votes
 
 ## User Pool Management
 
-The seeder maintains a **fixed pool of 20 users** identified by a `seeder-` username prefix.
+The seeder maintains a **fixed pool of 20 users** identified by a `seeder-` email prefix.
 This ensures the seeder doesn't pollute the system with hundreds of users while still having
 enough diversity for realistic interactions.
 
 ### How It Works
 
-1. **Discovery** — On each cycle, the seeder searches Keycloak for existing users whose username
-   starts with `seeder-` (via the Admin API).
+1. **Discovery** — On each cycle, the seeder searches Keycloak for existing users whose email
+   starts with `seeder-` (via the Admin API search endpoint).
 
 2. **Rehydration** — For each found user, the service resets their password (via Keycloak Admin API)
    and obtains a fresh JWT token. This makes the service restart-safe — no in-memory state is
@@ -146,13 +146,16 @@ enough diversity for realistic interactions.
 4. **Isolation** — Only `seeder-*` prefixed users are touched. Real users and users created through
    the frontend are never affected.
 
-### Username Format
+### Email Format
+
+> **Note:** `registrationEmailAsUsername` is enabled in Keycloak — email is the unique
+> user identifier (username). The seeder generates emails with a recognizable prefix.
 
 ```
-seeder-{namePart}{randomSuffix}
+seeder-{namePart}{randomSuffix}@overflow.local
 ```
 
-Example: `seeder-johndoe4521`, `seeder-janesmith8734`
+Example: `seeder-johndoe4521@overflow.local`, `seeder-janesmith8734@overflow.local`
 
 ---
 

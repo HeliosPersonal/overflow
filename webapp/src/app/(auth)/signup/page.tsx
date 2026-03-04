@@ -10,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupFormData } from '@/lib/validators/auth';
 import Link from 'next/link';
 import { AcademicCapIcon } from '@heroicons/react/24/solid';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function SignupPage() {
     const router = useRouter();
@@ -138,18 +139,6 @@ export default function SignupPage() {
                             isDisabled={isLoading}
                         />
 
-                        <Input
-                            {...register('username')}
-                            type="text"
-                            label="Username"
-                            placeholder="Choose a username"
-                            variant="bordered"
-                            isInvalid={!!errors.username}
-                            errorMessage={errors.username?.message}
-                            autoComplete="username"
-                            isDisabled={isLoading}
-                        />
-
                         <div className="grid grid-cols-2 gap-4">
                             <Input
                                 {...register('firstName')}
@@ -208,6 +197,22 @@ export default function SignupPage() {
                         >
                             {isLoading ? 'Creating account...' : 'Create account'}
                         </Button>
+
+                        <div className="relative my-2">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t border-neutral-200 dark:border-neutral-800" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-background px-2 text-muted-foreground">
+                                    Or
+                                </span>
+                            </div>
+                        </div>
+
+                        <GoogleSignInButton
+                            callbackUrl={callbackUrl}
+                            label="Sign up with Google"
+                        />
 
                         <div className="text-center text-sm">
                             Already have an account?{' '}

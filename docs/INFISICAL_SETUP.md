@@ -6,6 +6,7 @@
 ### Related Documentation
 
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client configuration and which Keycloak secrets exist
+- [Google Authentication Setup](./GOOGLE_AUTH_SETUP.md) — Google OAuth via Keycloak Identity Brokering
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Terraform README](../terraform/README.md) — ConfigMap / connection string wiring
 
@@ -30,14 +31,14 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Infisical (eu.infisical.com)                   │
+│                    Infisical (eu.infisical.com)                  │
 │                                                                  │
 │   Project: Overflow                                              │
-│   ├── Environment: staging      (25 secrets)                     │
-│   └── Environment: production   (25 secrets)                     │
+│   ├── Environment: staging      (27 secrets)                     │
+│   └── Environment: production   (27 secrets)                     │
 │                                                                  │
 │   Syncs to GitHub Actions:                                       │
-│   └── INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET,             │
+│   └── INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET,              │
 │       INFISICAL_PROJECT_ID, ARM_*, PG_PASSWORD,                  │
 │       RABBIT_PASSWORD, TYPESENSE_API_KEY                         │
 └──────────────────────────┬───────────────────────────────────────┘
@@ -121,7 +122,7 @@ Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, u
 
 ## Complete Secret Inventory
 
-All 25 secrets that should exist in Infisical, grouped by purpose.
+All 27 secrets that should exist in Infisical, grouped by purpose.
 
 ### 🔐 Infisical Bootstrap (synced to GitHub Actions)
 
@@ -203,6 +204,21 @@ Infisical values take precedence at runtime since they're loaded after the Confi
 > `KeycloakOptions__NextJsClientId` and `NextJsClientSecret` are only meaningful in staging
 > (DataSeederService doesn't run in production). They should still exist in the
 > production environment to avoid breaking the SDK fetch, but can have placeholder values.
+
+### 🔵 Google OAuth (backup reference — configured in Keycloak Admin)
+
+Google authentication is handled via Keycloak Identity Brokering. The Google OAuth credentials
+are configured directly in Keycloak's Admin Console. These Infisical entries serve as a secure
+backup reference for documentation and disaster recovery only.
+
+| Infisical Key | Environments | Purpose |
+|---|---|---|
+| `Google__ClientId` | staging + production | Google OAuth Client ID (from Google Cloud Console) |
+| `Google__ClientSecret` | staging + production | Google OAuth Client Secret (from Google Cloud Console) |
+
+> **Note:** These secrets are NOT consumed by any application at runtime. They are stored
+> in Infisical purely as a secure reference. See [GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md)
+> for the full setup guide.
 
 ### 🖼️ Cloudinary (consumed by webapp via Infisical SDK)
 
@@ -442,5 +458,5 @@ See [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-developm
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 2026*
 

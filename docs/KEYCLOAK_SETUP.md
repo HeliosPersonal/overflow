@@ -4,6 +4,7 @@
 
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Infisical Secret Management](./INFISICAL_SETUP.md) — All secrets, how they flow, GitHub Actions sync
+- [Google Authentication Setup](./GOOGLE_AUTH_SETUP.md) — Google OAuth via Keycloak Identity Brokering
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
 - [Terraform README](../terraform/README.md) — ConfigMap / connection string wiring
 
@@ -21,8 +22,9 @@
 8. [Config Values Already Wired](#config-values-already-wired)
 9. [Local Development Setup](#local-development-setup)
 10. [Postman Collections](#postman-collections)
-11. [Verification & Test Commands](#verification--test-commands)
-12. [Troubleshooting](#troubleshooting)
+11. [Google Identity Provider](#google-identity-provider)
+12. [Verification & Test Commands](#verification--test-commands)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -276,7 +278,7 @@ openid  profile  email  offline_access
 | `name` | `profile` scope (full name mapper) | `auth.ts`, `UserProfileCreationMiddleware` |
 | `given_name` | `profile` scope | `UserProfileCreationMiddleware` |
 | `family_name` | `profile` scope | `UserProfileCreationMiddleware` |
-| `preferred_username` | `profile` scope | Fallback display name |
+| `preferred_username` | `profile` scope | Fallback display name (equals email with `registrationEmailAsUsername`) |
 | `aud` | Audience mapper on `overflow-web` client | Backend JWT validation |
 
 All mappers are included in the realm import files.
@@ -285,7 +287,7 @@ All mappers are included in the realm import files.
 
 ## Infisical — Keycloak-Related Secrets
 
-> For the complete Infisical setup, all 25 secrets, and how they flow through the system,
+> For the complete Infisical setup, all 27 secrets, and how they flow through the system,
 > see [**INFISICAL_SETUP.md**](./INFISICAL_SETUP.md).
 
 ### Environment Slug Mapping
@@ -407,6 +409,43 @@ production using the environment selector. Both use the `overflow-postman` publi
 
 ---
 
+## Google Identity Provider
+
+Google Sign-In is implemented via **Keycloak Identity Brokering**. Users click
+"Continue with Google" in the webapp, Keycloak redirects to Google's consent screen,
+and on success issues a standard Keycloak JWT. No backend service changes are required.
+
+> For the full setup guide (Google Cloud Console, Keycloak IdP configuration, Infisical
+> secrets, first login flow, and troubleshooting), see
+> **[GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md)**.
+
+### Quick Reference
+
+| Setting | Value |
+|---|---|
+| Keycloak IdP Alias | `google` |
+| Keycloak IdP Type | Google |
+| Google OAuth Redirect URI | `https://keycloak.devoverflow.org/realms/{realm}/broker/google/endpoint` |
+| Google Scopes | `openid email profile` |
+| First login flow | `first broker login - google` (custom — Review Profile disabled) |
+| Webapp trigger | `signIn('keycloak', { callbackUrl }, { kc_idp_hint: 'google' })` |
+
+### Email as Username
+
+Both realms have **`registrationEmailAsUsername: true`**. This means Keycloak uses the
+email address as the unique username. This simplifies Google integration since Google
+always provides a verified email, and enables natural account linking when a user signs
+up with email/password and later adds Google sign-in.
+
+### Infisical Secrets (backup reference only)
+
+| Infisical Key | Environments | Purpose |
+|---|---|---|
+| `Google__ClientId` | staging + production | Google OAuth Client ID (primary config is in Keycloak Admin) |
+| `Google__ClientSecret` | staging + production | Google OAuth Client Secret (primary config is in Keycloak Admin) |
+
+---
+
 ## Verification & Test Commands
 
 ### 1. Get a Token (Direct Access Grant)
@@ -475,4 +514,4 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 2026*
