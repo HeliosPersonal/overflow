@@ -14,7 +14,6 @@
 # - RABBITMQ_URL (RabbitMQ connection string)
 # - TYPESENSE_API_KEY (Typesense authentication)
 # - AUTH_KEYCLOAK_SECRET (Keycloak client secret)
-# - CLOUDINARY_* (Image upload credentials)
 # - And more environment-specific secrets...
 #
 # SECURITY NOTE:

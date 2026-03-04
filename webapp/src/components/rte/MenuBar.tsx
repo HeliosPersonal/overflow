@@ -2,10 +2,6 @@ import {Editor} from "@tiptap/core";
 import {useEditorState} from "@tiptap/react";
 import {BoldIcon, CodeBracketIcon, ItalicIcon, LinkIcon, StrikethroughIcon} from "@heroicons/react/20/solid";
 import {Button} from "@heroui/button";
-// TODO: Remove Cloudinary - commenting out for now
-// import {CldUploadButton, CloudinaryUploadWidgetResults} from "next-cloudinary";
-// import {errorToast} from "@/lib/util";
-// import {PhotoIcon} from "@heroicons/react/20/solid";
 
 type Props = {
     editor: Editor | null;
@@ -28,15 +24,6 @@ export default function MenuBar({editor}: Props) {
     })
     
     if (!editor || !editorState) return null;
-    
-    // TODO: Remove Cloudinary - commented out for now
-    // const onUploadImage = (result: CloudinaryUploadWidgetResults) => {
-    //     if (result.info && typeof result.info === "object") {
-    //         editor.chain().focus().setImage({src: result.info.secure_url}).run();
-    //     } else {
-    //         errorToast({message: 'Problem adding image'});
-    //     }
-    // }
 
     const options = [
         {
@@ -81,18 +68,6 @@ export default function MenuBar({editor}: Props) {
                     {option.icon}
                 </Button>
             ))}
-            {/* TODO: Remove Cloudinary - commented out for now */}
-            {/* <Button
-                isIconOnly
-                size='sm'
-                as={CldUploadButton}
-                options={{maxFiles: 1}}
-                onSuccess={onUploadImage}
-                signatureEndpoint='/api/sign-image'
-                uploadPreset='overflow'
-            >
-                <PhotoIcon className='w-5 h-5' />
-            </Button> */}
         </div>
     );
 }

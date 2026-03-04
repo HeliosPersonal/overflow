@@ -381,7 +381,6 @@ AUTH_URL_INTERNAL=http://localhost:3000
 AUTH_SECRET=<any random string>
 KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID=overflow-admin
 KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET=<secret from overflow-admin client in overflow-staging realm>
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dis52nqgma
 ```
 
 The `overflow-web-local` client in the `overflow-staging` realm has `http://localhost:3000/*`

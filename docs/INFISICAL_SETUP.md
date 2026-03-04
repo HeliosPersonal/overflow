@@ -220,13 +220,6 @@ backup reference for documentation and disaster recovery only.
 > in Infisical purely as a secure reference. See [GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md)
 > for the full setup guide.
 
-### 🖼️ Cloudinary (consumed by webapp via Infisical SDK)
-
-| Infisical Key | Webapp env var (after transform) | Consumer |
-|---|---|---|
-| `Cloudinary__ApiKey` | `CLOUDINARY_API_KEY` | Webapp — image uploads |
-| `Cloudinary__ApiSecret` | `CLOUDINARY_API_SECRET` | Webapp — image uploads |
-
 ### 📊 Observability
 
 | Infisical Key | Consumer |
@@ -358,7 +351,6 @@ The webapp transformation is different from .NET — it converts to `UPPER_SNAKE
 | `Auth__Secret` | `AUTH_SECRET` | `authConfig.secret` |
 | `KeycloakOptions__AdminClientId` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | `authConfig.kcAdminClientId` |
 | `KeycloakOptions__AdminClientSecret` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | `authConfig.kcAdminClientSecret` |
-| `Cloudinary__ApiKey` | `CLOUDINARY_API_KEY` | `cloudinaryConfig.apiKey` |
 
 ---
 
