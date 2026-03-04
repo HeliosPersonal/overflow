@@ -37,7 +37,7 @@ export default function TrendingTags() {
                             const percentage = (tag.count / maxCount) * 100;
                             return (
                                 <div key={tag.tag} className='flex flex-col gap-1'>
-                                    <Link href={`/questions?tag=${tag.tag}`} className='text-sm font-medium hover:underline'>
+                                    <Link href={`/?tag=${tag.tag}`} className='text-sm font-medium hover:underline'>
                                         {tag.tag}
                                     </Link>
                                     <Progress

@@ -30,7 +30,7 @@ interface GoogleSignInButtonProps {
     label?: string;
 }
 
-export default function GoogleSignInButton({ callbackUrl = '/questions', label = 'Continue with Google' }: GoogleSignInButtonProps) {
+export default function GoogleSignInButton({ callbackUrl = '/', label = 'Continue with Google' }: GoogleSignInButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleGoogleSignIn = async () => {
