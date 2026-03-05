@@ -1,7 +1,7 @@
 'use client';
 
 import {Input} from "@heroui/input";
-import {MagnifyingGlassIcon} from "@heroicons/react/24/outline";
+import {MagnifyingGlassIcon} from "@heroicons/react/20/solid";
 import {useEffect, useRef, useState} from "react";
 import {Question} from "@/lib/types";
 import {searchQuestions} from "@/lib/actions/question-actions";

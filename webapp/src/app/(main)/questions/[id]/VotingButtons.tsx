@@ -1,8 +1,7 @@
 'use client';
 
 import {Button} from "@heroui/button";
-import {ArrowDownCircleIcon, ArrowUpCircleIcon, CheckCircleIcon as CheckOutlined} from "@heroicons/react/24/outline";
-import {CheckCircleIcon as CheckSolid} from "@heroicons/react/24/outline";
+import {ArrowDownIcon, ArrowUpIcon, CheckIcon} from "@heroicons/react/20/solid";
 import {Answer, Question, Vote} from "@/lib/types";
 import {useState, useTransition} from "react";
 import {acceptAnswer, addVote} from "@/lib/actions/question-actions";
@@ -60,7 +59,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
     }
     
     return (
-        <div className='flex-shrink-0 flex flex-col gap-3 items-center justify-start mt-4'>
+        <div className='shrink-0 flex flex-col gap-3 items-center justify-start mt-4'>
             <Button
                 isIconOnly
                 variant='light'
@@ -68,7 +67,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(1)}
             >
-                <ArrowUpCircleIcon className='w-12' />
+                <ArrowUpIcon className='w-8' />
             </Button>
             <span className='text-xl font-semibold'>{target.votes}</span>
             <Button
@@ -78,7 +77,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(-1)}
             >
-                <ArrowDownCircleIcon className='w-12' />
+                <ArrowDownIcon className='w-8' />
             </Button>
             {isAnswer && (
                 <Button
@@ -90,9 +89,9 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                     onPress={handleAcceptAnswer}
                 >
                     {target.accepted ? (
-                        <CheckSolid className='text-success' />
+                        <CheckIcon className='size-6 text-success' />
                     ) : (
-                        <CheckOutlined className='size-12 text-default-500' />
+                        <CheckIcon className='size-6 text-default-500' />
                     )}
                     
                 </Button>

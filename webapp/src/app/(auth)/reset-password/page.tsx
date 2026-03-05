@@ -5,7 +5,7 @@ import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { useState } from 'react';
 import Link from 'next/link';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon } from '@heroicons/react/20/solid';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

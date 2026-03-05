@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormData } from '@/lib/validators/auth';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon } from '@heroicons/react/20/solid';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function LoginPage() {

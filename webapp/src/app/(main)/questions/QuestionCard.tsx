@@ -3,7 +3,7 @@ import Link from "next/link";
 import {Chip} from "@heroui/chip";
 import {Avatar} from "@heroui/avatar";
 import clsx from "clsx";
-import {CheckIcon} from "@heroicons/react/24/outline";
+import {CheckIcon} from "@heroicons/react/20/solid";
 import {stripHtmlTags, timeAgo} from "@/lib/util";
 
 type Props = {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {AcademicCapIcon} from "@heroicons/react/24/outline";
+import {AcademicCapIcon} from "@heroicons/react/20/solid";
 import ThemeToggle from "@/components/nav/ThemeToggle";
 import SearchInput from "@/components/nav/SearchInput";
 import LoginButton from "@/components/nav/LoginButton";

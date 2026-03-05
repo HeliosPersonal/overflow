@@ -1,6 +1,6 @@
 'use client';
 
-import {HomeIcon, TagIcon, UserIcon, UserGroupIcon} from "@heroicons/react/24/outline";
+import {HomeIcon, TagIcon, UserIcon, UserGroupIcon} from "@heroicons/react/20/solid";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {usePathname} from "next/navigation";
 

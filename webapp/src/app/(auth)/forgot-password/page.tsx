@@ -5,7 +5,7 @@ import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { useState } from 'react';
 import Link from 'next/link';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon } from '@heroicons/react/20/solid';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
