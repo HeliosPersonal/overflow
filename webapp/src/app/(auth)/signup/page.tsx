@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupFormData } from '@/lib/validators/auth';
 import Link from 'next/link';
-import { AcademicCapIcon } from '@heroicons/react/20/solid';
+import { AcademicCapIcon } from '@heroicons/react/24/outline';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function SignupPage() {

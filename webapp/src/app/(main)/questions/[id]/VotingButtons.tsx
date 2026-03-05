@@ -1,7 +1,7 @@
 'use client';
 
 import {Button} from "@heroui/button";
-import {ArrowDownIcon, ArrowUpIcon, CheckIcon} from "@heroicons/react/20/solid";
+import {ArrowDownIcon, ArrowUpIcon, CheckIcon} from "@heroicons/react/24/outline";
 import {Answer, Question, Vote} from "@/lib/types";
 import {useState, useTransition} from "react";
 import {acceptAnswer, addVote} from "@/lib/actions/question-actions";
