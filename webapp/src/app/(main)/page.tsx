@@ -13,9 +13,11 @@ export default async function Home({searchParams}: {searchParams?: Promise<Quest
 
     return (
         <>
-            <Suspense>
-                <QuestionsHeader total={questions?.totalCount ?? 0} tag={params?.tag} />
-            </Suspense>
+            <div className='sticky top-0 z-40 bg-white dark:bg-[#18181b] border-b border-neutral-200 dark:border-neutral-800'>
+                <Suspense>
+                    <QuestionsHeader total={questions?.totalCount ?? 0} tag={params?.tag} />
+                </Suspense>
+            </div>
             {questions?.items.map(question => (
                 <div key={question.id} className='py-4 not-last:border-b border-neutral-200 dark:border-neutral-800 w-full flex'>
                     <QuestionCard key={question.id} question={question} />

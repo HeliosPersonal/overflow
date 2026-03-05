@@ -18,7 +18,7 @@ export default function SideMenu() {
             aria-label='nav links'
             variant='faded'
             items={navLinks}
-            className='sticky top-20 ml-6'
+            className='ml-6'
         >
             {({key, href, icon: Icon, text}) => (
                 <ListboxItem
