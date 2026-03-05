@@ -14,35 +14,48 @@ export default function SearchInput() {
     const [results, setResults] = useState<Question[] | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
         if (!query) {
-            const reset = () => {
+            timeoutRef.current = setTimeout(() => {
                 setResults(null);
                 setShowDropdown(false);
-            };
-            reset();
+            }, 0);
             return;
         }
-        
+
         timeoutRef.current = setTimeout(async () => {
             setLoading(true);
             const {data: questions} = await searchQuestions(query);
             setResults(questions);
             setLoading(false);
             setShowDropdown(true);
-        }, 300)
+        }, 300);
     }, [query]);
-    
+
     const onAction = () => {
         setQuery('');
         setResults(null);
-    }
-    
+        setShowDropdown(false);
+    };
+
+    const handleBlur = () => {
+        setTimeout(() => {
+            if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
+                setShowDropdown(false);
+            }
+        }, 150);
+    };
+
+    const handleFocus = () => {
+        if (results && results.length > 0) setShowDropdown(true);
+    };
+
     return (
-        <div className='flex flex-col w-full'>
+        <div ref={containerRef} className='flex flex-col w-full' onBlur={handleBlur}>
             <Input
                 startContent={<MagnifyingGlassIcon className='size-6' />}
                 className='ml-6'
@@ -50,10 +63,11 @@ export default function SearchInput() {
                 placeholder='Search'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={handleFocus}
                 endContent={loading && <Spinner size='sm' />}
             />
             {showDropdown && results && (
-                <div 
+                <div
                     className='absolute top-full z-50 bg-white dark:bg-default-50 shadow-lg border-2 border-neutral-800 w-[50%]'>
                     <Listbox
                         onAction={onAction}
@@ -65,7 +79,7 @@ export default function SearchInput() {
                                 href={`/questions/${question.id}`}
                                 key={question.id}
                                 startContent={
-                                    <div className='flex flex-col h-14 min-w-14 justify-center items-center 
+                                    <div className='flex flex-col h-14 min-w-14 justify-center items-center
                                         border border-neutral-200 dark:border-neutral-800 rounded-md'>
                                         <span>{question.answerCount}</span>
                                         <span className='text-xs'>answers</span>
