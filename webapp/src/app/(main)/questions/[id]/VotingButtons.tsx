@@ -2,7 +2,7 @@
 
 import {Button} from "@heroui/button";
 import {ArrowDownCircleIcon, ArrowUpCircleIcon, CheckCircleIcon as CheckOutlined} from "@heroicons/react/24/outline";
-import {CheckCircleIcon as CheckSolid} from "@heroicons/react/24/solid";
+import {CheckCircleIcon as CheckSolid} from "@heroicons/react/24/outline";
 import {Answer, Question, Vote} from "@/lib/types";
 import {useState, useTransition} from "react";
 import {acceptAnswer, addVote} from "@/lib/actions/question-actions";

@@ -2,7 +2,7 @@
 
 import {Button} from "@heroui/button";
 import {useTheme} from "next-themes";
-import {MoonIcon, SunIcon} from "@heroicons/react/24/solid";
+import {MoonIcon, SunIcon} from "@heroicons/react/24/outline";
 import {useEffect, useState} from "react";
 
 export default function ThemeToggle() {
@@ -10,7 +10,8 @@ export default function ThemeToggle() {
     const [mounted, setMounted] = useState(false);
     
     useEffect(() => {
-        setMounted(true);
+        const mount = () => setMounted(true);
+        mount();
     }, []);
     
     if (!mounted) return null;

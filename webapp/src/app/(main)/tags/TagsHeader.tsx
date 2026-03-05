@@ -1,6 +1,6 @@
 'use client'
 
-import {MagnifyingGlassIcon} from '@heroicons/react/24/solid'
+import {MagnifyingGlassIcon} from '@heroicons/react/24/outline'
 import {Input} from "@heroui/input";
 import {Tab, Tabs} from "@heroui/tabs";
 import {useRouter} from "next/navigation";

@@ -1,7 +1,7 @@
 'use client';
 
 import {Input} from "@heroui/input";
-import {MagnifyingGlassIcon} from "@heroicons/react/24/solid";
+import {MagnifyingGlassIcon} from "@heroicons/react/24/outline";
 import {useEffect, useRef, useState} from "react";
 import {Question} from "@/lib/types";
 import {searchQuestions} from "@/lib/actions/question-actions";
@@ -17,10 +17,13 @@ export default function SearchInput() {
     
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        
+
         if (!query) {
-            setResults(null);
-            setShowDropdown(false);
+            const reset = () => {
+                setResults(null);
+                setShowDropdown(false);
+            };
+            reset();
             return;
         }
         
