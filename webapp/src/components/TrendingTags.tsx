@@ -26,8 +26,8 @@ export default function TrendingTags() {
         : 1;
 
     return (
-        <div className='bg-primary-50 p-6 rounded-2xl'>
-            <h3 className='text-2xl text-primary mb-5 text-center'>Trending tags this week</h3>
+        <div className='bg-default-100 border border-default-200 p-6 rounded-2xl'>
+            <h3 className='text-lg font-semibold text-foreground-600 mb-5'>Trending tags this week</h3>
             <div className='flex flex-col px-6 gap-4'>
                 {error ? (
                     <div>Unavailable</div>
