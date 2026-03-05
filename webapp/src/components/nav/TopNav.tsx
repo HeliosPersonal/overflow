@@ -14,7 +14,7 @@ export default async function TopNav() {
             <div className='flex px-10 mx-auto'>
                 <div className='flex items-center gap-6'>
                     <Link href='/' className='flex items-center gap-3 max-h-16'>
-                        <AcademicCapIcon className='size-10 text-secondary' />
+                        <AcademicCapIcon className='size-10 text-primary' />
                         <h3 className='text-xl font-semibold uppercase'>Overflow</h3>
                     </Link>
                 </div>

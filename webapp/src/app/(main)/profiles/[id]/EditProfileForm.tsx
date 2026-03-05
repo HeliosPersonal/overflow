@@ -51,7 +51,7 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
             <Button
                 isLoading={isSubmitting || pending}
                 isDisabled={isSubmitting || !isValid}
-                color='secondary'
+                color='primary'
                 className='w-fit'
                 type='submit'
             >Submit</Button>

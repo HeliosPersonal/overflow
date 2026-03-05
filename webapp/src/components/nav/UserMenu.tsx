@@ -15,7 +15,7 @@ export default function UserMenu({ user }: Props) {
             <DropdownTrigger>
                 <div className='flex items-center gap-2 cursor-pointer'>
                     <Avatar suppressHydrationWarning 
-                            color='secondary' size='sm' name={user.displayName?.charAt(0)} />
+                            color='primary' size='sm' name={user.displayName?.charAt(0)} />
                     {user.displayName}
                 </div>
             </DropdownTrigger>

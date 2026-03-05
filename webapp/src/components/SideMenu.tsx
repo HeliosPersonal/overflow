@@ -28,7 +28,7 @@ export default function SideMenu() {
                     key={key}
                     startContent={<Icon className='h-6' />}
                     classNames={{
-                        base: pathname === href ? 'text-secondary' : '',
+                        base: pathname === href ? 'text-primary' : '',
                         title: 'text-lg'
                     }}
                 >

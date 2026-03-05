@@ -40,7 +40,7 @@ export default function QuestionsHeader({tag, total}: Props) {
                     <p className='font-light'>{selectedTag?.description}</p>
                 </div>
                 <Link href='/questions/ask'>
-                    <Button color='secondary'>
+                    <Button color='primary'>
                         Ask Question
                     </Button>
                 </Link>

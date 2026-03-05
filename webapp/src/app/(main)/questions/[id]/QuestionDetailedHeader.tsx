@@ -19,7 +19,7 @@ export default async function QuestionDetailedHeader({question}: Props) {
                     {question.title}
                 </div>
                 <Link href='/questions/ask'>
-                    <Button color='secondary'>
+                    <Button color='primary'>
                         Ask Question
                     </Button>
                 </Link>

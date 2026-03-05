@@ -60,7 +60,7 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
             <div className='flex flex-col basis-2/5 bg-primary/10 px-3 py-2 gap-2 rounded-lg'>
                 <span className='text-sm font-extralight'>answered {timeAgo(answer.createdAt)}</span>
                 <div className='flex items-center gap-3'>
-                    <Avatar className='h-6 w-6' color='secondary'
+                    <Avatar className='h-6 w-6' color='primary'
                             name={answer.author?.displayName.charAt(0)} />
                     <div className='flex flex-col items-center'>
                         <span>{answer.author?.displayName}</span>

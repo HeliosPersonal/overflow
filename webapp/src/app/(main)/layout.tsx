@@ -13,7 +13,7 @@ export default function MainLayout({
     <>
       <TopNav />
       <div className="flex grow overflow-auto">
-        <aside className='basis-1/6 shrink-0 border-r border-neutral-200 dark:border-neutral-800 pt-20 sticky top-0 px-6'>
+        <aside className='basis-1/10 shrink-0 border-r border-neutral-200 dark:border-neutral-800 pt-20 sticky top-0 px-6'>
           <SideMenu />
         </aside>
         <main className='flex-1 pt-20 h-full'>

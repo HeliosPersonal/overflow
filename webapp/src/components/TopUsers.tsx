@@ -28,7 +28,7 @@ export default function TopUsers() {
 
     return (
         <div className='bg-primary-50 p-6 rounded-2xl'>
-            <h3 className='text-2xl text-secondary mb-5 text-center'>Most points this week</h3>
+            <h3 className='text-2xl text-primary mb-5 text-center'>Most points this week</h3>
             <div className='flex flex-col px-6 gap-4'>
                 {error ? (
                     <div>Unavailable</div>
@@ -43,7 +43,7 @@ export default function TopUsers() {
                                     </div>
                                     <Progress
                                         aria-label={`${u.profile!.displayName} points`}
-                                        color="success"
+                                        color="primary"
                                         showValueLabel={true}
                                         size="md"
                                         value={percentage}

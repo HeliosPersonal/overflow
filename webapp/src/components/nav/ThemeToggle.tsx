@@ -18,7 +18,7 @@ export default function ThemeToggle() {
     
     return (
         <Button
-            color='primary'
+            color='default'
             variant='light'
             isIconOnly
             aria-label='Toggle Theme'
@@ -27,7 +27,7 @@ export default function ThemeToggle() {
             {theme === 'light' ? (
                 <MoonIcon className='h-8' />
             ) : (
-                <SunIcon className='h-8 text-yellow-300' />
+                <SunIcon className='h-8 ' />
             )}
         </Button>
     );

@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <AcademicCapIcon className="size-12 text-secondary" />
+                            <AcademicCapIcon className="size-12 text-primary" />
                             <h1 className="text-3xl font-bold uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <AcademicCapIcon className="size-12 text-secondary" />
+                            <AcademicCapIcon className="size-12 text-primary" />
                             <h1 className="text-3xl font-bold uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <AcademicCapIcon className="size-12 text-secondary" />
+                        <AcademicCapIcon className="size-12 text-primary" />
                         <h1 className="text-3xl font-bold uppercase">Overflow</h1>
                     </Link>
                 </div>

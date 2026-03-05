@@ -42,7 +42,7 @@ export default function AppPagination({totalCount}: Props) {
                             variant={size === pageSize ? 'solid' : 'bordered'}
                             isIconOnly
                             size='sm'
-                            color='secondary'
+                            color='primary'
                             onPress={() => {
                                 setCurrentPage(1);
                                 setPageSize(size);
@@ -56,7 +56,7 @@ export default function AppPagination({totalCount}: Props) {
             </div>
             <Pagination 
                 total={Math.ceil(totalCount / pageSize)} 
-                color='secondary'
+                color='primary'
                 onChange={(page) => {
                     setCurrentPage(page);
                     updateURL(page, pageSize);

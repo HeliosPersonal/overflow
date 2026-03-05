@@ -19,7 +19,7 @@ export default function ProfileDetailed({profile, currentUserProfile}: Props) {
         <Card>
             <CardHeader className='text-3xl font-semibold flex justify-between'>
                 <div className='flex items-center gap-3'>
-                    <Avatar className='h-30 w-30' color='secondary' />
+                    <Avatar className='h-30 w-30' color='primary' />
                     <span>{profile.displayName}</span>
                 </div>
                 {currentUserProfile &&

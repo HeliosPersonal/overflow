@@ -5,6 +5,9 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
   title: "Overflow",
   description: "Overflow",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

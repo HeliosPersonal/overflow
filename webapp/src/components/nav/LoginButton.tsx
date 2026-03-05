@@ -8,7 +8,7 @@ export default function LoginButton() {
     
     return (
         <Button 
-            color='secondary' 
+            color='primary'
             variant='bordered'
             type='button'
             onPress={() => router.push('/login?callbackUrl=/questions')}

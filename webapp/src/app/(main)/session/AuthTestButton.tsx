@@ -13,7 +13,7 @@ export default function AuthTestButton() {
     
     return (
         <Button
-            color='success'
+            color='primary'
             onPress={onClick}
         >
             Test Auth

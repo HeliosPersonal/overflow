@@ -65,7 +65,7 @@ export default function QuestionCard({question}: Props) {
                         <div className='text-sm flex items-center gap-2'>
                             <Avatar 
                                 className='h-6 w-6'
-                                color='secondary'
+                                color='primary'
                                 name={question.author?.displayName?.charAt(0)}
                             />
                             <Link href={`/profiles/${question.askerId}`}>
