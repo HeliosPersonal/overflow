@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
                             <AcademicCapIcon className="size-12 text-primary" />
-                            <h1 className="text-3xl font-bold uppercase">Overflow</h1>
+                            <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
 
@@ -114,7 +114,7 @@ export default function ResetPasswordPage() {
                                     <path d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
                             </div>
-                            <h2 className="mb-2 text-xl font-bold">Invalid Reset Link</h2>
+                            <h2 className="mb-2">Invalid Reset Link</h2>
                             <p className="mb-4 text-sm text-default-500">
                                 This password reset link is invalid or has expired.
                             </p>
@@ -137,7 +137,7 @@ export default function ResetPasswordPage() {
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
                             <AcademicCapIcon className="size-12 text-primary" />
-                            <h1 className="text-3xl font-bold uppercase">Overflow</h1>
+                            <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
 
@@ -156,7 +156,7 @@ export default function ResetPasswordPage() {
                                     <path d="M5 13l4 4L19 7"></path>
                                 </svg>
                             </div>
-                            <h2 className="mb-2 text-xl font-bold">Password Reset Successful</h2>
+                            <h2 className="mb-2">Password Reset Successful</h2>
                             <p className="mb-4 text-sm text-default-500">
                                 Your password has been reset successfully. Redirecting to login...
                             </p>
@@ -173,13 +173,13 @@ export default function ResetPasswordPage() {
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
                         <AcademicCapIcon className="size-12 text-primary" />
-                        <h1 className="text-3xl font-bold uppercase">Overflow</h1>
+                        <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>
 
                 <Card className="w-full">
                     <CardHeader className="flex flex-col gap-1 px-6 pt-6">
-                        <h2 className="text-2xl font-bold">Set new password</h2>
+                        <h2>Set new password</h2>
                         <p className="text-sm text-default-500">
                             Enter your new password below
                         </p>

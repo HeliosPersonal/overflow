@@ -61,7 +61,7 @@ export default function QuestionForm({questionToUpdate}: Props) {
     return (
         <Form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-3 p-6 shadow-xl bg-white dark:bg-black'>
             <div className='flex flex-col gap-3 w-full'>
-                <h3 className='text-2xl font-semibold'>Title</h3>
+                <h2>Title</h2>
                 <Input
                     {...register('title')}
                     type='text'
@@ -74,7 +74,7 @@ export default function QuestionForm({questionToUpdate}: Props) {
                 />
             </div>
             <div className='flex flex-col gap-3 w-full'>
-                <h3 className='text-2xl font-semibold'>Body</h3>
+                <h2>Body</h2>
                 <Controller
                     control={control}
                     name='content'
@@ -101,7 +101,7 @@ export default function QuestionForm({questionToUpdate}: Props) {
                 />
             </div>
             <div className='flex flex-col gap-3 w-full'>
-                <h3 className='text-2xl font-semibold'>Tags</h3>
+                <h2>Tags</h2>
                 <p className='text-sm'>Add up to 5 tags to describe what your question is about</p>
                 {tags.length > 0 &&
                 <Controller

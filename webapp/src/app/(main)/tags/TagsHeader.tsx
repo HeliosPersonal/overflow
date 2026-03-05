@@ -15,7 +15,7 @@ export default function TagHeader() {
     return (
         <div className='flex flex-col w-full gap-4 pb-4'>
             <div className='flex flex-col items-start gap-3'>
-                <div className='text-3xl font-semibold'>Tags</div>
+                <h1>Tags</h1>
                 <p>A tag is a keyword or label that categorizes your question with other,
                     similar questions. Using the right tags makes it easier for others to find
                     and answer your question.</p>

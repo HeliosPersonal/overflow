@@ -15,9 +15,9 @@ export default async function QuestionDetailedHeader({question}: Props) {
     return (
         <div className='flex flex-col w-full border-b border-neutral-200 dark:border-neutral-800 gap-4 pb-4 px-6'>
             <div className='flex justify-between gap-4'>
-                <div className='text-3xl font-semibold first-letter:uppercase'>
+                <h1 className='first-letter:uppercase'>
                     {question.title}
-                </div>
+                </h1>
                 <Link href='/questions/ask'>
                     <Button color='primary'>
                         Ask Question

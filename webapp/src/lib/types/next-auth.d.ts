@@ -1,19 +1,18 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import NextAuth, {DefaultSession} from 'next-auth';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import {JWT} from 'next-auth/jwt';
+// These imports are required to enable module augmentation for next-auth
+import 'next-auth';
+import 'next-auth/jwt';
 import {DefaultUser} from "@auth/core/types";
 
 declare module 'next-auth' {
     interface Session {
         user: {
             id: string;
-            displayName: string
-            reputation: number
-        } & DefaultUser
+            displayName: string;
+            reputation: number;
+        } & DefaultUser;
         accessToken: string;
     }
-    
+
     interface User {
         id: string;
         displayName: string;
@@ -32,7 +31,7 @@ declare module 'next-auth/jwt' {
             displayName: string;
             reputation: number;
             email: string;
-            emailVerified: Date;
-        }
+            emailVerified: Date | null;
+        };
     }
 }

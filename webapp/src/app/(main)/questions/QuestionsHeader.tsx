@@ -34,20 +34,20 @@ export default function QuestionsHeader({tag, total}: Props) {
         <div className='flex flex-col w-full border-b border-neutral-200 dark:border-neutral-800 gap-4 pb-4'>
             <div className='flex justify-between px-6'>
                 <div className='flex flex-col items-start gap-2'>
-                    <div className='text-3xl font-semibold'>
+                    <h1>
                         {tag ? `[${tag}]` : 'Newest Questions'}
-                    </div>
+                    </h1>
                     <p className='font-light'>{selectedTag?.description}</p>
                 </div>
                 <Link href='/questions/ask'>
-                    <Button color='primary'>
+                    <Button color='primary' size='lg'>
                         Ask Question
                     </Button>
                 </Link>
             </div>
             <div className='flex justify-between px-6 items-center'>
                 <div>{total} {total === 1 ? 'Question' : 'Questions'}</div>
-                <div className='flex items-center'>
+                <div className='flex items-center gap-4'>
                     <Tabs
                         selectedKey={selected}
                         onSelectionChange={handleTabChange}

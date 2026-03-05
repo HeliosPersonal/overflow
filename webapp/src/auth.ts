@@ -208,20 +208,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Initial sign in with Keycloak provider
             if (account?.provider === 'keycloak' && account.access_token && account.refresh_token) {
                 console.log('[JWT Callback] Processing Keycloak provider sign-in');
-                
+
                 const res = await fetch(apiConfig.baseUrl + '/profiles/me', {
-                    headers: {
-                        Authorization: `Bearer ${account.access_token}`,
-                    }
-                })
-                
+                    headers: { Authorization: `Bearer ${account.access_token}` }
+                });
+
                 if (res.ok) {
-                    token.user = await res.json()
+                    token.user = await res.json();
                     console.log('[JWT Callback] Profile fetched for Keycloak user');
                 } else {
-                    console.error('[JWT Callback] Failed to fetch user profile:', await res.text())
+                    console.error('[JWT Callback] Failed to fetch user profile:', await res.text());
                 }
-                
+
                 token.accessToken = account.access_token
                 token.refreshToken = account.refresh_token;
                 token.accessTokenExpires = now + account.expires_in!;

@@ -45,7 +45,7 @@ export default function AnswerForm({questionId}: Props) {
     
     return (
         <div id='answer-form' className='flex flex-col gap-3 items-start my-4 w-full px-6'>
-            <h3 className='text-2xl'>Your answer</h3>
+            <h2>Your answer</h2>
             <form className='w-full flex flex-col gap-3' onSubmit={handleSubmit(onSubmit)}>
                 <Controller 
                     control={control}

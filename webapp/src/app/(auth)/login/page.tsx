@@ -97,13 +97,13 @@ export default function LoginPage() {
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
                         <AcademicCapIcon className="size-12 text-primary" />
-                        <h1 className="text-3xl font-bold uppercase">Overflow</h1>
+                        <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>
 
                 <Card className="w-full">
                     <CardHeader className="flex flex-col gap-1 px-6 pt-6">
-                        <h2 className="text-2xl font-bold">Welcome back</h2>
+                        <h2>Welcome back</h2>
                         <p className="text-sm text-default-500">
                             Sign in to your account to continue
                         </p>

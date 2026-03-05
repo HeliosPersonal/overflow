@@ -1,57 +1,48 @@
-import { heroui, commonColors } from "@heroui/react";
+import {heroui} from "@heroui/react";
 
-// ─── QUICK SWAP ───────────────────────────────────────────────────────────────
-// Change this one line to switch the whole app's brand color:
-//   commonColors.blue | purple | green | pink | cyan | red | yellow | zinc
-const brand = commonColors.purple;
-// ─────────────────────────────────────────────────────────────────────────────
+// ── To change primary color: edit globals.css (.light / .dark blocks) ─────────
+// ── Other colors (danger, success, etc.): edit the theme blocks below ─────────
+
+const brand = {
+    50:  "#f3eff8",
+    100: "#e4daf0",
+    200: "#c9b5e1",
+    300: "#a98bcb",
+    400: "#8a64b3",  // dark-mode primary DEFAULT
+    500: "#6b4899",  // light-mode primary DEFAULT
+    600: "#543a7a",
+    700: "#3d2b5c",
+    800: "#271b3d",
+    900: "#130d1f",
+};
 
 export default heroui({
     themes: {
         light: {
             colors: {
-                // ── Page background ───────────────────────────────────────────
-                // Used by <body> and HeroUI's bg-background utility
                 background: "#FFFFFF",
-
-                // ── Default text color ────────────────────────────────────────
-                // text-foreground → main body text
-                // text-foreground-500 → muted/secondary text (labels, captions)
-                // text-foreground-400 → even more muted (placeholders)
                 foreground: {
-                    DEFAULT: "#11181C",  // main text
+                    DEFAULT: "#11181C",
                     50:  "#fafafa",
                     100: "#f4f4f5",
                     200: "#e4e4e7",
                     300: "#d4d4d8",
-                    400: "#a1a1aa",      // placeholder / very muted
-                    500: "#71717a",      // secondary text, labels
+                    400: "#a1a1aa",
+                    500: "#71717a",
                     600: "#52525b",
                     700: "#3f3f46",
                     800: "#27272a",
                     900: "#18181b",
                 },
-
-                // ── Brand / primary color ─────────────────────────────────────
-                // Used by: buttons (color='primary'), links, active states,
-                //          progress bars, pagination, avatars, icons (text-primary)
                 primary: {
                     ...brand,
                     DEFAULT: brand[500],
-                    foreground: "#ffffff", // text ON primary-colored buttons
+                    foreground: "#ffffff",
                 },
-
-                // ── Secondary color ───────────────────────────────────────────
-                // Currently unused in this app after color consolidation.
-                // Can be used for badges, chips, or accent elements.
                 secondary: {
                     DEFAULT: brand[300],
                     foreground: "#ffffff",
                 },
-
-                // ── Danger / destructive color ────────────────────────────────
-                // Used by: Delete buttons (color='danger'), error text,
-                //          form validation errors
                 danger: {
                     DEFAULT: "#f31260",
                     foreground: "#ffffff",
@@ -66,66 +57,82 @@ export default heroui({
                     800: "#610726",
                     900: "#310413",
                 },
-
-                // ── Success color ─────────────────────────────────────────────
-                // Used by: accepted answer checkmark (text-success)
                 success: {
                     DEFAULT: "#17c964",
                     foreground: "#000000",
+                    50:  "#e8faf0",
+                    100: "#d1f4e0",
+                    200: "#a2e9c1",
+                    300: "#74dfa2",
+                    400: "#45d483",
+                    500: "#17c964",
+                    600: "#12a150",
+                    700: "#0e793c",
+                    800: "#095028",
+                    900: "#052814",
                 },
-
-                // ── Warning color ─────────────────────────────────────────────
-                // Not currently used, available for alerts/toasts
                 warning: {
                     DEFAULT: "#f5a524",
                     foreground: "#000000",
+                    50:  "#fefce8",
+                    100: "#fdedd3",
+                    200: "#fbdba7",
+                    300: "#f9c97c",
+                    400: "#f7b750",
+                    500: "#f5a524",
+                    600: "#c4841d",
+                    700: "#936316",
+                    800: "#62420e",
+                    900: "#312107",
                 },
-
-                // ── Content layers (card/panel backgrounds) ───────────────────
-                // content1 → cards, modals (bg-content1)
-                // content2 → nested content (bg-content2)
-                // content3/4 → deeper nesting levels
-                content1: { DEFAULT: "#ffffff", foreground: "#11181C" },
-                content2: { DEFAULT: "#f4f4f5", foreground: "#27272a" },
-                content3: { DEFAULT: "#e4e4e7", foreground: "#3f3f46" },
-                content4: { DEFAULT: "#d4d4d8", foreground: "#52525b" },
+                default: {
+                    DEFAULT: "#d4d4d8",
+                    foreground: "#11181C",
+                    50:  "#fafafa",
+                    100: "#f4f4f5",
+                    200: "#e4e4e7",
+                    300: "#d4d4d8",
+                    400: "#a1a1aa",
+                    500: "#71717a",
+                    600: "#52525b",
+                    700: "#3f3f46",
+                    800: "#27272a",
+                    900: "#18181b",
+                },
+                divider: "rgba(0,0,0,0.12)",
+                focus: brand[500],
+                overlay: "#000000",
+                content1: { DEFAULT: "#ffffff",  foreground: "#11181C" },
+                content2: { DEFAULT: "#f4f4f5",  foreground: "#27272a" },
+                content3: { DEFAULT: "#e4e4e7",  foreground: "#3f3f46" },
+                content4: { DEFAULT: "#d4d4d8",  foreground: "#52525b" },
             },
         },
         dark: {
             colors: {
-                // ── Page background ───────────────────────────────────────────
                 background: "#000000",
-
-                // ── Default text color ────────────────────────────────────────
                 foreground: {
                     DEFAULT: "#ECEDEE",
                     50:  "#18181b",
                     100: "#27272a",
                     200: "#3f3f46",
                     300: "#52525b",
-                    400: "#71717a",      // placeholder / very muted
-                    500: "#a1a1aa",      // secondary text, labels
+                    400: "#71717a",
+                    500: "#a1a1aa",
                     600: "#d4d4d8",
                     700: "#e4e4e7",
                     800: "#f4f4f5",
                     900: "#fafafa",
                 },
-
-                // ── Brand / primary color ─────────────────────────────────────
-                // Slightly lighter shade for dark mode readability
                 primary: {
                     ...brand,
                     DEFAULT: brand[400],
                     foreground: "#ffffff",
                 },
-
-                // ── Secondary color ───────────────────────────────────────────
                 secondary: {
                     DEFAULT: brand[300],
                     foreground: "#ffffff",
                 },
-
-                // ── Danger ────────────────────────────────────────────────────
                 danger: {
                     DEFAULT: "#f31260",
                     foreground: "#ffffff",
@@ -140,20 +147,51 @@ export default heroui({
                     800: "#610726",
                     900: "#310413",
                 },
-
-                // ── Success ───────────────────────────────────────────────────
                 success: {
                     DEFAULT: "#17c964",
                     foreground: "#000000",
+                    50:  "#e8faf0",
+                    100: "#d1f4e0",
+                    200: "#a2e9c1",
+                    300: "#74dfa2",
+                    400: "#45d483",
+                    500: "#17c964",
+                    600: "#12a150",
+                    700: "#0e793c",
+                    800: "#095028",
+                    900: "#052814",
                 },
-
-                // ── Warning ───────────────────────────────────────────────────
                 warning: {
                     DEFAULT: "#f5a524",
                     foreground: "#000000",
+                    50:  "#fefce8",
+                    100: "#fdedd3",
+                    200: "#fbdba7",
+                    300: "#f9c97c",
+                    400: "#f7b750",
+                    500: "#f5a524",
+                    600: "#c4841d",
+                    700: "#936316",
+                    800: "#62420e",
+                    900: "#312107",
                 },
-
-                // ── Content layers ────────────────────────────────────────────
+                default: {
+                    DEFAULT: "#3f3f46",
+                    foreground: "#ECEDEE",
+                    50:  "#18181b",
+                    100: "#27272a",
+                    200: "#3f3f46",
+                    300: "#52525b",
+                    400: "#71717a",
+                    500: "#a1a1aa",
+                    600: "#d4d4d8",
+                    700: "#e4e4e7",
+                    800: "#f4f4f5",
+                    900: "#fafafa",
+                },
+                divider: "rgba(255,255,255,0.12)",
+                focus: brand[400],
+                overlay: "#000000",
                 content1: { DEFAULT: "#18181b", foreground: "#ECEDEE" },
                 content2: { DEFAULT: "#27272a", foreground: "#d4d4d8" },
                 content3: { DEFAULT: "#3f3f46", foreground: "#e4e4e7" },

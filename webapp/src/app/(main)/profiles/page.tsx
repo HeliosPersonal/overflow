@@ -13,7 +13,7 @@ export default async function Page({searchParams}: {searchParams: SearchParams})
 
     return (
         <div className="flex flex-col gap-3 px-6">
-            <h3 className='text-3xl font-semibold'>User table</h3>
+            <h1>User table</h1>
             <ProfilesList profiles={profiles} />
         </div>
     );

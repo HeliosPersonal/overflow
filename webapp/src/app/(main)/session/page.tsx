@@ -9,7 +9,7 @@ export default async function Page() {
     return (
         <div className="px-6">
             <div className='text-center'>
-                <h3 className='text-3xl'>Session dashboard</h3>
+                <h1>Session dashboard</h1>
             </div>
             
             <Snippet
