@@ -42,7 +42,6 @@ export default function AppPagination({totalCount}: Props) {
                             variant={size === pageSize ? 'solid' : 'bordered'}
                             isIconOnly
                             size='sm'
-                            color='primary'
                             onPress={() => {
                                 setCurrentPage(1);
                                 setPageSize(size);
@@ -54,16 +53,23 @@ export default function AppPagination({totalCount}: Props) {
                     ))}
                 </div>
             </div>
-            <Pagination 
-                total={Math.ceil(totalCount / pageSize)} 
-                color='primary'
-                onChange={(page) => {
-                    setCurrentPage(page);
-                    updateURL(page, pageSize);
-                }}
-                page={currentPage}
-                className='cursor-pointer'
-            />
+            <div className='flex items-center gap-3'>
+                <span className='text-sm text-default-500'>
+                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                </span>
+                <Pagination
+                    total={Math.ceil(totalCount / pageSize)}
+                    onChange={(page) => {
+                        setCurrentPage(page);
+                        updateURL(page, pageSize);
+                    }}
+                    page={currentPage}
+                    className='cursor-pointer'
+                    classNames={{
+                        cursor: 'bg-default-200 text-default-800 shadow-none',
+                    }}
+                />
+            </div>
         </div>
     );
 }
