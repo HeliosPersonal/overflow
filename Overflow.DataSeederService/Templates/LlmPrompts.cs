@@ -128,7 +128,7 @@ public static class LlmPrompts
             "  \"tags\": [\"csharp\", \"entity-framework-core\", \"linq\"]\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 700, Temperature: 0.5);
+        return new LlmPrompt(system, user, MaxTokens: 1200, Temperature: 0.5);
     }
 
     // ─────────────────────────────────────────────
@@ -190,7 +190,7 @@ public static class LlmPrompts
             "  \"accepted\": false\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 600, Temperature: 0.4);
+        return new LlmPrompt(system, user, MaxTokens: 900, Temperature: 0.4);
     }
 
     // ─────────────────────────────────────────────

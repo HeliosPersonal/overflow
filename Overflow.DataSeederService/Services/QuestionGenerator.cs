@@ -171,7 +171,15 @@ public class QuestionGenerator
                 continue;
             }
 
-            var htmlContent = ContentAssembler.BuildQuestionHtml(dto);
+            var htmlContent = ContentAssembler.BuildQuestionHtml(dto, _logger);
+
+            if (!ContentAssembler.ValidateRenderedQuestion(htmlContent, dto, out var renderError))
+            {
+                _logger.LogWarning("[Pipeline] Attempt {A}/{Max}: render validation failed — {Error}",
+                    attempt, maxAttempts, renderError);
+                continue;
+            }
+
             _logger.LogInformation("[Pipeline] Question ready (attempt {A}): '{Title}' ({Len} chars HTML)",
                 attempt, cleanTitle, htmlContent.Length);
             return (cleanTitle, htmlContent);

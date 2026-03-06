@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Overflow.DataSeederService.Models;
 
 namespace Overflow.DataSeederService.Services;
@@ -16,6 +17,10 @@ namespace Overflow.DataSeederService.Services;
 /// </summary>
 public static class ContentAssembler
 {
+    // Minimum HTML length thresholds — content shorter than this is considered broken
+    private const int MinQuestionHtmlLength = 300;
+    private const int MinAnswerHtmlLength   = 150;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Question assembly
     // ─────────────────────────────────────────────────────────────────────────
@@ -23,54 +28,86 @@ public static class ContentAssembler
     /// <summary>
     /// Assembles a StackOverflow-style question body and converts it to HTML.
     ///
-    /// Output layout (markdown before HTML conversion):
+    /// Output layout:
+    ///   {context}
     ///
-    ///   {context paragraphs}
-    ///
+    ///   ### Code example
     ///   ```lang
     ///   {code_example}
     ///   ```
     ///
-    ///   **Expected behaviour:** {expected_behavior}
+    ///   ### Expected behavior
+    ///   {expected_behavior}
     ///
-    ///   **Actual behaviour:** {actual_behavior}
+    ///   ### Actual behavior
+    ///   {actual_behavior}
     /// </summary>
-    public static string BuildQuestionHtml(QuestionGenerationDto dto)
+    public static string BuildQuestionHtml(QuestionGenerationDto dto, ILogger? logger = null)
+    {
+        var markdown = RenderQuestionMarkdown(dto, logger);
+        var html     = LlmClient.SanitizeHtml(markdown);
+
+        logger?.LogInformation(
+            "[Render] Question DTO lengths: context={CtxLen}, codeExample={CodeLen}, " +
+            "expectedBehavior={ExpLen}, actualBehavior={ActLen}, " +
+            "renderedMarkdown={MdLen}, renderedHtml={HtmlLen}",
+            dto.Context.Length,
+            dto.CodeExample.Length,
+            dto.ExpectedBehavior.Length,
+            dto.ActualBehavior.Length,
+            markdown.Length,
+            html.Length);
+
+        logger?.LogDebug("[Render] Question markdown:\n{Markdown}", markdown);
+        logger?.LogDebug("[Render] Question HTML:\n{Html}", html);
+
+        return html;
+    }
+
+    /// <summary>
+    /// Renders the question DTO into a structured markdown string.
+    /// </summary>
+    public static string RenderQuestionMarkdown(QuestionGenerationDto dto, ILogger? logger = null)
     {
         var md = new StringBuilder();
 
         // Context — normalise whitespace and enforce paragraph spacing
         if (!string.IsNullOrWhiteSpace(dto.Context))
         {
-            var context = NormaliseText(dto.Context);
-            md.AppendLine(context);
+            md.AppendLine(NormalizeMarkdown(dto.Context));
         }
 
-        // Code block — the service always provides the fences; the LLM never does
+        // Code block with explicit section header
         if (!string.IsNullOrWhiteSpace(dto.CodeExample))
         {
             var lang = NormaliseLanguage(dto.Language);
+            md.AppendLine();
+            md.AppendLine("### Code example");
             md.AppendLine();
             md.AppendLine($"```{lang}");
             md.AppendLine(dto.CodeExample.Trim());
             md.AppendLine("```");
         }
 
-        // Expected / Actual behaviour
-        var hasExpected = !string.IsNullOrWhiteSpace(dto.ExpectedBehavior);
-        var hasActual   = !string.IsNullOrWhiteSpace(dto.ActualBehavior);
-
-        if (hasExpected || hasActual)
+        // Expected behavior
+        if (!string.IsNullOrWhiteSpace(dto.ExpectedBehavior))
         {
             md.AppendLine();
-            if (hasExpected)
-                md.AppendLine($"**Expected behaviour:** {dto.ExpectedBehavior.Trim()}");
-            if (hasActual)
-                md.AppendLine($"**Actual behaviour:** {dto.ActualBehavior.Trim()}");
+            md.AppendLine("### Expected behavior");
+            md.AppendLine();
+            md.AppendLine(dto.ExpectedBehavior.Trim());
         }
 
-        var markdown = CollapseBlankLines(md.ToString().Trim());
-        return LlmClient.SanitizeHtml(markdown);
+        // Actual behavior
+        if (!string.IsNullOrWhiteSpace(dto.ActualBehavior))
+        {
+            md.AppendLine();
+            md.AppendLine("### Actual behavior");
+            md.AppendLine();
+            md.AppendLine(dto.ActualBehavior.Trim());
+        }
+
+        return CollapseBlankLines(md.ToString().Trim());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -80,34 +117,59 @@ public static class ContentAssembler
     /// <summary>
     /// Assembles a StackOverflow-style answer body and converts it to HTML.
     ///
-    /// Output layout (markdown before HTML conversion):
-    ///
+    /// Output layout:
     ///   {explanation}
     ///
+    ///   ### Fix
     ///   1. {fix_steps[0]}
-    ///   2. {fix_steps[1]}
     ///   ...
     ///
     ///   ```lang
     ///   {code_snippet}
     ///   ```
     ///
-    ///   {notes}   (omitted when empty)
+    ///   ### Notes
+    ///   {notes}
     /// </summary>
-    public static string BuildAnswerHtml(AnswerGenerationDto dto)
+    public static string BuildAnswerHtml(AnswerGenerationDto dto, ILogger? logger = null)
+    {
+        var markdown = RenderAnswerMarkdown(dto, logger);
+        var html     = LlmClient.SanitizeHtml(markdown);
+
+        logger?.LogInformation(
+            "[Render] Answer DTO lengths: explanation={ExpLen}, fixSteps={StepsCount}, " +
+            "codeSnippet={CodeLen}, renderedMarkdown={MdLen}, renderedHtml={HtmlLen}",
+            dto.Explanation.Length,
+            dto.FixSteps.Count,
+            dto.CodeSnippet.Length,
+            markdown.Length,
+            html.Length);
+
+        logger?.LogDebug("[Render] Answer markdown:\n{Markdown}", markdown);
+        logger?.LogDebug("[Render] Answer HTML:\n{Html}", html);
+
+        return html;
+    }
+
+    /// <summary>
+    /// Renders the answer DTO into a structured markdown string.
+    /// </summary>
+    public static string RenderAnswerMarkdown(AnswerGenerationDto dto, ILogger? logger = null)
     {
         var md = new StringBuilder();
 
         // Root-cause explanation paragraph
         if (!string.IsNullOrWhiteSpace(dto.Explanation))
         {
-            md.AppendLine(NormaliseText(dto.Explanation));
+            md.AppendLine(NormalizeMarkdown(dto.Explanation));
         }
 
-        // Numbered fix steps
+        // Numbered fix steps under explicit header
         var steps = dto.FixSteps.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
         if (steps.Count > 0)
         {
+            md.AppendLine();
+            md.AppendLine("### Fix");
             md.AppendLine();
             for (int i = 0; i < steps.Count; i++)
                 md.AppendLine($"{i + 1}. {steps[i].Trim()}");
@@ -123,15 +185,16 @@ public static class ContentAssembler
             md.AppendLine("```");
         }
 
-        // Optional notes (only if non-trivial)
+        // Optional notes section
         if (!string.IsNullOrWhiteSpace(dto.Notes))
         {
             md.AppendLine();
-            md.AppendLine(NormaliseText(dto.Notes));
+            md.AppendLine("### Notes");
+            md.AppendLine();
+            md.AppendLine(NormalizeMarkdown(dto.Notes));
         }
 
-        var markdown = CollapseBlankLines(md.ToString().Trim());
-        return LlmClient.SanitizeHtml(markdown);
+        return CollapseBlankLines(md.ToString().Trim());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -190,6 +253,28 @@ public static class ContentAssembler
     }
 
     /// <summary>
+    /// Validates that the rendered question HTML is structurally complete.
+    /// Returns false and sets <paramref name="error"/> if validation fails.
+    /// </summary>
+    public static bool ValidateRenderedQuestion(string html, QuestionGenerationDto dto, out string error)
+    {
+        if (html.Length < MinQuestionHtmlLength)
+        {
+            error = $"rendered HTML is too short ({html.Length} chars, minimum {MinQuestionHtmlLength}) — likely partial content";
+            return false;
+        }
+
+        if (!html.Contains("<pre><code>") && !string.IsNullOrWhiteSpace(dto.CodeExample))
+        {
+            error = "rendered HTML is missing <pre><code> block despite non-empty code_example";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
+
+    /// <summary>
     /// Validates that an AnswerGenerationDto meets the minimum quality bar.
     /// Returns a list of human-readable issues (empty = valid).
     /// </summary>
@@ -223,9 +308,47 @@ public static class ContentAssembler
         return issues;
     }
 
+    /// <summary>
+    /// Validates that the rendered answer HTML is structurally complete.
+    /// Returns false and sets <paramref name="error"/> if validation fails.
+    /// </summary>
+    public static bool ValidateRenderedAnswer(string html, AnswerGenerationDto dto, out string error)
+    {
+        if (html.Length < MinAnswerHtmlLength)
+        {
+            error = $"rendered HTML is too short ({html.Length} chars, minimum {MinAnswerHtmlLength}) — likely partial content";
+            return false;
+        }
+
+        if (!html.Contains("<pre><code>") && !string.IsNullOrWhiteSpace(dto.CodeSnippet))
+        {
+            error = "rendered HTML is missing <pre><code> block despite non-empty code_snippet";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Markdown post-processing
     // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Normalises a text field: trims, collapses internal excess blank lines,
+    /// and strips inline markdown fences the model may have accidentally inserted.
+    /// </summary>
+    public static string NormalizeMarkdown(string text)
+    {
+        text = text.Trim();
+        // Remove accidental fenced code blocks from prose fields
+        text = Regex.Replace(text, @"```[a-zA-Z]*\r?\n[\s\S]*?```", "[code removed — use code_example field]");
+        // Collapse excess internal blank lines
+        text = Regex.Replace(text, @"\n{3,}", "\n\n");
+        // Trim trailing whitespace per line
+        text = Regex.Replace(text, @"[ \t]+$", "", RegexOptions.Multiline);
+        return text;
+    }
 
     /// <summary>
     /// Collapses 3+ consecutive blank lines to exactly 2, and trims trailing spaces per line.
@@ -242,22 +365,6 @@ public static class ContentAssembler
     // ─────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ─────────────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Normalises a text field: trims, collapses internal excess blank lines,
-    /// and strips inline markdown fences the model may have accidentally inserted.
-    /// </summary>
-    private static string NormaliseText(string text)
-    {
-        text = text.Trim();
-        // Remove accidental fenced code blocks from prose fields
-        text = Regex.Replace(text, @"```[a-zA-Z]*\r?\n[\s\S]*?```", "[code removed — use code_example field]");
-        // Collapse excess internal blank lines
-        text = Regex.Replace(text, @"\n{3,}", "\n\n");
-        // Trim trailing whitespace per line
-        text = Regex.Replace(text, @"[ \t]+$", "", RegexOptions.Multiline);
-        return text;
-    }
 
     private static bool ContainsUiPhrase(string text, string phrase) =>
         text.Contains(phrase, StringComparison.OrdinalIgnoreCase);

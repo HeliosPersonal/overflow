@@ -160,7 +160,15 @@ public class AnswerGenerator
         }
 
         // Assemble final HTML via ContentAssembler — deterministic layout
-        return ContentAssembler.BuildAnswerHtml(answerDto);
+        var html = ContentAssembler.BuildAnswerHtml(answerDto, _logger);
+
+        if (!ContentAssembler.ValidateRenderedAnswer(html, answerDto, out var renderError))
+        {
+            _logger.LogWarning("[AnswerPipeline] Render validation failed: {Error} — falling back to template", renderError);
+            return null;
+        }
+
+        return html;
     }
 
     public async Task<List<Answer>> CreateMultipleAnswersAsync(

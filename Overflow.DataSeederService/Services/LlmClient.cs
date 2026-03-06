@@ -385,6 +385,9 @@ public class LlmClient
         if (content.TrimStart().StartsWith('<'))
             return content;
 
+        // Normalise line endings to \n only so Split is consistent
+        content = content.Replace("\r\n", "\n").Replace("\r", "\n");
+
         // Convert markdown → HTML line by line
         var lines = content.Split('\n');
         var sb = new System.Text.StringBuilder();
@@ -424,6 +427,7 @@ public class LlmClient
             if (string.IsNullOrWhiteSpace(line))
             {
                 if (listTag != "") { sb.Append($"</{listTag}>"); listTag = ""; }
+                // blank lines between block elements — no output needed in HTML
                 continue;
             }
 
@@ -447,11 +451,12 @@ public class LlmClient
             // Close any open list before non-list content
             if (listTag != "") { sb.Append($"</{listTag}>"); listTag = ""; }
 
-            // ── Heading  (# / ## / ###) → bold paragraph ──────────────────
-            var headingMatch = System.Text.RegularExpressions.Regex.Match(line, @"^#{1,3} (.+)");
+            // ── Heading  (# / ## / ###) ────────────────────────────────────
+            var headingMatch = System.Text.RegularExpressions.Regex.Match(line, @"^(#{1,3}) (.+)");
             if (headingMatch.Success)
             {
-                sb.Append("<p><strong>").Append(InlineMarkdown(headingMatch.Groups[1].Value)).Append("</strong></p>");
+                var level = headingMatch.Groups[1].Value.Length; // 1, 2, or 3
+                sb.Append($"<h{level}>").Append(InlineMarkdown(headingMatch.Groups[2].Value)).Append($"</h{level}>");
                 continue;
             }
 
