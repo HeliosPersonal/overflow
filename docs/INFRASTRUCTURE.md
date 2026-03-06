@@ -121,7 +121,7 @@ PATH                      REWRITE TO           SERVICE            PORT
 5. Backend services validate JWT against Keycloak public key
 6. On expiry — NextAuth silently refreshes using `refresh_token`
 
-#### Message Queue — RabbitMQ + MassTransit
+#### Message Queue — RabbitMQ + Wolverine
 
 ```
 question-svc ──▶ QuestionCreated ──▶ RabbitMQ (overflow-staging vhost)
@@ -129,11 +129,13 @@ question-svc ──▶ QuestionCreated ──▶ RabbitMQ (overflow-staging vhos
                     ┌──────────────────────┼──────────────────────┐
                     ▼                      ▼                      ▼
                search-svc             stats-svc             profile-svc
-            (index Typesense)     (update counts)       (update reputation)
+            (index Typesense)     (update projections)  (update reputation)
 ```
 
 **Events:** `QuestionCreated`, `QuestionUpdated`, `QuestionDeleted`, `AnswerAccepted`,
 `VoteCasted`, `UserReputationChanged`
+
+Wolverine handles message routing, the durable outbox (question-svc), retries, and dead-letter queues.
 
 ---
 
@@ -178,49 +180,81 @@ question-svc ──▶ QuestionCreated ──▶ RabbitMQ (overflow-staging vhos
 
 ## Technology Stack
 
-### Application
+### Frontend
 
-| Component | Technology | Description |
+| Package | Description |
+|---|---|
+| Next.js 15 (React 19, App Router) | SSR/SSG frontend framework |
+| TypeScript | Language |
+| Tailwind CSS + HeroUI | Styling and component library |
+| NextAuth.js | Session management, Keycloak Direct Access Grant |
+| OpenTelemetry SDK | Browser + Node traces and metrics |
+
+### Backend Services
+
+Each .NET 10 service is an ASP.NET Core web application. Shared dependencies come from `Overflow.Common` and `Overflow.ServiceDefaults`.
+
+| Service | Data access | Messaging | Notable packages |
+|---|---|---|---|
+| `question-svc` | EF Core + Npgsql | Wolverine (EF outbox, PostgreSQL transport) | HtmlSanitizer |
+| `search-svc` | — | Wolverine (RabbitMQ subscriber) | Typesense .NET client |
+| `profile-svc` | EF Core + Npgsql | Wolverine (RabbitMQ subscriber) | — |
+| `stats-svc` | Marten (document store + event store) | Wolverine (RabbitMQ subscriber) | JasperFx.Events, inline projections |
+| `vote-svc` | EF Core + Npgsql | Wolverine (RabbitMQ subscriber) | — |
+| `data-seeder-svc` | HTTP calls to other services | — | Bogus (fake data), Polly (resilience) |
+
+**Shared libraries:**
+
+| Library | Used by | Purpose |
 |---|---|---|
-| Frontend | Next.js 22 (React) | SSR frontend |
-| Backend | .NET 10 | Microservices |
-| API Gateway | NGINX Ingress | Routing & SSL termination |
+| `WolverineFx.RabbitMQ` | All services | RabbitMQ transport, message routing |
+| `WolverineFx.EntityFrameworkCore` | question-svc | EF Core outbox + saga storage |
+| `WolverineFx.Postgresql` | question-svc | Wolverine durable messaging on Postgres |
+| `WolverineFx.Marten` | stats-svc | Wolverine + Marten integration (event-driven projections) |
+| `Infisical.Sdk` | All services (via Common) | Runtime secret injection |
+| `Aspire.Keycloak.Authentication` | All services (via Common) | JWT validation against Keycloak |
+| `OpenTelemetry.*` | All services (via ServiceDefaults) | Traces, metrics, logs → Grafana Alloy |
+| `Polly` | All services (via Common) | HTTP resilience (retry, circuit breaker) |
 
 ### Infrastructure
 
 | Component | Technology | Description |
 |---|---|---|
-| Orchestration | K3s / Kubernetes | Lightweight Kubernetes |
+| Orchestration | K3s / Kubernetes | Lightweight single-node Kubernetes |
 | IaC | Terraform | Declarative infra management |
-| CI/CD | GitHub Actions | Build & deploy pipeline |
+| CI/CD | GitHub Actions (self-hosted runner) | Build, push, deploy pipeline |
 | Registry | GHCR | Docker image storage |
+| Dev orchestration | .NET Aspire | Local service + dependency orchestration |
 
 ### Data
 
 | Component | Technology | Description |
 |---|---|---|
-| Database | PostgreSQL (Bitnami Helm) | Application data |
-| Message Queue | RabbitMQ + MassTransit | Async events |
-| Search | Typesense | Full-text search |
+| Relational DB | PostgreSQL | Per-service databases (question, profile, vote) |
+| Document / Event store | Marten (on PostgreSQL) | stats-svc projections and event sourcing |
+| Message queue | RabbitMQ | Async domain events between services |
+| Message framework | Wolverine | Handlers, outbox, retries, RabbitMQ transport |
+| Search engine | Typesense | Full-text question/answer search |
 
 ### Security & Auth
 
 | Component | Technology | Description |
 |---|---|---|
-| Identity | Keycloak | OAuth2/OIDC |
-| Secrets | Infisical | Centralized secrets vault |
+| Identity | Keycloak | OAuth2/OIDC, realm per environment |
+| Secrets | Infisical | Centralized secrets vault, runtime injection |
 | SSL/TLS | Cloudflare Origin Certificate | Full (Strict) end-to-end HTTPS |
-| CDN/WAF | Cloudflare | DDoS protection + DDNS |
+| CDN/WAF | Cloudflare | DDoS protection, caching, DDNS |
 
 ### Observability
 
 | Component | Technology | Description |
 |---|---|---|
-| Metrics | Grafana Alloy → Grafana Cloud | Prometheus metrics |
-| Logs | Grafana Alloy → Loki | Centralized logs |
-| Traces | OpenTelemetry → Grafana Tempo | Distributed tracing |
-| Node metrics | prometheus-node-exporter | Hardware/OS |
-| K8s metrics | kube-state-metrics | Kubernetes objects |
+| Collector | Grafana Alloy | OTLP receiver (gRPC :4317 / HTTP :4318) |
+| Metrics | Prometheus → Grafana Cloud | Service + runtime + Npgsql metrics |
+| Logs | Loki → Grafana Cloud | Centralized log aggregation |
+| Traces | Grafana Tempo → Grafana Cloud | Distributed tracing |
+| Node metrics | prometheus-node-exporter | Hardware/OS metrics |
+| K8s metrics | kube-state-metrics | Kubernetes object metrics |
 
 ---
 
@@ -239,15 +273,15 @@ kube-system         — Cloudflare DDNS, core K8s components
 
 ### Application Services
 
-| Service | Port | Description | Endpoints |
-|---|---|---|---|
-| `question-svc` | 8080 | Questions, answers, tags | `/questions`, `/answers`, `/tags` |
-| `search-svc` | 8080 | Full-text search via Typesense | `/search` |
-| `profile-svc` | 8080 | User profiles, reputation | `/profiles` |
-| `stats-svc` | 8080 | Statistics aggregation | `/stats` |
-| `vote-svc` | 8080 | Voting system | `/votes` |
-| `overflow-webapp` | 3000 | Next.js frontend | `/` |
-| `data-seeder-svc` | 8080 | AI-powered data generation | internal only |
+| Service | Port | Data access | Description | Endpoints |
+|---|---|---|---|---|
+| `question-svc` | 8080 | EF Core + PostgreSQL | Questions, answers, tags. Publishes domain events via Wolverine outbox. | `/questions`, `/answers`, `/tags` |
+| `search-svc` | 8080 | Typesense | Full-text search. Subscribes to question events and syncs index. | `/search` |
+| `profile-svc` | 8080 | EF Core + PostgreSQL | User profiles and reputation. Subscribes to vote/answer events. | `/profiles` |
+| `stats-svc` | 8080 | Marten (document store + event store on PostgreSQL) | Trending tags, top users. Builds inline projections from domain events. | `/stats` |
+| `vote-svc` | 8080 | EF Core + PostgreSQL | Upvote / downvote. Publishes `VoteCasted` events. | `/votes` |
+| `overflow-webapp` | 3000 | — | Next.js SSR frontend. | `/` |
+| `data-seeder-svc` | — | HTTP (calls other services) | Background worker — generates LLM content in staging via Bogus + OpenAI-compatible API. | internal only |
 
 ### Shared Infrastructure (infra-production)
 

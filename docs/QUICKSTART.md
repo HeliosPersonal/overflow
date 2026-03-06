@@ -1,13 +1,33 @@
 # Overflow — Quick Start
 
+### Related Documentation
+
+- [README](../README.md) — Project overview and architecture
+- [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
+- [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client configuration
+- [Infisical Setup](./INFISICAL_SETUP.md) — Secrets management
+- [Data Seeder](./DATA_SEEDER.md) — LLM-powered staging content generator
+
+---
+
+## Table of Contents
+
+1. [Local Development](#local-development)
+2. [Kubernetes Deployment](#kubernetes-deployment)
+3. [Environments & CI/CD](#environments--cicd)
+4. [Common Commands](#common-commands)
+
+---
+
 ## Local Development
 
 ### Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 22+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+| Tool | Version | Purpose |
+|---|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download) | 10 | Backend services + Aspire |
+| [Node.js](https://nodejs.org/) | 22+ | Next.js webapp |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop) | Latest | Containers for Aspire dependencies |
 
 ### 1. Clone
 
@@ -16,17 +36,16 @@ git clone https://github.com/heliospersonal/overflow.git
 cd overflow
 ```
 
-### 2. Start backend with .NET Aspire
+### 2. Start the backend
 
 ```bash
 cd Overflow.AppHost
 dotnet run
 ```
 
-Starts all backend microservices + PostgreSQL, RabbitMQ, Typesense, Keycloak, and the
-Aspire Dashboard at **http://localhost:18888**.
+.NET Aspire starts **all backend microservices** plus their dependencies — PostgreSQL, RabbitMQ, Typesense, and Keycloak — in Docker. The Aspire Dashboard is available at **http://localhost:18888** for logs, traces, and health checks.
 
-### 3. Start frontend
+### 3. Start the frontend
 
 ```bash
 cd webapp
@@ -34,13 +53,21 @@ npm install
 npm run dev
 ```
 
-App available at **http://localhost:3000**.
+The app is available at **http://localhost:3000**.
 
-### 4. Frontend environment
+### 4. Environment configuration
 
-The webapp reads `webapp/.env.development` which already exists in the repo.
-For local Aspire development, the defaults should work. For local-against-staging
-setup, see [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-development-setup).
+`webapp/.env.development` is committed and pre-configured for local Aspire development — no changes needed to get started.
+
+For local development **against the staging environment** (using staging Keycloak), see [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-development-setup).
+
+### Local URLs
+
+| | URL |
+|---|---|
+| App | http://localhost:3000 |
+| Aspire Dashboard | http://localhost:18888 |
+| Keycloak Admin (via Aspire) | http://localhost:8080/admin |
 
 ---
 
@@ -48,14 +75,16 @@ setup, see [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-d
 
 ### Prerequisites
 
-- Kubernetes cluster with `kubectl` access
-- [Terraform](https://www.terraform.io/downloads.html) ≥ 1.5
-- GitHub account with Actions enabled
-- [Infisical](https://infisical.com) account for secrets management
+| Tool | Purpose |
+|---|---|
+| `kubectl` | Kubernetes cluster access |
+| [Terraform](https://www.terraform.io/downloads.html) ≥ 1.5 | Infrastructure provisioning |
+| GitHub account with Actions enabled | CI/CD pipeline |
+| [Infisical](https://infisical.com) account | Secrets management |
 
-### 1. Deploy shared infrastructure
+### Step 1 — Deploy shared infrastructure
 
-Shared infrastructure lives in a separate repository:
+Shared infrastructure (PostgreSQL, RabbitMQ, Typesense, Keycloak, NGINX Ingress, Grafana Alloy, Cloudflare DDNS) lives in a separate repository:
 
 ```bash
 git clone git@github.com:heliospersonal/infrastructure-helios.git
@@ -66,13 +95,11 @@ terraform init
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 ```
 
-Creates: namespaces, PostgreSQL, RabbitMQ, Typesense, Keycloak, NGINX Ingress,
-Grafana Alloy, Ollama, Cloudflare DDNS.
+> **SSL/TLS:** Cloudflare Full (Strict) using a Cloudflare Origin Certificate stored as `cloudflare-origin` TLS secret. It is automatically copied to app namespaces by the overflow/terraform step below.
 
-> **SSL/TLS:** Cloudflare Full (Strict) using a Cloudflare Origin Certificate.
-> Stored as `cloudflare-origin` TLS secret — copied to app namespaces by overflow/terraform.
+### Step 2 — Deploy project infrastructure
 
-### 2. Deploy project infrastructure
+Per-environment databases, RabbitMQ vhosts, and ConfigMaps:
 
 ```bash
 cd overflow/terraform
@@ -82,71 +109,59 @@ cp terraform.tfvars.example terraform.secret.tfvars
 terraform apply -var-file="terraform.secret.tfvars"
 ```
 
-Creates: per-environment databases, RabbitMQ vhosts, and `overflow-infra-config` ConfigMaps.
+### Step 3 — Configure secrets in Infisical
 
-### 3. Configure GitHub Secrets
+Add all secrets to Infisical under the `staging` and `production` environments.  
+See [INFISICAL_SETUP.md → Complete Secret Inventory](./INFISICAL_SETUP.md#complete-secret-inventory) for the full list of 27 secrets.
 
-Add to repository secrets (`Settings → Secrets and variables → Actions`):
+Infisical will **automatically sync** these 10 secrets to GitHub Actions:
 
-| Secret | Description |
+| GitHub Actions Secret | Source |
 |---|---|
-| `ARM_CLIENT_ID` | Azure service principal — copy from infrastructure-helios |
-| `ARM_CLIENT_SECRET` | Azure service principal — copy from infrastructure-helios |
-| `ARM_TENANT_ID` | Azure tenant — copy from infrastructure-helios |
-| `ARM_SUBSCRIPTION_ID` | Azure subscription — copy from infrastructure-helios |
+| `INFISICAL_CLIENT_ID` | Infisical bootstrap |
+| `INFISICAL_CLIENT_SECRET` | Infisical bootstrap |
+| `INFISICAL_PROJECT_ID` | Infisical bootstrap |
+| `ARM_CLIENT_ID` | Azure service principal |
+| `ARM_CLIENT_SECRET` | Azure service principal |
+| `ARM_TENANT_ID` | Azure tenant |
+| `ARM_SUBSCRIPTION_ID` | Azure subscription |
 | `PG_PASSWORD` | PostgreSQL admin password |
 | `RABBIT_PASSWORD` | RabbitMQ admin password |
 | `TYPESENSE_API_KEY` | Typesense API key |
-| `INFISICAL_PROJECT_ID` | Infisical project ID |
-| `INFISICAL_CLIENT_ID` | Infisical machine identity client ID |
-| `INFISICAL_CLIENT_SECRET` | Infisical machine identity client secret |
 
-### 4. Deploy application
+### Step 4 — Configure Keycloak
 
-Push to trigger CI/CD:
-- `development` → Staging (`apps-staging`)
-- `main` → Production (`apps-production`)
+Follow [KEYCLOAK_SETUP.md](./KEYCLOAK_SETUP.md) to create the `overflow-staging` / `overflow-production` realms and their clients (`overflow-web`, `overflow-admin`, `overflow-services`).
 
-Or trigger manually via **Actions → workflow_dispatch**.
+### Step 5 — Deploy
 
----
+Push to the appropriate branch to trigger the CI/CD pipeline:
 
-## Architecture Overview
+| Branch | Environment | Namespace |
+|---|---|---|
+| `development` | Staging | `apps-staging` |
+| `main` | Production | `apps-production` |
 
-```
-┌──────────────────────────────────────────────────┐
-│            FRONTEND (Next.js)                    │
-│         staging.devoverflow.org                  │
-└─────────────────────┬────────────────────────────┘
-                      │
-┌─────────────────────▼────────────────────────────┐
-│           NGINX INGRESS CONTROLLER               │
-│         (SSL termination, path routing)          │
-└──────┬──────────┬──────────┬──────────┬──────────┘
-       │          │          │          │
-  question    profile     stats      search
-    -svc       -svc        -svc       -svc
-   (.NET)     (.NET)      (.NET)     (.NET)
-       │          │          │          │
-       └──────────┴────┬─────┴──────────┘
-                       │
-          ┌────────────┼────────────┐
-          │            │            │
-     PostgreSQL    RabbitMQ    Typesense
-     (databases)   (events)    (search)
-```
+Or trigger manually via **GitHub → Actions → workflow_dispatch**.
+
+The pipeline:
+1. Builds Docker images and pushes to GHCR
+2. Runs `terraform apply` for project infrastructure
+3. Applies Kustomize overlays with `kubectl apply -k`
 
 ---
 
-## Key URLs
+## Environments & CI/CD
 
-| | URL |
-|---|---|
-| Local app | http://localhost:3000 |
-| Local Aspire Dashboard | http://localhost:18888 |
-| Staging | https://staging.devoverflow.org |
-| Production | https://devoverflow.org |
-| Keycloak Admin | https://keycloak.devoverflow.org/admin |
+| | Local | Staging | Production |
+|---|---|---|---|
+| **URL** | http://localhost:3000 | https://staging.devoverflow.org | https://devoverflow.org |
+| **Aspire Dashboard** | http://localhost:18888 | — | — |
+| **Keycloak** | http://localhost:8080 | https://keycloak.devoverflow.org | https://keycloak.devoverflow.org |
+| **Branch** | — | `development` | `main` |
+| **K8s namespace** | — | `apps-staging` | `apps-production` |
+| **Infisical env** | — | `staging` | `production` |
+| **Data Seeder** | ✅ | ✅ | ❌ |
 
 ---
 
@@ -155,41 +170,41 @@ Or trigger manually via **Actions → workflow_dispatch**.
 ### Local development
 
 ```bash
-# Backend
+# Start backend (all services + dependencies)
 cd Overflow.AppHost && dotnet run
 
-# Frontend
+# Start frontend
 cd webapp && npm run dev
 
-# Tests
+# Run tests
 dotnet test Overflow.slnx
 ```
 
 ### Kubernetes
 
 ```bash
-# Pods
+# List pods
 kubectl get pods -n apps-staging
 
-# Logs (follow)
+# Follow logs for a service
 kubectl logs -n apps-staging -l app=question-svc -f
 
-# Restart
+# Restart a deployment
 kubectl rollout restart deployment/question-svc -n apps-staging
 
-# Port forward for debugging
+# Port-forward for local debugging
 kubectl port-forward svc/question-svc 8080:8080 -n apps-staging
 ```
 
 ### Terraform
 
 ```bash
-# Shared infrastructure
+# Shared infrastructure (infrastructure-helios repo)
 cd infrastructure-helios/terraform
 terraform plan  -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 terraform apply -var-file="terraform.tfvars" -var-file="terraform.secret.tfvars"
 
-# Project-specific
+# Project-specific infrastructure (this repo)
 cd overflow/terraform
 terraform plan  -var-file="terraform.secret.tfvars"
 terraform apply -var-file="terraform.secret.tfvars"
@@ -199,10 +214,13 @@ terraform apply -var-file="terraform.secret.tfvars"
 
 ## Further Reading
 
-- [Infrastructure Documentation](./INFRASTRUCTURE.md)
-- [Network Architecture](./NETWORK_ARCHITECTURE.md)
-- [Keycloak Setup](./KEYCLOAK_SETUP.md)
-- [Infisical Secret Management](./INFISICAL_SETUP.md)
-- [Data Seeder Service](./DATA_SEEDER.md)
-- [Terraform README](../terraform/README.md)
-- [Kubernetes Manifests](../k8s/README.md)
+| Document | Description |
+|---|---|
+| [Infrastructure](./INFRASTRUCTURE.md) | Architecture deep-dive, request flow, ingress routing |
+| [Network Architecture](./NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
+| [Keycloak Setup](./KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO |
+| [Google Auth Setup](./GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
+| [Infisical Setup](./INFISICAL_SETUP.md) | All 27 secrets, how they flow from Infisical to services |
+| [Data Seeder](./DATA_SEEDER.md) | LLM-powered staging content generation |
+| [Kubernetes Manifests](../k8s/README.md) | Kustomize structure and manifest reference |
+| [Terraform](../terraform/README.md) | Project-specific Terraform reference |
