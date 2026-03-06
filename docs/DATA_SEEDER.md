@@ -39,7 +39,7 @@ intervention.
 | **Purpose** | Generate realistic seed data (users, questions, answers, votes) |
 | **Runs in** | Staging environment (also available locally via Aspire) |
 | **LLM Backend** | Any OpenAI-compatible API (Ollama, llama.cpp, etc.) |
-| **LLM Model** | `qwen2.5:3b` (staging), configurable per environment |
+| **LLM Model** | `qwen2.5:7b` (all environments), configurable per environment |
 | **User Pool** | Fixed pool of 20 seeder-prefixed Keycloak users |
 
 The service is **not** deployed to production — it exists to populate the staging environment
@@ -78,7 +78,7 @@ The seeder talks to:
 - **Profile Service** — triggers profile auto-creation via middleware
 - **Question Service** — creates questions and answers
 - **Vote Service** — casts random votes on content
-- **LLM API** — generates question titles, content, answers, and selects best answers
+- **LLM API** — runs the multi-step generation pipeline (topic seed, question, answer, critic, repair)
 
 ---
 
@@ -95,18 +95,22 @@ Step 1  │  Manage User Pool
 Step 2  │  Select Random Asker
         │  → Pick one user from the pool, refresh their token
         │
-Step 3  │  Generate Question
+Step 3  │  Generate Question  [LLM Pipeline: Steps 1–2]
         │  → Fetch available tags from question-svc
         │  → Select 1-3 random tags
-        │  → Generate title + body in a single LLM call
-        │  → Fallback: separate title/content calls, then static templates
+        │  → LLM Step 1: Generate a TopicSeed (structured problem description)
+        │  → LLM Step 2: Generate a StructuredQuestion from the seed (title + body + tags + code)
+        │  → Fallback to static templates if pipeline fails
         │  → POST to question-svc
         │
 Step 4  │  Realistic Delay (5-15 seconds)
         │
-Step 5  │  Generate Answers
+Step 5  │  Generate Answers  [LLM Pipeline: Steps 3–5]
         │  → Pick 2-5 random answerers (excluding the asker)
-        │  → Generate answers via LLM (or fallback to templates)
+        │  → LLM Step 3: Generate a StructuredAnswer (body + code snippet)
+        │  → LLM Step 4: Critic evaluation (optional, EnableCriticPass)
+        │  → LLM Step 5: Repair pass if critic flagged issues (optional, EnableRepairPass)
+        │  → Fallback to static templates if pipeline fails
         │  → POST each answer to question-svc with realistic delays
         │
 Step 6  │  Select Best Answer
@@ -161,32 +165,120 @@ Example: `seeder-johndoe4521@overflow.local`, `seeder-janesmith8734@overflow.loc
 
 ## Content Generation
 
-The service uses a **simple, LLM-friendly approach** designed for small models (3B parameters):
+The service uses a **multi-step LLM pipeline** designed to produce high-quality, realistic
+StackOverflow-style content even with mid-size models (7B parameters).
 
-- **Prompts tell the LLM to write in Markdown** — small models produce clean Markdown naturally.
-- **`LlmClient.SanitizeHtml`** converts the Markdown output to HTML for storage and display.
-- **Variability** is kept to two dimensions: **Length** and **Answer Style**.
+All LLM calls return **strict JSON** — the `LlmClient` deserializes typed DTOs, retries on
+parse failure, and converts final Markdown content to HTML for storage.
 
-### Variability Dimensions
+### Generation Pipeline Overview
 
-| Dimension | Values | Affects |
+```
+Tag
+ │
+ ▼
+[Step 1] TopicSeed          (temp=0.7)
+  → Structured problem description
+  → topic, difficulty, problem_type, bug_reason, key_entities, solution_hint
+ │
+ ▼
+[Step 2] StructuredQuestion  (temp=0.5)
+  → Realistic StackOverflow question
+  → title, body_markdown, tags, code_snippet
+ │                                   │
+ ▼                                   ▼ (for each answerer)
+POST to question-svc          [Step 3] StructuredAnswer  (temp=0.4)
+                                → Direct solution to the question
+                                → body_markdown, code_snippet, accepted
+                               │
+                               ▼  (if EnableCriticPass=true)
+                         [Step 4] Critic          (temp=0.2)
+                               → Evaluates title relevance, body clarity,
+                                 answer correctness, code validity,
+                                 UI contamination check
+                               → { valid, issues[] }
+                               │
+                               ▼  (if issues found AND EnableRepairPass=true)
+                         [Step 5] Repair          (temp=0.3)
+                               → Fixes flagged issues
+                               → { question, answer } (corrected)
+                               │
+                               ▼
+                         POST to question-svc
+```
+
+### JSON Contracts
+
+All steps communicate via strict JSON. The model is instructed to return **only** a JSON object
+with no markdown fences, no explanatory text, no StackOverflow UI elements (vote counts,
+"N answers", usernames, "Viewed N times", comment threads, etc.).
+
+**TopicSeed** (Step 1):
+```json
+{
+  "topic": "python tkinter",
+  "difficulty": "beginner",
+  "problem_type": "ui refresh",
+  "bug_reason": "label text not updating because StringVar is not used",
+  "key_entities": ["Button", "Label", "StringVar"],
+  "solution_hint": "use StringVar and configure() to update the label text"
+}
+```
+
+**QuestionGenerationDto** (Step 2):
+```json
+{
+  "title": "Tkinter label text not updating after button click",
+  "body_markdown": "I have a simple Tkinter app...\n\n```python\n...\n```\n\n**Expected:** ...\n**Actual:** ...",
+  "tags": ["python", "tkinter", "gui"],
+  "code_snippet": "label.text = 'Updated'  # incorrect"
+}
+```
+
+**AnswerGenerationDto** (Step 3):
+```json
+{
+  "body_markdown": "The problem is that `label.text` is not a valid Tkinter attribute...",
+  "code_snippet": "label.config(text='Updated')  # correct",
+  "accepted": false
+}
+```
+
+**CriticResultDto** (Step 4):
+```json
+{
+  "valid": true,
+  "issues": []
+}
+```
+
+**RepairResultDto** (Step 5):
+```json
+{
+  "question": { "title": "...", "body_markdown": "...", "tags": [...], "code_snippet": "..." },
+  "answer":   { "body_markdown": "...", "code_snippet": "...", "accepted": false }
+}
+```
+
+### Per-Step Temperatures
+
+| Step | Purpose | Temperature |
 |---|---|---|
-| **Length** | Short, Medium, Long | Sentence count, max_tokens |
-| **Style** (answers only) | Neutral, Conversational, Formal, StepByStep, CodeHeavy | Tone and structure |
+| TopicSeed | Creative problem diversity | 0.7 |
+| StructuredQuestion | Balanced structure and creativity | 0.5 |
+| StructuredAnswer | Accurate, focused solution | 0.4 |
+| Critic | Deterministic evaluation | 0.2 |
+| Repair | Targeted corrections | 0.3 |
 
-### Prompt Architecture
+### Retry on JSON Parse Failure
 
-All prompt templates live in `Templates/LlmPrompts.cs`. The `LlmClient` contains **no prompt
-strings** — it only handles HTTP communication and Markdown-to-HTML conversion.
+If the model returns malformed JSON, `LlmClient` retries the call up to `MaxGenerationRetries`
+times (default: 2) before giving up and falling back to static templates. The retry logic:
 
-### Topic Consistency
-
-Questions are generated using a **unified title+body** LLM call — both the title and body are
-produced in a single request using a `===TITLE===` / `===BODY===` separator format. This
-guarantees that the body directly elaborates on the title's topic.
-
-If the unified call fails, the service falls back to separate title → content calls, and
-ultimately to paired static templates (where title and content are always about the same topic).
+1. Strips markdown fences (` ```json ... ``` `)
+2. Extracts the first `{...}` or `[...]` block
+3. Attempts `JsonSerializer.Deserialize<T>()`
+4. Retries on `JsonException`
 
 ### Fallback Templates
 
@@ -194,6 +286,18 @@ When LLM generation fails or is disabled:
 
 - **Questions** — 12 paired (title, content) templates covering common programming topics
 - **Answers** — 12 varied answer templates (concise fixes, step-by-step guides, code examples)
+
+### Answer Style Variability
+
+Answers are still generated with random style variation passed to the StructuredAnswer prompt:
+
+| Style | Behaviour |
+|---|---|
+| Neutral | Clear, helpful, professional |
+| Conversational | Friendly and approachable |
+| Formal | Professional, precise, concise |
+| StepByStep | Numbered steps, one concept each |
+| CodeHeavy | Lead with code, minimal prose |
 
 ---
 
@@ -212,9 +316,16 @@ The service communicates with any OpenAI-compatible chat completions API.
 
 ### Model Choice
 
-The staging environment uses **`qwen2.5:3b`** via Ollama — a good balance of quality and
-resource usage for a homelab. The model writes Markdown natively, which the service converts
-to HTML.
+All environments now use **`qwen2.5:7b`** via Ollama. The upgrade from `qwen2.5:3b` improves:
+
+- JSON compliance (fewer malformed responses, fewer retries)
+- Title realism (proper StackOverflow question phrasing)
+- Code snippet quality (more plausible, runnable examples)
+- Answer correctness (fewer hallucinations)
+- Critic accuracy (better issue detection)
+
+The model is instructed to write body content in **Markdown**; `LlmClient.SanitizeHtml` converts
+it to HTML for storage and display.
 
 ### Timeout & Resilience
 
@@ -225,6 +336,10 @@ configures generous timeouts via Polly:
 - **Per-attempt timeout:** 8 minutes
 - **Retry:** 1 retry on network failure (exponential backoff with jitter)
 - **Circuit breaker:** Effectively disabled (very lenient thresholds)
+
+The multi-step pipeline is designed to be resilient: each step can fail independently.
+If any step returns null or unparseable JSON, the service falls back to static templates
+rather than crashing or producing empty content.
 
 ### Fallback
 
@@ -243,7 +358,7 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 | `ProfileServiceUrl` | string | — | URL of the Profile Service API |
 | `VoteServiceUrl` | string | — | URL of the Vote Service API |
 | `LlmApiUrl` | string | — | URL of the OpenAI-compatible LLM API |
-| `LlmModel` | string | — | Model name (e.g., `qwen2.5:3b`) |
+| `LlmModel` | string | — | Model name (e.g., `qwen2.5:7b`) |
 | `IntervalMinutes` | int | 10 | Minutes between seeding cycles |
 | `MinAnswersPerQuestion` | int | 2 | Minimum answers to generate per question |
 | `MaxAnswersPerQuestion` | int | 4 | Maximum answers to generate per question |
@@ -251,6 +366,9 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 | `SeederUsernamePrefix` | string | `seeder-` | Username prefix for seeder-managed users |
 | `EnableLlmGeneration` | bool | true | Use LLM for content generation (false = templates only) |
 | `EnableVoting` | bool | true | Cast random votes after creating content |
+| `MaxGenerationRetries` | int | 2 | JSON parse retry attempts per pipeline step |
+| `EnableCriticPass` | bool | true | Run critic evaluation after answer generation |
+| `EnableRepairPass` | bool | true | Run repair pass when critic flags issues |
 
 ### KeycloakOptions
 
@@ -267,9 +385,28 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 
 | Environment | LLM Model | Interval | Config File |
 |---|---|---|---|
-| **Local (default)** | `ai/smollm2` | 10 min | `appsettings.json` |
-| **Development (Aspire)** | `ai/smollm2` | 1 min | `appsettings.Development.json` |
-| **Staging (K8s)** | `qwen2.5:3b` | 60 min | `appsettings.Staging.json` |
+| **Local (default)** | `qwen2.5:7b` | 10 min | `appsettings.json` |
+| **Development (Aspire)** | `qwen2.5:7b` | 1 min | `appsettings.Development.json` |
+| **Staging (K8s)** | `qwen2.5:7b` | 60 min | `appsettings.Staging.json` |
+
+### Disabling Pipeline Steps
+
+To speed up generation (at the cost of quality) or debug specific steps:
+
+```bash
+# Disable critic + repair (fastest, single LLM call per answer)
+kubectl set env deployment/data-seeder-svc -n apps-staging \
+  SeederOptions__EnableCriticPass=false \
+  SeederOptions__EnableRepairPass=false
+
+# Disable LLM entirely (use static templates only)
+kubectl set env deployment/data-seeder-svc -n apps-staging \
+  SeederOptions__EnableLlmGeneration=false
+
+# Reduce retry attempts (faster failure, more fallbacks to templates)
+kubectl set env deployment/data-seeder-svc -n apps-staging \
+  SeederOptions__MaxGenerationRetries=0
+```
 
 ---
 
@@ -279,21 +416,23 @@ to the static templates in `QuestionTemplates.cs` and `AnswerTemplates.cs`.
 Overflow.DataSeederService/
 ├── Program.cs                  # Host setup, DI registration, HttpClient config
 ├── Models/
-│   ├── SeederOptions.cs        # Configuration options
+│   ├── SeederOptions.cs        # Configuration options (incl. new pipeline flags)
 │   ├── ContentVariability.cs   # Length + AnswerStyle enums, random profile generator
-│   ├── Dtos.cs                 # DTOs for API communication
-│   └── LlmModels.cs           # LLM request/response models
+│   ├── Dtos.cs                 # DTOs for API communication (questions, answers, profiles)
+│   ├── LlmModels.cs            # LLM HTTP request/response models
+│   └── LlmGenerationDtos.cs    # Typed pipeline DTOs (TopicSeedDto, QuestionGenerationDto,
+│                               #   AnswerGenerationDto, CriticResultDto, RepairResultDto)
 ├── Services/
 │   ├── SeederBackgroundService.cs  # Main orchestration loop (8-step cycle)
 │   ├── UserGenerator.cs        # User pool management (create/rehydrate)
-│   ├── QuestionGenerator.cs    # Question creation via API
-│   ├── AnswerGenerator.cs      # Answer creation + accept via API
+│   ├── QuestionGenerator.cs    # Question pipeline: TopicSeed → StructuredQuestion
+│   ├── AnswerGenerator.cs      # Answer pipeline: StructuredAnswer → Critic → Repair
 │   ├── VotingService.cs        # Random voting on questions/answers
-│   ├── LlmClient.cs           # HTTP client for LLM API + Markdown→HTML conversion
+│   ├── LlmClient.cs            # HTTP client + GenerateStructuredAsync<T> + pipeline methods
 │   ├── AuthenticationService.cs    # Keycloak user creation + token management
 │   └── KeycloakAdminService.cs # Keycloak Admin API operations
 └── Templates/
-    ├── LlmPrompts.cs           # All LLM prompt templates (simple, Markdown-based)
+    ├── LlmPrompts.cs           # All LLM prompt templates (5-step pipeline)
     ├── QuestionTemplates.cs    # 12 paired (title, content) fallback templates
     └── AnswerTemplates.cs      # 12 fallback answer templates
 ```
@@ -316,18 +455,19 @@ Check the Aspire Dashboard at **http://localhost:18888** for logs and telemetry.
 
 ### LLM Setup
 
-For LLM generation to work locally, you need a running LLM server:
+For LLM generation to work locally, you need a running LLM server with `qwen2.5:7b`:
 
-**Option A — Ollama:**
+**Option A — Ollama (recommended):**
 ```bash
 ollama serve
-ollama pull smollm2
+ollama pull qwen2.5:7b
 # API available at http://localhost:11434/v1/chat/completions
+# Update LlmApiUrl in appsettings.Development.json accordingly
 ```
 
 **Option B — llama.cpp:**
 ```bash
-# Start llama.cpp server on port 12434
+# Start llama.cpp server on port 12434 with qwen2.5-7b-instruct.gguf
 # API available at http://localhost:12434/engines/llama.cpp/v1/chat/completions
 ```
 
@@ -335,6 +475,14 @@ ollama pull smollm2
 
 Set `EnableLlmGeneration` to `false` in `appsettings.Development.json`. The seeder will
 use the static fallback templates instead.
+
+**Option D — Disable critic/repair only:**
+
+Keep LLM on but skip validation steps for faster local iteration:
+```json
+"EnableCriticPass": false,
+"EnableRepairPass": false
+```
 
 ### Keycloak Requirements
 
@@ -356,7 +504,7 @@ In staging, the seeder runs as a single-replica Deployment in the `apps-staging`
 | Aspect | Local | Staging (K8s) |
 |---|---|---|
 | LLM backend | llama.cpp / Ollama on host | Ollama pod in `apps-staging` |
-| LLM model | `ai/smollm2` | `qwen2.5:3b` |
+| LLM model | `qwen2.5:7b` | `qwen2.5:7b` |
 | Interval | 1 minute | 60 minutes |
 | Service URLs | `localhost:PORT` | Kubernetes service names (`http://question-svc`) |
 | Secrets | `appsettings.json` / user-secrets | Infisical SDK at runtime |
@@ -366,6 +514,11 @@ In staging, the seeder runs as a single-replica Deployment in the `apps-staging`
 The staging Ollama instance runs as a separate pod and is accessible at:
 ```
 http://ollama.apps-staging.svc.cluster.local:11434/v1/chat/completions
+```
+
+Make sure `qwen2.5:7b` is pulled into the Ollama pod before the seeder runs:
+```bash
+kubectl exec -n apps-staging deploy/ollama -- ollama pull qwen2.5:7b
 ```
 
 ---
@@ -383,6 +536,18 @@ http://ollama.apps-staging.svc.cluster.local:11434/v1/chat/completions
 - Check Ollama pod logs: `kubectl logs -n apps-staging -l app=ollama -f`
 - If persistent, increase `TotalRequestTimeout` in `Program.cs`.
 
+**Generation pipeline always falls back to templates**
+- Check logs for `[TopicSeed]`, `[StructuredQuestion]`, `[StructuredAnswer]` messages.
+- JSON parse failures are logged with the raw response — look for `JSON parse failed` warnings.
+- Try `MaxGenerationRetries: 3` to give the model more attempts.
+- Verify the model is `qwen2.5:7b` — smaller models produce less reliable JSON.
+
+**Critic always marks answers as invalid**
+- This causes the repair pass to run on every answer, slowing generation significantly.
+- Check `[Critic]` log lines to see what issues are being flagged.
+- Temporarily set `EnableRepairPass: false` to skip repair while debugging prompts.
+- Or set `EnableCriticPass: false` to bypass both steps.
+
 **"Not enough users" error**
 - The Keycloak Admin API may be unreachable. Check connectivity.
 - Ensure the `overflow-admin` client has the `realm-admin` role.
@@ -395,6 +560,20 @@ http://ollama.apps-staging.svc.cluster.local:11434/v1/chat/completions
 **Seeder users accumulating beyond 20**
 - Old users without the `seeder-` prefix (created before the prefix was added) are orphaned.
   They're harmless but won't be reused. Clean them up manually in Keycloak if desired.
+
+### Reading Pipeline Logs
+
+The seeder logs structured messages for each pipeline step. Key log prefixes:
+
+| Log Prefix | Meaning |
+|---|---|
+| `[TopicSeed]` | Step 1 — topic seed generation |
+| `[StructuredQuestion]` | Step 2 — question generation from seed |
+| `[StructuredAnswer]` | Step 3 — answer generation |
+| `[Critic]` | Step 4 — critic evaluation result |
+| `[Repair]` | Step 5 — repair pass result |
+| `[Pipeline]` | QuestionGenerator pipeline orchestration |
+| `[AnswerPipeline]` | AnswerGenerator pipeline orchestration |
 
 ### Useful Commands
 
@@ -410,4 +589,12 @@ kubectl rollout restart deployment/data-seeder-svc -n apps-staging
 
 # Disable LLM temporarily (edit ConfigMap or env var)
 kubectl set env deployment/data-seeder-svc -n apps-staging SeederOptions__EnableLlmGeneration=false
+
+# Disable critic + repair (faster generation, skip validation)
+kubectl set env deployment/data-seeder-svc -n apps-staging \
+  SeederOptions__EnableCriticPass=false \
+  SeederOptions__EnableRepairPass=false
+
+# Pull qwen2.5:7b into Ollama pod
+kubectl exec -n apps-staging deploy/ollama -- ollama pull qwen2.5:7b
 ```

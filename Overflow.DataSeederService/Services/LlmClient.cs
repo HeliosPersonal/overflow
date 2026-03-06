@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Templates;
@@ -11,6 +12,11 @@ public class LlmClient
     private readonly SeederOptions _options;
     private readonly ILogger<LlmClient> _logger;
 
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public LlmClient(HttpClient httpClient, IOptions<SeederOptions> options, ILogger<LlmClient> logger)
     {
         _httpClient = httpClient;
@@ -21,6 +27,10 @@ public class LlmClient
             "LlmClient initialized - URL: {Url}, Model: {Model}, Enabled: {Enabled}, HttpClient Timeout: {Timeout}s",
             _options.LlmApiUrl, _options.LlmModel, _options.EnableLlmGeneration, _httpClient.Timeout.TotalSeconds);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Core raw-text generation
+    // ─────────────────────────────────────────────────────────────────────────
 
     public async Task<string?> GenerateAsync(string systemPrompt, string userPrompt,
         CancellationToken cancellationToken = default, int maxTokens = 500, double temperature = 0.7)
@@ -112,78 +122,255 @@ public class LlmClient
         }
     }
 
-    public async Task<(string? title, string? content)> GenerateQuestionTitleAndContentAsync(
-        string tag, ContentVariability variability, CancellationToken cancellationToken = default)
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Generic structured JSON generation with retry
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Calls the LLM and attempts to deserialize the response as <typeparamref name="T"/>.
+    /// Retries up to <see cref="SeederOptions.MaxGenerationRetries"/> times on JSON parse failure.
+    /// </summary>
+    private async Task<T?> GenerateStructuredAsync<T>(LlmPrompt prompt, string stepName,
+        CancellationToken cancellationToken = default) where T : class
     {
-        var prompt = LlmPrompts.QuestionTitleAndContent(tag, variability);
-        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
-            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+        int maxAttempts = _options.MaxGenerationRetries + 1;
 
-        if (string.IsNullOrWhiteSpace(result))
-            return (null, null);
-
-        // Parse the ===TITLE=== / ===BODY=== format
-        var titleMarker = "===TITLE===";
-        var bodyMarker = "===BODY===";
-
-        var titleIdx = result.IndexOf(titleMarker, StringComparison.OrdinalIgnoreCase);
-        var bodyIdx = result.IndexOf(bodyMarker, StringComparison.OrdinalIgnoreCase);
-
-        if (titleIdx < 0 || bodyIdx < 0 || bodyIdx <= titleIdx)
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            _logger.LogWarning("LLM response did not follow ===TITLE===/===BODY=== format, attempting fallback parse");
-            // Fallback: treat first line as title, rest as body
-            var lines = result.Split('\n', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (lines.Length >= 2)
-                return (lines[0], lines[1]);
-            return (null, null);
+            var raw = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+                prompt.MaxTokens, prompt.Temperature);
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                _logger.LogWarning("[{Step}] Attempt {Attempt}/{Max}: LLM returned empty response",
+                    stepName, attempt, maxAttempts);
+                continue;
+            }
+
+            var json = ExtractJson(raw);
+
+            try
+            {
+                var dto = JsonSerializer.Deserialize<T>(json, JsonOptions);
+                if (dto != null)
+                {
+                    _logger.LogDebug("[{Step}] Attempt {Attempt}/{Max}: Successfully parsed JSON ({Len} chars)",
+                        stepName, attempt, maxAttempts, json.Length);
+                    return dto;
+                }
+
+                _logger.LogWarning("[{Step}] Attempt {Attempt}/{Max}: Deserialized to null. Raw: {Raw}",
+                    stepName, attempt, maxAttempts, raw.Substring(0, Math.Min(200, raw.Length)));
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "[{Step}] Attempt {Attempt}/{Max}: JSON parse failed. Raw: {Raw}",
+                    stepName, attempt, maxAttempts, raw.Substring(0, Math.Min(200, raw.Length)));
+            }
         }
 
-        var title = result.Substring(titleIdx + titleMarker.Length, bodyIdx - titleIdx - titleMarker.Length).Trim();
-        var body = result.Substring(bodyIdx + bodyMarker.Length).Trim();
-
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
-            return (null, null);
-
-        // Strip any HTML tags the model may have added to the title despite instructions
-        title = System.Text.RegularExpressions.Regex.Replace(title, "<[^>]+>", "").Trim();
-
-        if (string.IsNullOrWhiteSpace(title))
-            return (null, null);
-
-        return (title, SanitizeHtml(body));
-    }
-
-    public async Task<string?> GenerateQuestionTitleAsync(string tag, CancellationToken cancellationToken = default)
-    {
-        var prompt = LlmPrompts.QuestionTitle(tag);
-        return await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
-            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
-    }
-
-    public async Task<string?> GenerateQuestionContentAsync(string title, string tag,
-        CancellationToken cancellationToken = default)
-    {
-        var prompt = LlmPrompts.QuestionContent(title, tag);
-        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
-            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
-        return result is null ? null : SanitizeHtml(result);
-    }
-
-    public async Task<string?> GenerateAnswerAsync(string questionTitle, string questionContent,
-        CancellationToken cancellationToken = default)
-    {
-        var prompt = LlmPrompts.Answer(questionTitle, questionContent);
-        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
-            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
-        return result is null ? null : SanitizeHtml(result);
+        _logger.LogError("[{Step}] All {Max} attempts failed to produce valid JSON", stepName, maxAttempts);
+        return null;
     }
 
     /// <summary>
-    /// Safety net: strips markdown fences and converts leftover markdown to HTML
-    /// in case the model ignored the "HTML only" instruction.
+    /// Strips markdown code fences and extracts the first JSON object or array from the text.
     /// </summary>
-    private static string SanitizeHtml(string content)
+    private static string ExtractJson(string raw)
+    {
+        raw = raw.Trim();
+
+        // Strip ```json ... ``` or ``` ... ``` wrappers
+        var fenceMatch = System.Text.RegularExpressions.Regex.Match(
+            raw, @"^```[a-zA-Z]*\r?\n([\s\S]*?)```\s*$",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+        if (fenceMatch.Success)
+            raw = fenceMatch.Groups[1].Value.Trim();
+
+        // Find first { or [ and last matching } or ]
+        var objStart = raw.IndexOf('{');
+        var arrStart = raw.IndexOf('[');
+
+        if (objStart < 0 && arrStart < 0) return raw;
+
+        int start;
+        char close;
+        if (arrStart >= 0 && (objStart < 0 || arrStart < objStart))
+        {
+            start = arrStart; close = ']';
+        }
+        else
+        {
+            start = objStart; close = '}';
+        }
+
+        var end = raw.LastIndexOf(close);
+        if (end > start)
+            return raw.Substring(start, end - start + 1);
+
+        return raw;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Pipeline Step 1 — Topic Seed
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Generates a structured technical problem seed for the given tag.
+    /// </summary>
+    public async Task<TopicSeedDto?> GenerateTopicSeedAsync(string tag,
+        CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.TopicSeed(tag);
+        var result = await GenerateStructuredAsync<TopicSeedDto>(prompt, "TopicSeed", cancellationToken);
+
+        if (result != null)
+            _logger.LogInformation("[TopicSeed] Generated seed: topic={Topic}, difficulty={Difficulty}, type={Type}",
+                result.Topic, result.Difficulty, result.ProblemType);
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Pipeline Step 2 — Structured Question
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Generates a structured StackOverflow-style question from a topic seed.
+    /// </summary>
+    public async Task<QuestionGenerationDto?> GenerateStructuredQuestionAsync(TopicSeedDto topic,
+        CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.StructuredQuestion(topic);
+        var result = await GenerateStructuredAsync<QuestionGenerationDto>(prompt, "StructuredQuestion", cancellationToken);
+
+        if (result != null)
+            _logger.LogInformation("[StructuredQuestion] Generated: title='{Title}', lang={Lang}, context={Len}chars, tags=[{Tags}]",
+                result.Title, result.Language, result.Context.Length, string.Join(", ", result.Tags));
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Pipeline Step 3 — Structured Answer
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Generates a structured StackOverflow-style answer for the given question.
+    /// </summary>
+    public async Task<AnswerGenerationDto?> GenerateStructuredAnswerAsync(QuestionGenerationDto question,
+        CancellationToken cancellationToken = default)
+    {
+        var style = ContentVariability.RandomForAnswer().Style;
+        var prompt = LlmPrompts.StructuredAnswer(question, style);
+        var result = await GenerateStructuredAsync<AnswerGenerationDto>(prompt, "StructuredAnswer", cancellationToken);
+
+        if (result != null)
+            _logger.LogInformation("[StructuredAnswer] Generated: style={Style}, lang={Lang}, explanation={Len}chars, hasCode={HasCode}",
+                style, result.Language, result.Explanation.Length, !string.IsNullOrWhiteSpace(result.CodeSnippet));
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Pipeline Step 4 — Critic Evaluation
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Evaluates quality of a question+answer pair and returns a critic result.
+    /// </summary>
+    public async Task<CriticResultDto?> CriticEvaluateAsync(QuestionGenerationDto question,
+        AnswerGenerationDto answer, CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.Critic(question, answer);
+        var result = await GenerateStructuredAsync<CriticResultDto>(prompt, "Critic", cancellationToken);
+
+        if (result != null)
+            _logger.LogInformation("[Critic] Evaluation: valid={Valid}, issues={IssueCount} ({Issues})",
+                result.Valid, result.Issues.Count, string.Join("; ", result.Issues));
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Pipeline Step 5 — Repair Pass
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Repairs question and answer based on critic feedback.
+    /// </summary>
+    public async Task<RepairResultDto?> RepairAsync(QuestionGenerationDto question,
+        AnswerGenerationDto answer, CriticResultDto critic, CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.Repair(question, answer, critic);
+        var result = await GenerateStructuredAsync<RepairResultDto>(prompt, "Repair", cancellationToken);
+
+        if (result != null)
+            _logger.LogInformation("[Repair] Repaired: question={HasQ}, answer={HasA}",
+                result.Question != null, result.Answer != null);
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Best Answer Selection
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<int> SelectBestAnswerAsync(string questionTitle, List<string> answers,
+        CancellationToken cancellationToken = default)
+    {
+        if (answers.Count == 0) return -1;
+        if (answers.Count == 1) return 0;
+
+#pragma warning disable CS0618
+        var prompt = LlmPrompts.SelectBestAnswer(questionTitle, answers);
+#pragma warning restore CS0618
+        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+
+        if (result != null && int.TryParse(result.Trim(), out int index) && index >= 0 && index < answers.Count)
+        {
+            return index;
+        }
+
+        // Fallback to random selection
+        return Random.Shared.Next(0, answers.Count);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Legacy methods (kept for backwards compatibility)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Obsolete("Use GenerateTopicSeedAsync + GenerateStructuredQuestionAsync instead.")]
+    public async Task<(string? title, string? content)> GenerateQuestionTitleAndContentAsync(
+        string tag, ContentVariability variability, CancellationToken cancellationToken = default)
+    {
+        var prompt = LlmPrompts.TopicSeed(tag); // best-effort fallback to topic seed
+        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
+            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
+        if (string.IsNullOrWhiteSpace(result)) return (null, null);
+        var lines = result.Split('\n', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return lines.Length >= 2 ? (lines[0], SanitizeHtml(lines[1])) : (null, null);
+    }
+
+    [Obsolete("Use GenerateStructuredAnswerAsync instead.")]
+    public async Task<string?> GenerateAnswerAsync(string questionTitle, string questionContent,
+        CancellationToken cancellationToken = default)
+    {
+        var stub = new QuestionGenerationDto { Title = questionTitle, Context = questionContent };
+        var dto = await GenerateStructuredAnswerAsync(stub, cancellationToken);
+        if (dto == null) return null;
+        return ContentAssembler.BuildAnswerHtml(dto);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  HTML/Markdown utilities (public for use in generators)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Converts Markdown text to HTML. Handles fenced code blocks, lists, headings, inline styles.
+    /// </summary>
+    public static string SanitizeHtml(string content)
     {
         content = content.Trim();
 
@@ -289,24 +476,5 @@ public class LlmClient
         // `code` → <code>
         text = System.Text.RegularExpressions.Regex.Replace(text, @"`(.+?)`", "<code>$1</code>");
         return text;
-    }
-
-    public async Task<int> SelectBestAnswerAsync(string questionTitle, List<string> answers,
-        CancellationToken cancellationToken = default)
-    {
-        if (answers.Count == 0) return -1;
-        if (answers.Count == 1) return 0;
-
-        var prompt = LlmPrompts.SelectBestAnswer(questionTitle, answers);
-        var result = await GenerateAsync(prompt.SystemPrompt, prompt.UserPrompt, cancellationToken,
-            maxTokens: prompt.MaxTokens, temperature: prompt.Temperature);
-
-        if (result != null && int.TryParse(result.Trim(), out int index) && index >= 0 && index < answers.Count)
-        {
-            return index;
-        }
-
-        // Fallback to random selection
-        return Random.Shared.Next(0, answers.Count);
     }
 }

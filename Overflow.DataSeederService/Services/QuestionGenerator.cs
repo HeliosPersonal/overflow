@@ -13,7 +13,7 @@ public class QuestionGenerator
     private readonly ILogger<QuestionGenerator> _logger;
 
     public QuestionGenerator(
-        HttpClient httpClient, 
+        HttpClient httpClient,
         IOptions<SeederOptions> options,
         LlmClient llmClient,
         ILogger<QuestionGenerator> logger)
@@ -29,7 +29,7 @@ public class QuestionGenerator
         try
         {
             var response = await _httpClient.GetAsync(
-                $"{_options.QuestionServiceUrl}/tags", 
+                $"{_options.QuestionServiceUrl}/tags",
                 cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -49,7 +49,7 @@ public class QuestionGenerator
     }
 
     public async Task<Question?> CreateQuestionAsync(
-        string userId, 
+        string userId,
         string authToken,
         CancellationToken cancellationToken = default)
     {
@@ -73,68 +73,24 @@ public class QuestionGenerator
         string title;
         string content;
 
-        // Try to generate with LLM first — unified call ensures title+body are about the same topic
         if (_options.EnableLlmGeneration)
         {
-            _logger.LogInformation("Attempting unified LLM generation (title+body) for tag: {Tag}", primaryTag);
-            var variability = ContentVariability.RandomForQuestion();
-            var genStart = DateTime.UtcNow;
-            
-            var (llmTitle, llmContent) = await _llmClient.GenerateQuestionTitleAndContentAsync(
-                primaryTag, variability, cancellationToken);
-            var genElapsed = (DateTime.UtcNow - genStart).TotalSeconds;
-            
+            var (llmTitle, llmContent) = await RunGenerationPipelineAsync(primaryTag, cancellationToken);
+
             if (!string.IsNullOrWhiteSpace(llmTitle) && !string.IsNullOrWhiteSpace(llmContent))
             {
-                _logger.LogInformation("LLM generated title+body in {Elapsed}s: '{Title}' ({BodyLength} chars)", 
-                    genElapsed, llmTitle, llmContent.Length);
                 title = llmTitle;
                 content = llmContent;
             }
             else
             {
-                _logger.LogWarning("Unified LLM generation failed after {Elapsed}s, falling back to separate calls", 
-                    genElapsed);
-                
-                // Fallback: try separate title + content generation
-                var titleStart = DateTime.UtcNow;
-                var fallbackTitle = await _llmClient.GenerateQuestionTitleAsync(primaryTag, cancellationToken);
-                var titleElapsed = (DateTime.UtcNow - titleStart).TotalSeconds;
-                
-                if (!string.IsNullOrWhiteSpace(fallbackTitle))
-                {
-                    _logger.LogInformation("Fallback LLM title generated in {Elapsed}s: '{Title}'", titleElapsed, fallbackTitle);
-                    title = fallbackTitle;
-                    
-                    var contentStart = DateTime.UtcNow;
-                    var fallbackContent = await _llmClient.GenerateQuestionContentAsync(title, primaryTag, cancellationToken);
-                    var contentElapsed = (DateTime.UtcNow - contentStart).TotalSeconds;
-                    
-                    if (!string.IsNullOrWhiteSpace(fallbackContent))
-                    {
-                        _logger.LogInformation("Fallback LLM content generated in {Elapsed}s ({Length} chars)", 
-                            contentElapsed, fallbackContent.Length);
-                        content = fallbackContent;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Fallback LLM content generation failed after {Elapsed}s, using template", 
-                            contentElapsed);
-                        content = QuestionTemplates.GetRandomQuestion(primaryTag).content;
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("Fallback LLM title generation failed after {Elapsed}s, using template", 
-                        titleElapsed);
-                    (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
-                }
+                _logger.LogWarning("LLM pipeline failed for tag '{Tag}', falling back to static template", primaryTag);
+                (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
             }
         }
         else
         {
-            _logger.LogInformation("LLM generation disabled, using templates for tag: {Tag}", primaryTag);
-            // Use templates
+            _logger.LogInformation("LLM generation disabled, using template for tag: {Tag}", primaryTag);
             (title, content) = QuestionTemplates.GetRandomQuestion(primaryTag);
         }
 
@@ -156,13 +112,13 @@ public class QuestionGenerator
             if (response.IsSuccessStatusCode)
             {
                 var question = await response.Content.ReadFromJsonAsync<Question>(cancellationToken);
-                _logger.LogInformation("Created question: {Title} (ID: {Id})", 
+                _logger.LogInformation("Created question: {Title} (ID: {Id})",
                     question?.Title, question?.Id);
                 return question;
             }
 
             var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning("Failed to create question: {StatusCode} - {Error}", 
+            _logger.LogWarning("Failed to create question: {StatusCode} - {Error}",
                 response.StatusCode, errorContent);
             return null;
         }
@@ -171,5 +127,57 @@ public class QuestionGenerator
             _logger.LogError(ex, "Error creating question");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Runs the 2-step LLM pipeline: TopicSeed → StructuredQuestion.
+    /// Validates using <see cref="ContentAssembler.ValidateQuestion"/> and retries
+    /// up to <see cref="SeederOptions.MaxGenerationRetries"/> times on validation failure.
+    /// Returns (title, html-content) or (null, null) on failure.
+    /// </summary>
+    private async Task<(string? title, string? content)> RunGenerationPipelineAsync(
+        string primaryTag, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("[Pipeline] Starting question generation for tag: {Tag}", primaryTag);
+
+        // Step 1 — Topic Seed (runs once; provides the creative brief for Step 2)
+        var seed = await _llmClient.GenerateTopicSeedAsync(primaryTag, cancellationToken);
+        if (seed == null)
+        {
+            _logger.LogWarning("[Pipeline] Step 1 (TopicSeed) failed for tag: {Tag}", primaryTag);
+            return (null, null);
+        }
+
+        // Step 2 — Structured Question with validation + retry
+        int maxAttempts = _options.MaxGenerationRetries + 1;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var dto = await _llmClient.GenerateStructuredQuestionAsync(seed, cancellationToken);
+
+            var issues = ContentAssembler.ValidateQuestion(dto);
+            if (issues.Count > 0)
+            {
+                _logger.LogWarning(
+                    "[Pipeline] Attempt {A}/{Max}: validation failed — {Issues}",
+                    attempt, maxAttempts, string.Join("; ", issues));
+                continue;
+            }
+
+            var cleanTitle = System.Text.RegularExpressions.Regex
+                .Replace(dto!.Title, "<[^>]+>", "").Trim();
+            if (string.IsNullOrWhiteSpace(cleanTitle))
+            {
+                _logger.LogWarning("[Pipeline] Attempt {A}/{Max}: title empty after strip", attempt, maxAttempts);
+                continue;
+            }
+
+            var htmlContent = ContentAssembler.BuildQuestionHtml(dto);
+            _logger.LogInformation("[Pipeline] Question ready (attempt {A}): '{Title}' ({Len} chars HTML)",
+                attempt, cleanTitle, htmlContent.Length);
+            return (cleanTitle, htmlContent);
+        }
+
+        _logger.LogWarning("[Pipeline] All {Max} attempts failed for tag: {Tag}", maxAttempts, primaryTag);
+        return (null, null);
     }
 }
