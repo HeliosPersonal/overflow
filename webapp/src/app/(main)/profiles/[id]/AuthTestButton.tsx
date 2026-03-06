@@ -10,7 +10,7 @@ export default function AuthTestButton() {
         if (error) handleError(error);
         if (data) successToast(data);
     }
-    
+
     return (
         <Button
             color='primary'
@@ -20,3 +20,4 @@ export default function AuthTestButton() {
         </Button>
     );
 }
+

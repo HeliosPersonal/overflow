@@ -3,10 +3,11 @@ import {notFound} from "next/navigation";
 import {handleError} from "@/lib/util";
 import ProfileDetailed from "@/app/(main)/profiles/[id]/ProfileDetailed";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
+import {auth} from "@/auth";
 
 type Params = Promise<{id: string}>
 export default async function Page({params}: {params: Params}) {
-    const currentUser = await getCurrentUser();
+    const [currentUser, session] = await Promise.all([getCurrentUser(), auth()]);
     const {id} = await params;
     const {data: profile, error} = await getProfileById(id);
     const currentUserProfile = currentUser?.id === id;
@@ -20,6 +21,7 @@ export default async function Page({params}: {params: Params}) {
             <ProfileDetailed
                 profile={profile}
                 currentUserProfile={currentUserProfile}
+                session={currentUserProfile ? session : null}
             />
         </div>
     );

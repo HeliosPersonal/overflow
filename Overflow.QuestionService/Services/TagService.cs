@@ -27,4 +27,6 @@ public class TagService(IMemoryCache cache, QuestionDbContext db)
         var tagSet = tags.Select(x => x.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return slugs.All(x => tagSet.Contains(x));
     }
+
+    public void InvalidateCache() => cache.Remove(CacheKey);
 }

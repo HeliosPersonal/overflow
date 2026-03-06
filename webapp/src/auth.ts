@@ -128,6 +128,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         name: userInfo.name,
                         displayName: profile?.displayName || userInfo.preferred_username || userInfo.name,
                         reputation: profile?.reputation || 0,
+                        roles: (() => {
+                            try {
+                                const payload = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64').toString());
+                                return payload?.realm_access?.roles ?? [];
+                            } catch { return []; }
+                        })(),
                         accessToken: tokens.access_token,
                         refreshToken: tokens.refresh_token,
                         accessTokenExpires: Math.floor(Date.now() / 1000) + tokens.expires_in,
@@ -190,6 +196,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         id: user.id,
                         displayName: user.displayName,
                         reputation: user.reputation,
+                        roles: (user as typeof user & { roles: string[] }).roles ?? [],
                         email: user.email || '',
                         emailVerified: new Date(),
                     };
@@ -213,13 +220,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     headers: { Authorization: `Bearer ${account.access_token}` }
                 });
 
+                let profileData = null;
                 if (res.ok) {
-                    token.user = await res.json();
+                    profileData = await res.json();
                     console.log('[JWT Callback] Profile fetched for Keycloak user');
                 } else {
                     console.error('[JWT Callback] Failed to fetch user profile:', await res.text());
                 }
 
+                const kcRoles = (() => {
+                    try {
+                        const payload = JSON.parse(Buffer.from(account.access_token.split('.')[1], 'base64').toString());
+                        return payload?.realm_access?.roles ?? [];
+                    } catch { return []; }
+                })();
+
+                token.user = profileData
+                    ? { ...profileData, roles: kcRoles }
+                    : { id: '', displayName: '', reputation: 0, roles: kcRoles, email: '', emailVerified: null };
                 token.accessToken = account.access_token
                 token.refreshToken = account.refresh_token;
                 token.accessTokenExpires = now + account.expires_in!;
@@ -288,7 +306,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             
             try {
                 if (token.user) {
-                    session.user = token.user;
+                    session.user = {
+                        ...token.user,
+                        roles: token.user.roles ?? [],
+                    };
                     console.log('[Session Callback] User added to session:', {
                         id: token.user.id,
                         email: token.user.email,

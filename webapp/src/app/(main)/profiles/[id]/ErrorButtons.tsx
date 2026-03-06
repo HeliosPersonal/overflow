@@ -8,7 +8,7 @@ import {handleError} from "@/lib/util";
 export default function ErrorButtons() {
     const [pending, startTransition] = useTransition();
     const [target, setTarget] = useState(0);
-    
+
     const onClick = (code: number) => {
         setTarget(code);
         startTransition(async () => {
@@ -17,10 +17,10 @@ export default function ErrorButtons() {
             setTarget(0);
         })
     }
-    
+
     return (
         <div className='flex gap-3'>
-            {[400,401,403,404,500].map(code => (
+            {[400, 401, 403, 404, 500].map(code => (
                 <Button
                     onPress={() => onClick(code)}
                     color='primary'
@@ -34,3 +34,4 @@ export default function ErrorButtons() {
         </div>
     );
 }
+

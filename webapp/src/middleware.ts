@@ -30,7 +30,8 @@ export const config = {
     matcher: [
         '/questions/ask',
         '/questions/:id/edit',
-        '/session'
+        '/session',
+        '/tags/manage',
     ]
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import {HomeIcon, TagIcon, UserIcon, UserGroupIcon} from "@heroicons/react/24/outline";
+import {HomeIcon, TagIcon, UserGroupIcon} from "@heroicons/react/24/outline";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {usePathname} from "next/navigation";
 
@@ -9,7 +9,6 @@ export default function SideMenu() {
     const navLinks = [
         {key: 'home', icon: HomeIcon, text: 'Questions', href: '/'},
         {key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'},
-        {key: 'session', icon: UserIcon, text: 'User Session', href: '/session'},
         {key: 'profiles', icon: UserGroupIcon, text: 'Profiles', href: '/profiles'},
     ]
     

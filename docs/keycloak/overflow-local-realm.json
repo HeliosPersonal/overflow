@@ -1,6 +1,6 @@
 {
   "realm": "overflow",
-  "displayName": "Overflow",
+  "displayName": "Overflow (Local Dev)",
   "enabled": true,
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
@@ -20,7 +20,7 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 30,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
@@ -120,17 +120,18 @@
   "clients": [
     {
       "clientId": "overflow-web",
-      "name": "Overflow Web App (Production)",
-      "description": "Confidential OIDC client for the Next.js frontend — used by devoverflow.org",
+      "name": "Overflow Web App (Local)",
+      "description": "Confidential OIDC client for the Next.js frontend — used when running locally via Aspire",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
+      "secret": "local-overflow-web-secret",
       "redirectUris": [
-        "https://devoverflow.org/*",
-        "https://www.devoverflow.org/*"
+        "http://localhost:3000/*",
+        "http://localhost:4000/*"
       ],
       "webOrigins": [
-        "https://devoverflow.org",
-        "https://www.devoverflow.org"
+        "http://localhost:3000",
+        "http://localhost:4000"
       ],
       "protocol": "openid-connect",
       "publicClient": false,
@@ -173,7 +174,7 @@
     },
     {
       "clientId": "overflow",
-      "name": "Overflow Audience (Production)",
+      "name": "Overflow Audience (Local)",
       "description": "Resource server audience — not a real service. All tokens include this clientId in the 'aud' claim. Backend .NET services validate JWT audience against this value.",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
@@ -206,10 +207,11 @@
     },
     {
       "clientId": "overflow-admin",
-      "name": "Overflow Admin (Production)",
-      "description": "Service account client — used by the webapp signup route to create users via Keycloak Admin API",
+      "name": "Overflow Admin (Local)",
+      "description": "Service account client — used by the webapp signup route and DataSeederService to create/manage users via Keycloak Admin API",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
+      "secret": "local-overflow-admin-secret",
       "redirectUris": [],
       "webOrigins": [],
       "protocol": "openid-connect",
@@ -239,7 +241,7 @@
     },
     {
       "clientId": "overflow-postman",
-      "name": "Overflow Postman (Production)",
+      "name": "Overflow Postman (Local)",
       "description": "Public OIDC client for API testing with Postman — uses password grant to obtain tokens",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
@@ -300,6 +302,49 @@
           "view-users"
         ]
       }
+    },
+    {
+      "username": "admin@overflow.local",
+      "email": "admin@overflow.local",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "default-roles-overflow"
+      ],
+      "groups": [
+        "/member"
+      ]
+    },
+    {
+      "username": "user@overflow.local",
+      "email": "user@overflow.local",
+      "firstName": "Regular",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-overflow"
+      ],
+      "groups": [
+        "/member"
+      ]
     }
   ],
   "clientScopes": [
@@ -967,20 +1012,6 @@
     "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
-  "smtpServer": {
-    "replyToDisplayName": "",
-    "starttls": "true",
-    "auth": "true",
-    "port": "587",
-    "host": "smtp.eu.mailgun.org",
-    "replyTo": "",
-    "from": "noreply@devoverflow.org",
-    "fromDisplayName": "Overflow",
-    "ssl": "false",
-    "user": "overflow@staging.devoverflow.org",
-    "password": "**********",
-    "envelopeFrom": "noreply@devoverflow.org"
-  },
   "eventsEnabled": false,
   "eventsListeners": [
     "jboss-logging"
@@ -988,32 +1019,7 @@
   "enabledEventTypes": [],
   "adminEventsEnabled": false,
   "adminEventsDetailsEnabled": false,
-  "identityProviders": [
-    {
-      "alias": "google",
-      "displayName": "Google",
-      "providerId": "google",
-      "enabled": true,
-      "updateProfileFirstLoginMode": "on",
-      "trustEmail": true,
-      "storeToken": false,
-      "addReadTokenRoleOnCreate": false,
-      "authenticateByDefault": false,
-      "linkOnly": false,
-      "firstBrokerLoginFlowAlias": "first broker login - google",
-      "config": {
-        "hideOnLoginPage": "false",
-        "clientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
-        "clientSecret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET",
-        "defaultScope": "openid email profile",
-        "guiOrder": "1",
-        "syncMode": "IMPORT",
-        "acceptsPromptNoneForwardFromClient": "false",
-        "disableUserInfo": "false",
-        "useJwksUrl": "true"
-      }
-    }
-  ],
+  "identityProviders": [],
   "identityProviderMappers": [],
   "internationalizationEnabled": false,
   "browserFlow": "browser",
@@ -1023,41 +1029,7 @@
   "clientAuthenticationFlow": "clients",
   "dockerAuthenticationFlow": "docker auth",
   "firstBrokerLoginFlow": "first broker login",
-  "authenticationFlows": [
-    {
-      "alias": "first broker login - google",
-      "description": "First broker login flow for Google IdP — Review Profile disabled, auto-link enabled. Safe because Google emails are always verified and trustEmail is ON.",
-      "providerId": "basic-flow",
-      "topLevel": true,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "idp-review-profile",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 10,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "idp-create-user-if-unique",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 20,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "idp-auto-link",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 30,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
-    }
-  ],
+  "authenticationFlows": [],
   "attributes": {
     "cibaBackchannelTokenDeliveryMode": "poll",
     "cibaAuthRequestedUserHint": "login_hint",
@@ -1071,7 +1043,6 @@
     "oauth2DeviceCodeLifespan": "600",
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
-    "frontendUrl": "https://keycloak.devoverflow.org",
     "acr.loa.map": "{}"
   },
   "keycloakVersion": "26.5.3",

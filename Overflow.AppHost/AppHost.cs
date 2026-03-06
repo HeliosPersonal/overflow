@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder
     .AddKeycloak("keycloak", 6001)
     .WithDataVolume("keycloak-data")
-    // .WithRealmImport("../infra/realms")
+    .WithRealmImport("../docs/keycloak/overflow-local-realm.json")
     .WithEnvironment("KC_HTTP_ENABLED", "true")
     .WithEnvironment("KC_HOSTNAME_STRICT", "false")
     .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")

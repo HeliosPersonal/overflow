@@ -1,10 +1,13 @@
 import {getTags} from "@/lib/actions/tag-actions";
 import TagCard from "@/app/(main)/tags/TagCard";
 import TagHeader from "@/app/(main)/tags/TagsHeader";
+import {auth} from "@/auth";
 
 type SearchParams = Promise<{sort?: string}>
 export default async function Page({searchParams}: {searchParams: SearchParams }) {
     const {sort} = await searchParams;
+    const session = await auth();
+    const isAdmin = session?.user?.roles?.includes('admin') ?? false;
     
     const {data: tags, error} = await getTags(sort);
     
@@ -12,7 +15,7 @@ export default async function Page({searchParams}: {searchParams: SearchParams }
     
     return (
         <div className='w-full px-6'>
-            <TagHeader />
+            <TagHeader isAdmin={isAdmin} />
             <div className='grid grid-cols-3 gap-4'>
                 {Array.isArray(tags) && tags.map(tag => (
                     <TagCard tag={tag} key={tag.id} />

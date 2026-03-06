@@ -18,13 +18,14 @@
 4. [Token Settings](#token-settings)
 5. [Client Details](#client-details)
 6. [Client Scopes & Required Claims](#client-scopes--required-claims)
-7. [Infisical — Keycloak-Related Secrets](#infisical--keycloak-related-secrets)
-8. [Config Values Already Wired](#config-values-already-wired)
-9. [Local Development Setup](#local-development-setup)
-10. [Postman Collections](#postman-collections)
-11. [Google Identity Provider](#google-identity-provider)
-12. [Verification & Test Commands](#verification--test-commands)
-13. [Troubleshooting](#troubleshooting)
+7. [Admin Role — Tag Management](#admin-role--tag-management)
+8. [Infisical — Keycloak-Related Secrets](#infisical--keycloak-related-secrets)
+9. [Config Values Already Wired](#config-values-already-wired)
+10. [Local Development Setup](#local-development-setup)
+11. [Postman Collections](#postman-collections)
+12. [Google Identity Provider](#google-identity-provider)
+13. [Verification & Test Commands](#verification--test-commands)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -85,6 +86,7 @@ Two ready-to-import JSON files are provided in [`docs/keycloak/`](./keycloak/):
 |---|---|---|
 | [`overflow-realm.json`](./keycloak/overflow-realm.json) | `overflow` | `overflow-web`, `overflow-admin`, `overflow-postman`, `overflow` |
 | [`overflow-staging-realm.json`](./keycloak/overflow-staging-realm.json) | `overflow-staging` | `overflow-web`, `overflow-web-local`, `overflow-admin`, `overflow-postman`, `overflow-staging` |
+| [`overflow-local-realm.json`](./keycloak/overflow-local-realm.json) | `overflow` | `overflow-web`, `overflow-admin`, `overflow-postman`, `overflow` — **auto-imported by Aspire** |
 
 ### How to Import
 
@@ -280,12 +282,159 @@ openid  profile  email  offline_access
 | `family_name` | `profile` scope | `UserProfileCreationMiddleware` |
 | `preferred_username` | `profile` scope | Fallback display name (equals email with `registrationEmailAsUsername`) |
 | `aud` | Audience mapper on `overflow-web` client | Backend JWT validation |
+| `realm_access.roles` | Built-in Keycloak realm roles claim | Frontend admin detection (`auth.ts`), .NET `[Authorize(Roles="admin")]` |
 
 All mappers are included in the realm import files.
 
 ---
 
-## Infisical — Keycloak-Related Secrets
+## Admin Role — Tag Management
+
+The `admin` **realm role** gates two things:
+
+| Layer | Where | Effect |
+|---|---|---|
+| **Frontend** | `auth.ts` → `session.user.roles` | Shows **"Edit tags"** button on `/tags`; `/tags/manage` page accessible |
+| **Backend** | `[Authorize(Roles = "admin")]` on `TagsController` | `POST /tags`, `PUT /tags/{id}`, `DELETE /tags/{id}` return `403` without the role |
+
+### How it works technically
+
+`auth.ts` decodes the raw JWT access token payload and reads `realm_access.roles`:
+
+```ts
+// auth.ts — credentials provider
+const payload = JSON.parse(
+  Buffer.from(tokens.access_token.split('.')[1], 'base64').toString()
+);
+roles = payload?.realm_access?.roles ?? [];
+```
+
+The roles array is stored in `token.user.roles` and exposed as `session.user.roles`.
+The `admin` role is a **Keycloak realm role** (not a client role), so it appears in
+`realm_access.roles` automatically for all clients in that realm.
+
+The .NET backend reads the same claim via the Keycloak JWT Bearer middleware, which maps
+`realm_access.roles` to `ClaimTypes.Role` automatically via the built-in Keycloak
+integration (`AddKeycloakJwtBearer`).
+
+---
+
+### Assigning the `admin` Role to a User
+
+#### Step 1 — Create the realm role (one-time, per realm)
+
+The `admin` role must exist in the realm before it can be assigned.
+
+**Via Admin UI:**
+
+1. Open `https://keycloak.devoverflow.org/admin`
+2. Select the target realm (`overflow` or `overflow-staging`)
+3. Go to **Realm roles** (left sidebar) → **Create role**
+4. Set **Role name** = `admin`
+5. (Optional) Add a description: `Full admin access — can manage tags and other admin-only features`
+6. Click **Save**
+
+**Via Admin CLI / REST:**
+
+```bash
+# Get an admin token first
+ADMIN_TOKEN=$(curl -s -X POST \
+  https://keycloak.devoverflow.org/realms/master/protocol/openid-connect/token \
+  -d grant_type=password \
+  -d client_id=admin-cli \
+  -d "username=<admin-user>" \
+  -d "password=<admin-password>" \
+  | jq -r '.access_token')
+
+# Create the role in the staging realm
+curl -s -X POST \
+  https://keycloak.devoverflow.org/admin/realms/overflow-staging/roles \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "admin", "description": "Full admin access — can manage tags"}'
+```
+
+---
+
+#### Step 2 — Assign the role to a user
+
+**Via Admin UI:**
+
+1. Go to **Users** (left sidebar) → find and click the user
+2. Open the **Role mapping** tab
+3. Click **Assign role**
+4. In the filter dropdown, select **Filter by realm roles**
+5. Find `admin` in the list → tick the checkbox → **Assign**
+
+The role takes effect on the user's **next login** (the current access token is not
+updated). For immediate effect, the user must sign out and sign back in.
+
+**Via REST API:**
+
+```bash
+# Look up the user's ID
+USER_ID=$(curl -s \
+  "https://keycloak.devoverflow.org/admin/realms/overflow-staging/users?search=user@example.com" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.[0].id')
+
+# Look up the admin role's ID
+ROLE_ID=$(curl -s \
+  "https://keycloak.devoverflow.org/admin/realms/overflow-staging/roles/admin" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.id')
+
+# Assign the role
+curl -s -X POST \
+  "https://keycloak.devoverflow.org/admin/realms/overflow-staging/users/$USER_ID/role-mappings/realm" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "[{\"id\": \"$ROLE_ID\", \"name\": \"admin\"}]"
+```
+
+---
+
+#### Step 3 — Verify the role is in the token
+
+After the user logs in again, decode their access token to confirm the role is present:
+
+```bash
+TOKEN=$(curl -s -X POST \
+  https://keycloak.devoverflow.org/realms/overflow-staging/protocol/openid-connect/token \
+  -d grant_type=password \
+  -d client_id=overflow-postman \
+  -d "username=user@example.com" \
+  -d "password=yourpassword" \
+  -d "scope=openid profile email offline_access" \
+  | jq -r '.access_token')
+
+# Check realm_access.roles
+echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '.realm_access.roles'
+# Expected output:
+# [
+#   "default-roles-overflow-staging",
+#   "offline_access",
+#   "uma_authorization",
+#   "admin"
+# ]
+```
+
+If `"admin"` is in the array, the user will see the **"Edit tags"** button on `/tags`
+and can access `/tags/manage`.
+
+---
+
+### Revoking admin access
+
+**Via Admin UI:**
+
+1. **Users** → click user → **Role mapping** tab
+2. Find `admin` under **Assigned roles** → tick it → **Unassign**
+
+The change takes effect on the user's **next login** (or when their current token expires
+after 5 minutes — see [Token Settings](#token-settings)).
+
+---
 
 > For the complete Infisical setup, all 27 secrets, and how they flow through the system,
 > see [**INFISICAL_SETUP.md**](./INFISICAL_SETUP.md).
@@ -354,14 +503,53 @@ Non-secret values in `.env.staging` / `.env.production` (committed, baked at bui
 
 ### Option A — Full local stack (Aspire)
 
-[`AppHost.cs`](../Overflow.AppHost/AppHost.cs) starts Keycloak on port `6001`:
+[`AppHost.cs`](../Overflow.AppHost/AppHost.cs) starts Keycloak on port `6001` and **automatically imports** [`overflow-local-realm.json`](./keycloak/overflow-local-realm.json) on first run:
 
 ```bash
 cd Overflow.AppHost && dotnet run
 cd webapp && npm run dev
 ```
 
-Requires manual realm setup in `http://localhost:6001/admin` on first run.
+The local realm comes pre-configured with:
+
+| What | Detail |
+|---|---|
+| Realm | `overflow` |
+| Audience | `overflow` |
+| SSL | disabled (`sslRequired: none`) — safe for localhost |
+| `overflow-web` client secret | `local-overflow-web-secret` |
+| `overflow-admin` client secret | `local-overflow-admin-secret` |
+| `admin` realm role | pre-created, ready to assign |
+
+**Pre-seeded test users** (created automatically on import):
+
+| Email | Password | Role | Use |
+|---|---|---|---|
+| `admin@overflow.local` | `admin` | `admin` | Test admin features (Edit tags, etc.) |
+| `user@overflow.local` | `user` | _(member only)_ | Test regular user flow |
+
+Update `webapp/.env.development` to use the local Keycloak:
+
+```dotenv
+APP_ENV=development
+API_URL=http://localhost:8001
+AUTH_KEYCLOAK_ID=overflow-web
+AUTH_KEYCLOAK_SECRET=local-overflow-web-secret
+AUTH_KEYCLOAK_ISSUER=http://localhost:6001/realms/overflow
+AUTH_KEYCLOAK_ISSUER_INTERNAL=http://localhost:6001/realms/overflow
+AUTH_URL=http://localhost:3000
+AUTH_URL_INTERNAL=http://localhost:3000
+AUTH_SECRET=any-random-local-secret
+KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID=overflow-admin
+KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET=local-overflow-admin-secret
+```
+
+> **Note:** The realm data is persisted in the `keycloak-data` Docker volume. If you need a
+> clean slate (e.g. after modifying `overflow-local-realm.json`), remove the volume:
+> ```bash
+> docker volume rm keycloak-data
+> ```
+> Then restart Aspire — the realm will be re-imported automatically.
 
 ### Option B — Local webapp against staging Keycloak (recommended)
 
@@ -510,6 +698,14 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 
 - User must sign in again
 - Check `offline_access` scope is enabled and Offline Session Idle ≥ 30 days
+
+### Admin user can't see "Edit tags" button / gets 403 on tag API
+
+- Confirm the `admin` realm role exists: **Realm roles** → look for `admin`
+- Confirm it's assigned: **Users** → user → **Role mapping** tab
+- The user must **sign out and sign back in** — roles are baked into the access token at login time; an existing token won't reflect a newly assigned role until it expires (max 5 min) or the user re-authenticates
+- Decode the token to verify: `echo "$TOKEN" | cut -d. -f2 | base64 -d | jq '.realm_access.roles'`
+- Make sure this is a **realm role** (not a client role) — `realm_access.roles` is what the app reads
 
 ---
 

@@ -94,6 +94,12 @@
         "description": "${role_offline-access}",
         "composite": false,
         "clientRole": false
+      },
+      {
+        "name": "admin",
+        "description": "Full admin access — can manage tags and other admin-only features",
+        "composite": false,
+        "clientRole": false
       }
     ]
   },
