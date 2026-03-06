@@ -31,7 +31,7 @@ export default function QuestionsHeader({tag, total}: Props) {
     }
 
     return (
-        <div className='flex flex-col w-full border-b border-neutral-200 dark:border-neutral-800 gap-4 pb-4'>
+        <div className='flex flex-col w-full border-b border-neutral-200 dark:border-neutral-800 gap-4 pb-4 pt-4'>
             <div className='flex justify-between px-6'>
                 <div className='flex flex-col items-start gap-2'>
                     <h1>

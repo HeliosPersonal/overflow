@@ -19,7 +19,7 @@ export default function TagHeader({isAdmin}: Props) {
     ]
 
     return (
-        <div className='flex flex-col w-full gap-4 pb-4'>
+        <div className='flex flex-col w-full gap-4 pb-4 pt-4'>
             <div className='flex items-start justify-between'>
                 <div className='flex flex-col items-start gap-3'>
                     <h1>Tags</h1>

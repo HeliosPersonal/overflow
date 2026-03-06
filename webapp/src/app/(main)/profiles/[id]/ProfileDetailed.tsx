@@ -21,7 +21,7 @@ type Props = {
 export default function ProfileDetailed({profile, currentUserProfile, session}: Props) {
     const [editMode, setEditMode] = useState(false);
     return (
-        <div className='flex flex-col gap-4'>
+        <div className='flex flex-col gap-4 pt-4'>
             <Card>
                 <CardHeader className='text-3xl font-semibold flex justify-between'>
                     <div className='flex items-center gap-3'>

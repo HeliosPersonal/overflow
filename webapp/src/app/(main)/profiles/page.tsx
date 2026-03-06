@@ -12,7 +12,7 @@ export default async function Page({searchParams}: {searchParams: SearchParams})
     if (!profiles) return;
 
     return (
-        <div className="flex flex-col gap-3 px-6">
+        <div className="flex flex-col gap-3 px-6 pt-4">
             <h1>User table</h1>
             <ProfilesList profiles={profiles} />
         </div>

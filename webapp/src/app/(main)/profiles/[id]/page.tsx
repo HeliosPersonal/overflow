@@ -16,7 +16,7 @@ export default async function Page({params}: {params: Params}) {
     if (!profile) return notFound()
 
     return (
-        <div className="px-6 flex flex-col gap-3">
+        <div className="px-6 flex flex-col gap-3 pt-4">
             <h1>Profile details</h1>
             <ProfileDetailed
                 profile={profile}
