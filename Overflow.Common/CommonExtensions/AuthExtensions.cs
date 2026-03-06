@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -45,6 +48,39 @@ public static class AuthExtensions
                     {
                         ValidIssuers = keycloakOptions.ValidIssuers,
                         ClockSkew = TimeSpan.Zero
+                    };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = context =>
+                        {
+                            var identity = context.Principal?.Identity as ClaimsIdentity;
+                            if (identity is null) return Task.CompletedTask;
+
+                            // Map Keycloak realm_access.roles to ClaimTypes.Role
+                            var realmAccessClaim = identity.FindFirst("realm_access");
+                            if (realmAccessClaim is not null)
+                            {
+                                try
+                                {
+                                    var realmAccess = JsonDocument.Parse(realmAccessClaim.Value);
+                                    if (realmAccess.RootElement.TryGetProperty("roles", out var roles))
+                                    {
+                                        foreach (var role in roles.EnumerateArray())
+                                        {
+                                            var roleValue = role.GetString();
+                                            if (roleValue is not null)
+                                                identity.AddClaim(new Claim(ClaimTypes.Role, roleValue));
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    // ignore malformed claim
+                                }
+                            }
+
+                            return Task.CompletedTask;
+                        }
                     };
                 });
 
