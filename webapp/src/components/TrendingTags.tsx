@@ -1,10 +1,34 @@
 'use client';
 
 import {getTrendingTags} from "@/lib/actions/tag-actions";
-import {Progress} from "@heroui/react";
 import Link from "next/link";
 import {useEffect, useState} from "react";
 import {TrendingTag} from "@/lib/types";
+import {FireIcon, HashtagIcon} from "@heroicons/react/24/solid";
+import {motion} from "framer-motion";
+
+const BAR_COLORS = [
+    'bg-linear-to-r from-violet-300/60 to-fuchsia-300/60',
+    'bg-linear-to-r from-blue-300/60 to-sky-300/60',
+    'bg-linear-to-r from-emerald-300/60 to-teal-300/60',
+    'bg-linear-to-r from-orange-300/60 to-amber-200/60',
+    'bg-linear-to-r from-rose-300/60 to-pink-300/60',
+];
+
+function SkeletonRow() {
+    return (
+        <div className="flex items-center gap-3 animate-pulse">
+            <div className="w-6 h-4 rounded bg-default-200"/>
+            <div className="flex-1 flex flex-col gap-2">
+                <div className="flex justify-between">
+                    <div className="h-3.5 w-20 rounded bg-default-200"/>
+                    <div className="h-3.5 w-12 rounded bg-default-200"/>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-default-200"/>
+            </div>
+        </div>
+    );
+}
 
 export default function TrendingTags() {
     const [tags, setTags] = useState<TrendingTag[] | null>(null);
@@ -12,47 +36,74 @@ export default function TrendingTags() {
 
     useEffect(() => {
         getTrendingTags().then(result => {
-            if (result.error) {
-                setError(true);
-            } else {
-                setTags(result.data);
-            }
+            if (result.error) setError(true);
+            else setTags(result.data);
         });
     }, []);
 
-    // Calculate max count for progress percentage
     const maxCount = Array.isArray(tags) && tags.length > 0
-        ? Math.max(...tags.map(tag => tag.count))
+        ? Math.max(...tags.map(t => t.count))
         : 1;
 
     return (
-        <div className='bg-default-100 border border-default-100 p-6 rounded-2xl'>
-            <h3 className='text-lg font-semibold text-foreground-600 mb-5'>Trending tags this week</h3>
-            <div className='flex flex-col px-6 gap-4'>
+        <div
+            className="rounded-2xl border border-default-200 bg-white dark:bg-zinc-900/60 backdrop-blur-sm overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-default-200/50 dark:border-default-100">
+                <span
+                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100/60 dark:bg-orange-900/20">
+                    <FireIcon className="w-5 h-5 text-orange-300 dark:text-orange-400/70"/>
+                </span>
+                <h3 className="text-base font-semibold text-foreground tracking-wide">Trending this week</h3>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 flex flex-col gap-4">
                 {error ? (
-                    <div>Unavailable</div>
+                    <p className="text-sm text-default-400 text-center py-2">Could not load tags</p>
+                ) : !tags ? (
+                    Array.from({length: 5}).map((_, i) => <SkeletonRow key={i}/>)
+                ) : tags.length === 0 ? (
+                    <p className="text-sm text-default-400 text-center py-2">No data yet</p>
                 ) : (
-                    <>
-                        {Array.isArray(tags) && tags.map(tag => {
-                            const percentage = (tag.count / maxCount) * 100;
-                            return (
-                                <div key={tag.tag} className='flex flex-col gap-1'>
-                                    <Link href={`/?tag=${tag.tag}`} className='text-sm font-medium hover:underline'>
-                                        {tag.tag}
-                                    </Link>
-                                    <Progress
-                                        aria-label={`${tag.tag} usage`}
-                                        color="primary"
-                                        showValueLabel={true}
-                                        size="md"
-                                        value={percentage}
-                                        formatOptions={{style: "decimal"}}
-                                        valueLabel={`${tag.count} uses`}
-                                    />
+                    tags.map((tag, index) => {
+                        const pct = (tag.count / maxCount) * 100;
+                        const color = BAR_COLORS[index % BAR_COLORS.length];
+                        return (
+                            <div key={tag.tag} className="flex items-center gap-3 group">
+                                {/* Rank */}
+                                <span
+                                    className="w-6 text-center text-sm font-bold text-default-400 shrink-0 tabular-nums">
+                                    {index + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    {/* Label row */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Link
+                                            href={`/?tag=${tag.tag}`}
+                                            className="flex items-center gap-1 text-sm font-semibold text-foreground-600 hover:text-primary transition-colors truncate"
+                                        >
+                                            <HashtagIcon className="w-3.5 h-3.5 opacity-50 shrink-0"/>
+                                            <span className="truncate">{tag.tag}</span>
+                                        </Link>
+                                        <span
+                                            className="text-xs font-medium text-default-400 tabular-nums ml-2 shrink-0">
+                                            {tag.count.toLocaleString()}
+                                        </span>
+                                    </div>
+                                    {/* Bar track */}
+                                    <div className="h-2 w-full rounded-full bg-default-100/70 overflow-hidden">
+                                        <motion.div
+                                            className={`h-full rounded-full ${color}`}
+                                            initial={{width: 0}}
+                                            animate={{width: `${pct}%`}}
+                                            transition={{duration: 0.7, delay: index * 0.07, ease: [0.25, 1, 0.5, 1]}}
+                                        />
+                                    </div>
                                 </div>
-                            );
-                        })}
-                    </>
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </div>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import {Chip} from "@heroui/chip";
 import {Avatar} from "@heroui/avatar";
 import clsx from "clsx";
-import {CheckIcon, HandThumbUpIcon, ChatBubbleBottomCenterTextIcon, EyeIcon} from "@heroicons/react/24/outline";
+import {CheckIcon, HandThumbUpIcon, EyeIcon} from "@heroicons/react/24/outline";
 import {stripHtmlTags, timeAgo} from "@/lib/util";
 
 type Props = {
@@ -13,24 +13,20 @@ type Props = {
 export default function QuestionCard({question}: Props) {
     return (
         <div className='flex gap-6 px-6 w-full'>
-            <div className='flex flex-col items-end text-sm gap-3 min-w-16'>
+            <div className='flex flex-col items-end text-sm gap-3 min-w-8'>
                 <div className='flex items-center gap-1'>
                     <HandThumbUpIcon className='h-4 w-4' />
                     <span>{question.votes}</span>
                 </div>
-                <div
-                    className={clsx('flex justify-end rounded', {
-                        'border-2 border-success': question.answerCount > 0,
-                        'bg-success-600 text-default-50': question.hasAcceptedAnswer
-                    })}
-                >
-                    <span className={clsx('flex items-center gap-1', {'p-1': question.answerCount > 0})}>
-                        {question.hasAcceptedAnswer && (
-                            <CheckIcon className='h-4 w-4' strokeWidth={4}/>
-                        )}
-                        <ChatBubbleBottomCenterTextIcon className='h-4 w-4' />
-                        <span>{question.answerCount}</span>
-                    </span>
+                <div className='flex items-center gap-1'>
+                    <CheckIcon
+                        className={clsx('h-4 w-4', {
+                            'text-success': question.hasAcceptedAnswer,
+                            'text-default-300': !question.hasAcceptedAnswer
+                        })}
+                        strokeWidth={3}
+                    />
+                    <span>{question.answerCount}</span>
                 </div>
                 <div className='flex items-center gap-1'>
                     <EyeIcon className='h-4 w-4' />
@@ -39,15 +35,13 @@ export default function QuestionCard({question}: Props) {
             </div>
             <div className='flex flex-1 justify-between min-h-32'>
                 <div className='flex flex-col gap-2 w-full'>
-                    <Link 
+                    <Link
                         href={`/questions/${question.id}`}
                         className='text-primary font-semibold hover:underline first-letter:uppercase'
                     >
                         {question.title}
                     </Link>
-                    <div
-                        className='line-clamp-2'
-                    >
+                    <div className='line-clamp-2'>
                         {stripHtmlTags(question.content)}
                     </div>
                     <div className='flex justify-between pt-2'>

@@ -250,7 +250,7 @@
     },
     {
       "name": "Tags",
-      "description": "Tag management (via question-svc)",
+      "description": "Tag management (via question-svc). Create / Update / Delete require the `admin` Keycloak role.",
       "item": [
         {
           "name": "List Tags",
@@ -264,6 +264,80 @@
               "query": [
                 { "key": "sort", "value": "popular", "description": "popular | name (default)" }
               ]
+            }
+          }
+        },
+        {
+          "name": "Get Tag by ID",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tags", "{{tag_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Tag (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('tag_id', json.id);",
+                  "    console.log('Created tag: ' + json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Docker\",\n  \"slug\": \"docker\",\n  \"description\": \"Docker is a platform for developing, shipping, and running applications in containers.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "Update Tag (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Docker\",\n  \"description\": \"Updated description for the Docker tag.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tags", "{{tag_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Tag (admin)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tags", "{{tag_id}}"]
             }
           }
         }

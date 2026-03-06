@@ -67,7 +67,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(1)}
             >
-                <ArrowUpIcon className='w-8' />
+                <ArrowUpIcon className='w-6' />
             </Button>
             <span className='text-xl font-semibold'>{target.votes}</span>
             <Button
@@ -77,7 +77,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(-1)}
             >
-                <ArrowDownIcon className='w-8' />
+                <ArrowDownIcon className='w-6' />
             </Button>
             {isAnswer && (
                 <Button

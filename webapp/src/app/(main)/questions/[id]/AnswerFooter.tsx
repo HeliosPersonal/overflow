@@ -57,16 +57,14 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
                 </>}
             </div>
 
-            <div className='flex flex-col basis-2/5 bg-primary/10 px-3 py-2 gap-2 rounded-lg'>
-                <span className='text-sm font-extralight'>answered {timeAgo(answer.createdAt)}</span>
-                <div className='flex items-center gap-3'>
-                    <Avatar className='h-6 w-6' color='primary'
-                            name={answer.author?.displayName.charAt(0)} />
-                    <div className='flex flex-col items-center'>
-                        <span>{answer.author?.displayName}</span>
-                        <span className='self-start text-sm font-semibold'>
-                            {answer.author?.reputation}
-                        </span>
+            <div className='flex items-center gap-2 bg-primary/10 px-3 py-2 rounded-lg text-sm'>
+                <Avatar className='h-8 w-8 shrink-0' color='primary'
+                        name={answer.author?.displayName.charAt(0)} />
+                <div className='flex flex-col'>
+                    <span className='font-extralight text-xs'>answered {timeAgo(answer.createdAt)}</span>
+                    <div className='flex items-center gap-1'>
+                        <span className='font-medium text-sm'>{answer.author?.displayName}</span>
+                        <span className='text-xs text-default-400 font-semibold'>{answer.author?.reputation}</span>
                     </div>
                 </div>
             </div>
