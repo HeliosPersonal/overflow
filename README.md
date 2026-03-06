@@ -120,6 +120,7 @@ The `webapp/.env.development` file is committed and works out of the box for loc
 | [Google Auth Setup](docs/GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
 | [Infisical Setup](docs/INFISICAL_SETUP.md) | All secrets, how they flow from Infisical to services |
 | [Data Seeder](docs/DATA_SEEDER.md) | LLM-powered content generation for staging |
+| [Planning Poker Prompt](docs/PLANNING_POKER_PROMPT.md) | Claude IDE prompt for adding an Estimation Service and Planning Poker UI |
 | [Kubernetes](k8s/README.md) | Kustomize structure and manifest reference |
 | [Terraform](terraform/README.md) | Project-specific Terraform (DBs, vhosts, ConfigMaps) |
 
@@ -158,4 +159,3 @@ Pushing to `development` or `main` triggers GitHub Actions → builds Docker ima
 - **Infisical at runtime** — no secrets baked into images. Every pod fetches secrets from Infisical on startup.
 - **.NET Aspire for local dev** — one `dotnet run` starts the entire backend with all dependencies.
 - **On-premises Kubernetes** — K3s runs on a home server. Cloudflare proxies requests and hides the origin IP.
-
