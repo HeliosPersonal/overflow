@@ -263,6 +263,7 @@ docker build \
   --build-arg INFISICAL_CLIENT_ID="${{ secrets.INFISICAL_CLIENT_ID }}" \
   --build-arg INFISICAL_CLIENT_SECRET="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
   --build-arg INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}" \
+  --build-arg COMMIT_SHA="${{ github.sha }}" \
   ...
 
 # 3. K8s deployment — inject into infisical-credentials Secret

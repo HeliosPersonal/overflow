@@ -147,6 +147,7 @@ jobs:
             --build-arg INFISICAL_CLIENT_SECRET="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
             --build-arg INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}" \
             --build-arg NODE_ENV="${{ steps.webapp_env.outputs.build_env }}" \
+            --build-arg COMMIT_SHA="${{ github.sha }}" \
             -t ${IMAGE_NAME}:${{ env.IMAGE_TAG }} \
             ${{ matrix.context }}
           docker push ${IMAGE_NAME}:${{ env.IMAGE_TAG }}

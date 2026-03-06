@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import BuildVersion from "@/components/BuildVersion";
 
 export const metadata: Metadata = {
   title: "Overflow",
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className="flex flex-col border-neutral-200 dark:border-neutral-800 dark:bg-default-50 h-full">
         <Providers>
           {children}
+          <BuildVersion />
         </Providers>
       </body>
     </html>
