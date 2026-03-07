@@ -37,7 +37,7 @@ export default async function QuestionDetailedPage({params, searchParams}:
     )
     
     return (
-        <div className='w-full'>
+        <div className='w-full py-4'>
             <QuestionDetailedHeader question={question} />
             <QuestionContent question={question} />
             {question.answers.length > 0 && (
