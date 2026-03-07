@@ -64,7 +64,6 @@ builder.Services.AddSingleton<AuthenticationService>();
 // Add the background service
 builder.Services.AddHostedService<SeederBackgroundService>();
 
-
 var host = builder.Build();
 
 // Log configuration on startup
