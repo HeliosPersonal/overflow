@@ -374,16 +374,6 @@ public class LlmClient
     {
         content = content.Trim();
 
-        // Strip outer ```html ... ``` or ``` ... ``` wrapper (anywhere, not just anchored)
-        var fenceMatch = System.Text.RegularExpressions.Regex.Match(
-            content, @"^```[a-zA-Z]*\r?\n([\s\S]*?)```\s*$",
-            System.Text.RegularExpressions.RegexOptions.Multiline);
-        if (fenceMatch.Success)
-            content = fenceMatch.Groups[1].Value.Trim();
-
-        // After fence stripping, if it starts with an HTML tag treat as HTML
-        if (content.TrimStart().StartsWith('<'))
-            return content;
 
         // Normalise line endings to \n only so Split is consistent
         content = content.Replace("\r\n", "\n").Replace("\r", "\n");

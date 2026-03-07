@@ -243,19 +243,33 @@ public class SeederBackgroundService : BackgroundService
             _logger.LogInformation("✅ STEP 7: Accepting Best Answer");
             _logger.LogInformation("─────────────────────────────────────────────────");
 
-            var accepted = await answerGenerator.AcceptAnswerAsync(
-                question.Id,
-                bestAnswer.Id,
-                asker.Token!,
-                cancellationToken);
-
-            if (accepted)
+            // Refresh the asker token — it may have expired during the LLM pipeline
+            if (!string.IsNullOrEmpty(asker.KeycloakUserId))
             {
-                _logger.LogInformation("✅ STEP 7 COMPLETE: Answer accepted by {DisplayName}", asker.Profile.DisplayName);
+                _logger.LogDebug("Refreshing asker token before accept...");
+                asker.Token = await authService.GetUserTokenAsync(asker.KeycloakUserId, cancellationToken);
+            }
+
+            if (string.IsNullOrEmpty(asker.Token))
+            {
+                _logger.LogWarning("⚠️  STEP 7 WARNING: Could not refresh asker token, skipping accept");
             }
             else
             {
-                _logger.LogWarning("⚠️  STEP 7 WARNING: Failed to accept answer (not critical)");
+                var accepted = await answerGenerator.AcceptAnswerAsync(
+                    question.Id,
+                    bestAnswer.Id,
+                    asker.Token!,
+                    cancellationToken);
+
+                if (accepted)
+                {
+                    _logger.LogInformation("✅ STEP 7 COMPLETE: Answer accepted by {DisplayName}", asker.Profile.DisplayName);
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️  STEP 7 WARNING: Failed to accept answer (not critical)");
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════

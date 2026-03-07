@@ -214,7 +214,7 @@ public static class LlmPrompts
             "- context clarity (is the problem clear? no code embedded in context?)\n" +
             "- code_example presence (is there a reproducible code example?)\n" +
             "- answer correctness (does it directly solve the stated problem?)\n" +
-            "- code_snippet presence in the answer\n" +
+            "- code_snippet relevance (is the code snippet relevant to the problem? placeholder code like 'var x = 10' is wrong)\n" +
             "- UI contamination ('N answers', 'Viewed N times', vote counts, usernames, badges)\n" +
             "- filler phrases ('Hope this helps', 'Let me know', etc.)\n\n" +
             $"QUESTION TITLE: {question.Title}\n" +

@@ -40,7 +40,7 @@ spec:
             - name: SeederOptions__LlmApiUrl
               value: "$(SeederOptions__OllamaUrl)/v1/chat/completions"
             - name: SeederOptions__LlmModel
-              value: "qwen2.5:7b"
+              value: "qwen2.5:3b"
             - name: SeederOptions__MaxGenerationRetries
               value: "2"
             - name: SeederOptions__EnableCriticPass
