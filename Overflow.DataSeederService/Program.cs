@@ -3,6 +3,7 @@ using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Services;
+using Overflow.ServiceDefaults;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -12,9 +13,6 @@ builder.ConfigureKeycloakFromSettings();
 // Configure options
 builder.Services.Configure<SeederOptions>(builder.Configuration.GetSection("SeederOptions"));
 builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection("KeycloakOptions"));
-
-// Manually configure service discovery (needed for all HttpClients)
-builder.Services.AddServiceDiscovery();
 
 // LLM client needs custom longer timeouts - configure WITHOUT AddServiceDefaults interference
 builder.Services.AddHttpClient<LlmClient>(client =>
@@ -46,9 +44,10 @@ builder.Services.AddHttpClient<LlmClient>(client =>
     options.CircuitBreaker.MinimumThroughput = 100; // Effectively disabled
 });
 
-// Add ServiceDefaults AFTER LlmClient so ConfigureHttpClientDefaults doesn't affect it
-// Note: ConfigureHttpClientDefaults applies to clients added AFTER it's called
-//builder.AddServiceDefaults();
+// Add ServiceDefaults AFTER LlmClient so ConfigureHttpClientDefaults doesn't affect it.
+// LlmClient is registered above with custom infinite timeout — ConfigureHttpClientDefaults
+// only applies to clients registered AFTER this call, so LlmClient is safe.
+builder.AddServiceDefaults();
 
 // Add HttpClient with service discovery support (uses default resilience settings)
 builder.Services.AddHttpClient<UserGenerator>();
