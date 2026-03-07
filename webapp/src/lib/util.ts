@@ -51,7 +51,26 @@ export function timeAgo(date: string | Date) {
 }
 
 export function stripHtmlTags(html: string) {
-    return html.replace(/<[^>]*>/g, '').trim();
+    return html
+        .replace(/<[^>]*>/g, ' ')   // replace every tag with a space
+        .replace(/\s+/g, ' ')       // collapse runs of whitespace
+        .trim();
+}
+
+/**
+ * Returns a plain-text excerpt from HTML content suitable for question card previews.
+ * Skips <pre>/<code> blocks and headings; takes the first paragraph of prose text.
+ */
+export function htmlToExcerpt(html: string, maxLength = 160): string {
+    // Drop code blocks entirely — they look terrible as plain text
+    const noCode = html.replace(/<pre[\s\S]*?<\/pre>/gi, '');
+    // Drop headings
+    const noHeadings = noCode.replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, '');
+    // Extract first <p> content, fall back to all remaining text
+    const pMatch = noHeadings.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+    const raw = pMatch ? pMatch[1] : noHeadings;
+    const text = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return text.length > maxLength ? text.slice(0, maxLength).trimEnd() + '…' : text;
 }
 
 export const extractPublicIdsFromHtml = (html: string) => {
