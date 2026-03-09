@@ -180,6 +180,7 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
     "ConnectionStrings__profileDb"  = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.profile};Password=${var.pg_password}"
     "ConnectionStrings__voteDb"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.vote};Password=${var.pg_password}"
     "ConnectionStrings__statDb"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.stats};Password=${var.pg_password}"
+    "ConnectionStrings__estimationDb" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-staging vhost) ---
     "ConnectionStrings__messaging" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_staging}"
@@ -228,6 +229,7 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
     "ConnectionStrings__profileDb"  = "${local.postgres_connection_string};Database=${local.pg_production_dbs.profile};Password=${var.pg_password}"
     "ConnectionStrings__voteDb"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.vote};Password=${var.pg_password}"
     "ConnectionStrings__statDb"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.stats};Password=${var.pg_password}"
+    "ConnectionStrings__estimationDb" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-production vhost) ---
     "ConnectionStrings__messaging" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_production}"

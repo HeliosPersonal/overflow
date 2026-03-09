@@ -30,6 +30,7 @@ var questionDb = postgres.AddDatabase("questionDb");
 var profileDb = postgres.AddDatabase("profileDb");
 var statDb = postgres.AddDatabase("statDb");
 var voteDb = postgres.AddDatabase("voteDb");
+var estimationDb = postgres.AddDatabase("estimationDb");
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
@@ -75,6 +76,12 @@ var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
 var dataSeederService = builder.AddProject<Projects.Overflow_DataSeederService>("data-seeder-svc")
     .WaitFor(questionService);
 
+var estimationService = builder.AddProject<Projects.Overflow_EstimationService>("estimation-svc")
+    .WithReference(keycloak)
+    .WithReference(estimationDb)
+    .WaitFor(keycloak)
+    .WaitFor(estimationDb);
+
 var yarp = builder
     .AddYarp("gateway")
     .WithConfiguration(yarpBuilder =>
@@ -86,6 +93,7 @@ var yarp = builder
         yarpBuilder.AddRoute("/profiles/{**catch-all}", profileService);
         yarpBuilder.AddRoute("/stats/{**catch-all}", statService);
         yarpBuilder.AddRoute("/votes/{**catch-all}", voteService);
+        yarpBuilder.AddRoute("/estimation/{**catch-all}", estimationService);
     })
     .WithEnvironment("ASPNETCORE_URLS", "http://*:8001")
     .WithEndpoint(port: 8001, targetPort: 8001, scheme: "http", name: "gateway", isExternal: true)

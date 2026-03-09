@@ -1,6 +1,6 @@
 'use client';
 
-import {HomeIcon, TagIcon, UserIcon, UserGroupIcon} from "@heroicons/react/24/outline";
+import {HomeIcon, TagIcon, UserIcon, UserGroupIcon, HandRaisedIcon} from "@heroicons/react/24/outline";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {usePathname} from "next/navigation";
 
@@ -11,6 +11,7 @@ export default function SideMenu() {
         {key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'},
         {key: 'session', icon: UserIcon, text: 'User Session', href: '/session'},
         {key: 'profiles', icon: UserGroupIcon, text: 'Profiles', href: '/profiles'},
+        {key: 'poker', icon: HandRaisedIcon, text: 'Planning Poker', href: '/planning-poker'}
     ]
     
     return (
@@ -28,7 +29,7 @@ export default function SideMenu() {
                     key={key}
                     startContent={<Icon className='h-6' />}
                     classNames={{
-                        base: pathname === href ? 'text-primary' : '',
+                        base: (href === '/' ? pathname === '/' : pathname.startsWith(href)) ? 'text-primary' : '',
                         title: 'text-lg'
                     }}
                 >

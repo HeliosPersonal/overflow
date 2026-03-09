@@ -1,0 +1,28 @@
+# ====================================================================================
+# ESTIMATION SERVICE - ClusterIP Service
+# ====================================================================================
+# Exposes the Estimation Service internally within the cluster
+#
+# Traffic Flow:
+# 1. Ingress receives external request at /api/estimation/*
+# 2. Ingress routes to this service on port 8080
+# 3. Service load-balances across healthy pods
+# 4. Pods selected via label selector: app=estimation-svc
+# ====================================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: estimation-svc
+  labels:
+    app: estimation-svc
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: estimation-svc
+

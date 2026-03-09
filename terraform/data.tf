@@ -50,16 +50,18 @@ locals {
 
   # Database names per service, per environment
   pg_staging_dbs = {
-    question = "staging_questions"
-    profile  = "staging_profiles"
-    vote     = "staging_votes"
-    stats    = "staging_stats"
+    question   = "staging_questions"
+    profile    = "staging_profiles"
+    vote       = "staging_votes"
+    stats      = "staging_stats"
+    estimation = "staging_estimations"
   }
   pg_production_dbs = {
-    question = "production_questions"
-    profile  = "production_profiles"
-    vote     = "production_votes"
-    stats    = "production_stats"
+    question   = "production_questions"
+    profile    = "production_profiles"
+    vote       = "production_votes"
+    stats      = "production_stats"
+    estimation = "production_estimations"
   }
 
   # ---------- RabbitMQ (shared, single instance) ----------
