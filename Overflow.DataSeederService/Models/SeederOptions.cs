@@ -7,20 +7,21 @@ public class SeederOptions
     public required string VoteServiceUrl { get; set; }
     public required string LlmApiUrl { get; set; }
     public required string LlmModel { get; set; }
-    public required int IntervalMinutes { get; set; }
-    public required int MinAnswersPerQuestion { get; set; }
-    public required int MaxAnswersPerQuestion { get; set; }
+
+    public int QuestionIntervalMinutes { get; set; }
+    public int AnswerIntervalMinutes { get; set; }
+    public int AcceptIntervalMinutes { get; set; }
+    public int AnswerStartDelayMinutes { get; set; }
+    public int AcceptStartDelayMinutes { get; set; }
     public required int MaxSeederUsers { get; set; }
     public required string SeederUsernamePrefix { get; set; }
-    public required bool EnableLlmGeneration { get; set; }
+    public required string SeederUserPassword { get; set; }
     public required bool EnableVoting { get; set; }
-
-    /// <summary>Maximum JSON parse/generation retry attempts per pipeline step.</summary>
-    public int MaxGenerationRetries { get; set; } = 2;
-
-    /// <summary>Run the critic evaluation pass after answer generation.</summary>
-    public bool EnableCriticPass { get; set; } = true;
-
-    /// <summary>Run the repair pass when the critic flags issues.</summary>
-    public bool EnableRepairPass { get; set; } = true;
+    public int MaxGenerationRetries { get; set; }
+    public bool EnableCriticPass { get; set; }
+    public bool EnableRepairPass { get; set; }
+    public int MinAnswerPoolSize { get; set; }
+    public int AcceptQuestionsPerRun { get; set; }
+    public int AcceptDelayMinMs { get; set; }
+    public int AcceptDelayMaxMs { get; set; }
 }

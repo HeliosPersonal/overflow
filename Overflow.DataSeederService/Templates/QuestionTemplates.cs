@@ -1,9 +1,6 @@
 ﻿namespace Overflow.DataSeederService.Templates;
 
-/// <summary>
-/// Fallback question templates used when LLM is unavailable.
-/// Titles and content are paired to ensure topic consistency.
-/// </summary>
+/// <summary>Fallback question templates used when LLM is unavailable. Titles and content are topic-consistent pairs.</summary>
 public static class QuestionTemplates
 {
     private static readonly List<(string title, string content)> Questions = new()

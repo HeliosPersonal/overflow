@@ -8,7 +8,10 @@ public class TagListValidator(int min, int max) : ValidationAttribute
     {
         if (value is List<string> tags)
         {
-            if (tags.Count >= min && tags.Count <= max) return ValidationResult.Success;
+            if (tags.Count >= min && tags.Count <= max)
+            {
+                return ValidationResult.Success;
+            }
         }
 
         return new ValidationResult($"You must provide at least {min} and max {max} tags");

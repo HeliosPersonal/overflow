@@ -2,37 +2,28 @@ using Overflow.DataSeederService.Models;
 
 namespace Overflow.DataSeederService.Templates;
 
-/// <summary>
-/// Holds the system + user prompt pair and generation parameters for an LLM request.
-/// </summary>
 public record LlmPrompt(string SystemPrompt, string UserPrompt, int MaxTokens = 500, double Temperature = 0.7);
 
-/// <summary>
-/// Centralized LLM prompt templates for the multi-step generation pipeline.
-/// All prompts request strict JSON output to enable reliable parsing.
-/// The service (ContentAssembler) is responsible for final markdown layout —
-/// the LLM only fills in discrete semantic fields.
-/// </summary>
+/// <summary>Prompt templates for the 5-step generation pipeline. All prompts request strict JSON output.</summary>
 public static class LlmPrompts
 {
-    // ─────────────────────────────────────────────
-    //  Step 1 — Topic Seed
-    // ─────────────────────────────────────────────
-
-    /// <summary>Temperature: 0.7 (creative diversity).</summary>
-    public static LlmPrompt TopicSeed(string tag)
+    /// <summary>Temperature: 0.7 — creative topic variety.</summary>
+    public static LlmPrompt TopicSeed(string tag, ComplexityLevel complexity = ComplexityLevel.Intermediate)
     {
+        var difficultyLabel = complexity.ToPromptLabel();
+
         const string system =
             "You are a technical problem designer. Your job is to invent realistic, specific software problems " +
             "that a developer might encounter. You must respond with ONLY valid JSON matching the exact schema provided. " +
             "Do NOT include markdown fences, explanations, or any text outside the JSON object.";
 
         var user =
-            $"Design a specific software problem related to the topic: \"{tag}\"\n\n" +
+            $"Design a specific software problem related to the topic: \"{tag}\"\n" +
+            $"Difficulty level: \"{difficultyLabel}\"\n\n" +
             "Return ONLY this JSON object (no markdown, no extra text):\n" +
             "{\n" +
             "  \"topic\": \"specific sub-topic or library name\",\n" +
-            "  \"difficulty\": \"beginner|intermediate|advanced\",\n" +
+            $"  \"difficulty\": \"{difficultyLabel}\",\n" +
             "  \"problem_type\": \"short description of the problem category\",\n" +
             "  \"bug_reason\": \"root cause of the issue in one sentence\",\n" +
             "  \"key_entities\": [\"entity1\", \"entity2\", \"entity3\"],\n" +
@@ -48,19 +39,10 @@ public static class LlmPrompts
             "  \"solution_hint\": \"use StringVar and configure() to update the label text\"\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 300, Temperature: 0.7);
+        return new LlmPrompt(system, user, 300, 0.7);
     }
 
-    // ─────────────────────────────────────────────
-    //  Step 2 — Structured Question Generation
-    // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a realistic StackOverflow-style question as discrete semantic fields.
-    /// The service (ContentAssembler) assembles the final markdown — the LLM must NOT
-    /// attempt to format a full body.
-    /// Temperature: 0.5 (balanced creativity and structure).
-    /// </summary>
+    /// <summary>Temperature: 0.5 — balanced creativity and structure.</summary>
     public static LlmPrompt StructuredQuestion(TopicSeedDto topic)
     {
         var entitiesHint = topic.KeyEntities.Count > 0
@@ -128,27 +110,30 @@ public static class LlmPrompts
             "  \"tags\": [\"csharp\", \"entity-framework-core\", \"linq\"]\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 1200, Temperature: 0.5);
+        return new LlmPrompt(system, user, 1200, 0.5);
     }
 
-    // ─────────────────────────────────────────────
-    //  Step 3 — Structured Answer Generation
-    // ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a realistic StackOverflow-style answer as discrete semantic fields.
-    /// The service (ContentAssembler) assembles the final markdown.
-    /// Temperature: 0.4 (accurate and focused).
-    /// </summary>
-    public static LlmPrompt StructuredAnswer(QuestionGenerationDto question, AnswerStyle style)
+    /// <summary>Temperature: 0.4 — accurate and focused.</summary>
+    public static LlmPrompt StructuredAnswer(QuestionGenerationDto question, AnswerStyle style,
+        ComplexityLevel complexity = ComplexityLevel.Intermediate)
     {
         var styleHint = style switch
         {
-            AnswerStyle.StepByStep    => "Provide 2-4 numbered steps in the \"steps\" array explaining how the fix works.",
-            AnswerStyle.CodeHeavy     => "Keep explanation very short. Focus on the corrected code.",
+            AnswerStyle.StepByStep =>
+                "Provide 2-4 numbered steps in the \"fix_steps\" array explaining how the fix works.",
+            AnswerStyle.CodeHeavy => "Keep explanation very short. Focus on the corrected code.",
             AnswerStyle.Conversational => "Write explanation in a friendly, clear tone.",
-            AnswerStyle.Formal        => "Write explanation in a professional, precise tone.",
-            _                         => "Write a clear, direct explanation."
+            AnswerStyle.Formal => "Write explanation in a professional, precise tone.",
+            _ => "Write a clear, direct explanation."
+        };
+
+        var complexityHint = complexity switch
+        {
+            ComplexityLevel.Beginner =>
+                "Keep the explanation simple and beginner-friendly. Avoid jargon. Use short, clear sentences.",
+            ComplexityLevel.Advanced =>
+                "Assume expert knowledge. Include deeper reasoning, edge cases, or performance considerations.",
+            _ => "Write for an intermediate developer with solid fundamentals."
         };
 
         var codeContext = string.IsNullOrWhiteSpace(question.CodeExample)
@@ -159,10 +144,8 @@ public static class LlmPrompts
             $"Title: {question.Title}\n" +
             (string.IsNullOrWhiteSpace(question.Context) ? "" : $"Context: {question.Context}\n") +
             codeContext +
-            (string.IsNullOrWhiteSpace(question.ExpectedBehavior) ? "" :
-                $"\nExpected: {question.ExpectedBehavior}\n") +
-            (string.IsNullOrWhiteSpace(question.ActualBehavior) ? "" :
-                $"Actual: {question.ActualBehavior}\n");
+            (string.IsNullOrWhiteSpace(question.ExpectedBehavior) ? "" : $"\nExpected: {question.ExpectedBehavior}\n") +
+            (string.IsNullOrWhiteSpace(question.ActualBehavior) ? "" : $"Actual: {question.ActualBehavior}\n");
 
         const string system =
             "You are an experienced developer answering a StackOverflow question.\n" +
@@ -179,7 +162,8 @@ public static class LlmPrompts
 
         var user =
             $"Answer this StackOverflow question.\n{questionContext}\n" +
-            $"Style: {styleHint}\n\n" +
+            $"Style: {styleHint}\n" +
+            $"Complexity: {complexityHint}\n\n" +
             "Return ONLY this JSON object:\n" +
             "{\n" +
             "  \"explanation\": \"1-3 sentences on the root cause. No code.\",\n" +
@@ -190,14 +174,10 @@ public static class LlmPrompts
             "  \"accepted\": false\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 900, Temperature: 0.4);
+        return new LlmPrompt(system, user, 900, 0.4);
     }
 
-    // ─────────────────────────────────────────────
-    //  Step 4 — Critic Evaluation
-    // ─────────────────────────────────────────────
-
-    /// <summary>Temperature: 0.2 (deterministic evaluation).</summary>
+    /// <summary>Temperature: 0.2 — deterministic evaluation.</summary>
     public static LlmPrompt Critic(QuestionGenerationDto question, AnswerGenerationDto answer)
     {
         const string system =
@@ -229,14 +209,10 @@ public static class LlmPrompts
             "{ \"valid\": true, \"issues\": [] }\n" +
             "If invalid: { \"valid\": false, \"issues\": [\"specific issue\"] }";
 
-        return new LlmPrompt(system, user, MaxTokens: 250, Temperature: 0.2);
+        return new LlmPrompt(system, user, 250, 0.2);
     }
 
-    // ─────────────────────────────────────────────
-    //  Step 5 — Repair Pass
-    // ─────────────────────────────────────────────
-
-    /// <summary>Temperature: 0.3 (targeted corrections).</summary>
+    /// <summary>Temperature: 0.3 — targeted corrections only.</summary>
     public static LlmPrompt Repair(QuestionGenerationDto question, AnswerGenerationDto answer,
         CriticResultDto critic)
     {
@@ -276,14 +252,10 @@ public static class LlmPrompts
             "  }\n" +
             "}";
 
-        return new LlmPrompt(system, user, MaxTokens: 900, Temperature: 0.3);
+        return new LlmPrompt(system, user, 900, 0.3);
     }
 
-    // ─────────────────────────────────────────────
-    //  Best Answer Selection
-    // ─────────────────────────────────────────────
 
-    [Obsolete("Use the structured 5-step pipeline instead.")]
     public static LlmPrompt SelectBestAnswer(string questionTitle, List<string> answers)
     {
         var answersText = string.Join("\n\n---\n\n", answers.Select((a, i) => $"Answer {i}: {a}"));
@@ -292,6 +264,6 @@ public static class LlmPrompts
             $"Question: {questionTitle}\n\n{answersText}\n\n" +
             $"Which answer (0-{answers.Count - 1}) is best? Reply with the number only.";
 
-        return new LlmPrompt(system, user, MaxTokens: 5, Temperature: 0.1);
+        return new LlmPrompt(system, user, 5, 0.1);
     }
 }

@@ -34,7 +34,9 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
         var slug = dto.Slug.ToLowerInvariant().Trim();
 
         if (await db.Tags.AnyAsync(t => t.Slug == slug))
+        {
             return Conflict($"A tag with slug '{slug}' already exists.");
+        }
 
         var tag = new Tag
         {
@@ -64,7 +66,10 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
     public async Task<ActionResult<Tag>> UpdateTag(string id, UpdateTagDto dto)
     {
         var tag = await db.Tags.FindAsync(id);
-        if (tag is null) return NotFound();
+        if (tag is null)
+        {
+            return NotFound();
+        }
 
         tag.Name = dto.Name.Trim();
         tag.Description = dto.Description.Trim();
@@ -81,7 +86,10 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
     public async Task<IActionResult> DeleteTag(string id)
     {
         var tag = await db.Tags.FindAsync(id);
-        if (tag is null) return NotFound();
+        if (tag is null)
+        {
+            return NotFound();
+        }
 
         db.Tags.Remove(tag);
         await db.SaveChangesAsync();

@@ -54,7 +54,10 @@ public static class AuthExtensions
                         OnTokenValidated = context =>
                         {
                             var identity = context.Principal?.Identity as ClaimsIdentity;
-                            if (identity is null) return Task.CompletedTask;
+                            if (identity is null)
+                            {
+                                return Task.CompletedTask;
+                            }
 
                             // Map Keycloak realm_access.roles to ClaimTypes.Role
                             var realmAccessClaim = identity.FindFirst("realm_access");
@@ -69,7 +72,9 @@ public static class AuthExtensions
                                         {
                                             var roleValue = role.GetString();
                                             if (roleValue is not null)
+                                            {
                                                 identity.AddClaim(new Claim(ClaimTypes.Role, roleValue));
+                                            }
                                         }
                                     }
                                 }

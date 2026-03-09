@@ -1,7 +1,7 @@
 ﻿namespace Overflow.DataSeederService.Templates;
 
 /// <summary>
-/// Fallback answer templates used when LLM is unavailable.
+///     Fallback answer templates used when LLM is unavailable.
 /// </summary>
 public static class AnswerTemplates
 {
