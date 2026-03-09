@@ -245,6 +245,51 @@ spec:
                   number: 8080
 ---
 # ------------------------------------------------------------------------------
+# ESTIMATION SERVICE
+# WebSocket upgrade support enabled for real-time room updates
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: estimation-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /estimation$1$2
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/estimation(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: estimation-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/estimation(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: estimation-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
 # NEXTAUTH API ROUTES
 # NO REWRITE — NextAuth expects /api/auth/* as-is
 # Extended timeouts for OAuth callbacks

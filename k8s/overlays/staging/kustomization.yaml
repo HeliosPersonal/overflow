@@ -43,6 +43,7 @@ resources:
   - ../../base/profile-svc       # User profiles and reputation
   - ../../base/stats-svc         # Statistics aggregation service
   - ../../base/vote-svc          # Voting system for Q&A
+  - ../../base/estimation-svc    # Planning Poker estimation rooms
   - ../../base/data-seeder-svc   # AI-powered test data generation
   - ../../base/overflow-webapp   # Next.js frontend application
   - ingress.yaml                 # Staging-specific ingress rules
@@ -74,6 +75,9 @@ images:
     newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-data-seeder
     newName: ghcr.io/GITHUB_USERNAME/overflow-data-seeder
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-estimation
+    newName: ghcr.io/GITHUB_USERNAME/overflow-estimation
     newTag: SHA_REPLACED_BY_CICD
 
 # ====================================================================================
@@ -111,6 +115,8 @@ replicas:
   - name: stats-svc
     count: 1
   - name: vote-svc
+    count: 1
+  - name: estimation-svc
     count: 1
   - name: overflow-webapp
     count: 1

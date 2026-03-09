@@ -18,7 +18,7 @@
     "@heroicons/react": "^2.2.0",
     "@heroui/react": "^2.8.5",
     "@hookform/resolvers": "^5.2.2",
-    "@infisical/sdk": "^4.0.6",
+    "@infisical/sdk": "^4.0.5",
     "@next/env": "^16.0.7",
     "@opentelemetry/auto-instrumentations-node": "^0.70.1",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.212.0",

@@ -27,7 +27,8 @@ NGINX Ingress (K3s on-prem · TLS termination · path routing)
   ├─ /api/search/*      →  search-svc      (.NET 10, Typesense)
   ├─ /api/profiles/*    →  profile-svc     (.NET 10, PostgreSQL)
   ├─ /api/stats/*       →  stats-svc       (.NET 10, PostgreSQL)
-  └─ /api/votes/*       →  vote-svc        (.NET 10, PostgreSQL)
+  ├─ /api/votes/*       →  vote-svc        (.NET 10, PostgreSQL)
+  └─ /api/estimation/*  →  estimation-svc  (.NET 10, PostgreSQL/Marten, WebSocket)
                               │
                     ┌─────────┴──────────┐
                     │                    │
@@ -72,6 +73,7 @@ overflow/
 ├── Overflow.ProfileService/    # User profiles and reputation
 ├── Overflow.StatsService/      # Aggregate statistics
 ├── Overflow.VoteService/       # Upvote / downvote
+├── Overflow.EstimationService/ # Planning Poker rooms (event-sourced via Marten)
 ├── Overflow.DataSeederService/ # LLM-powered staging content generator
 ├── k8s/                        # Kubernetes manifests (Kustomize base + overlays)
 ├── terraform/                  # Project-specific Terraform (DBs, vhosts, ConfigMaps)
@@ -120,6 +122,7 @@ The `webapp/.env.development` file is committed and works out of the box for loc
 | [Google Auth Setup](docs/GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
 | [Infisical Setup](docs/INFISICAL_SETUP.md) | All secrets, how they flow from Infisical to services |
 | [Data Seeder](docs/DATA_SEEDER.md) | LLM-powered content generation for staging |
+| [Planning Poker Prompt](docs/PLANNING_POKER_PROMPT.md) | Claude IDE prompt for adding an Estimation Service and Planning Poker UI |
 | [Kubernetes](k8s/README.md) | Kustomize structure and manifest reference |
 | [Terraform](terraform/README.md) | Project-specific Terraform (DBs, vhosts, ConfigMaps) |
 
@@ -146,6 +149,7 @@ Pushing to `development` or `main` triggers GitHub Actions → builds Docker ima
 | `profile-svc` | User profiles and reputation. Subscribes to vote/answer events. | 8080 |
 | `stats-svc` | Aggregate platform statistics. | 8080 |
 | `vote-svc` | Upvote / downvote. Publishes vote events. | 8080 |
+| `estimation-svc` | Planning Poker. Event-sourced rooms via Marten. Real-time WebSocket updates. | 8080 |
 | `data-seeder-svc` | Background worker — generates LLM content in staging. | — |
 | `webapp` | Next.js SSR frontend. | 3000 |
 
@@ -155,7 +159,7 @@ Pushing to `development` or `main` triggers GitHub Actions → builds Docker ima
 
 - **One database per service** — each microservice owns its schema; no cross-service DB calls.
 - **Event-driven** — services communicate via RabbitMQ. Wolverine handles outbox, retries, and routing.
+- **Event-sourced estimation** — Planning Poker rooms use Marten event streams as the source of truth, with inline projections for current state.
 - **Infisical at runtime** — no secrets baked into images. Every pod fetches secrets from Infisical on startup.
 - **.NET Aspire for local dev** — one `dotnet run` starts the entire backend with all dependencies.
 - **On-premises Kubernetes** — K3s runs on a home server. Cloudflare proxies requests and hides the origin IP.
-

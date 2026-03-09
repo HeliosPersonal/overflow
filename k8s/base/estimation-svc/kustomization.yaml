@@ -1,0 +1,27 @@
+# ====================================================================================
+# ESTIMATION SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Estimation Service microservice
+#
+# This service handles:
+# - Planning Poker room creation and lifecycle
+# - Participant management (authenticated + guest)
+# - Vote submission, reveal, and round reset
+# - Event-sourced room state via Marten/PostgreSQL
+# - Real-time WebSocket room updates
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Resources included in this base
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# Standard Kubernetes labels applied to all resources
+labels:
+  - pairs:
+      app.kubernetes.io/name: estimation-svc
+      app.kubernetes.io/part-of: overflow
+
