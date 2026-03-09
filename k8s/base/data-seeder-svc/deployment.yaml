@@ -36,9 +36,8 @@ spec:
               value: "http://profile-svc:8080"
             - name: SeederOptions__VoteServiceUrl
               value: "http://vote-svc:8080"
-            # LlmApiUrl is derived from SeederOptions__OllamaUrl set in overflow-infra-config
             - name: SeederOptions__LlmApiUrl
-              value: "$(SeederOptions__OllamaUrl)/v1/chat/completions"
+              value: "$(SeederOptions__OllamaUrl)"
             - name: SeederOptions__LlmModel
               value: "qwen2.5:3b"
             - name: SeederOptions__MaxGenerationRetries
