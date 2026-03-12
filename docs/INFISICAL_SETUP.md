@@ -34,8 +34,8 @@
 │                    Infisical (eu.infisical.com)                  │
 │                                                                  │
 │   Project: Overflow                                              │
-│   ├── Environment: staging      (27 secrets)                     │
-│   └── Environment: production   (27 secrets)                     │
+│   ├── Environment: staging      (28 secrets)                     │
+│   └── Environment: production   (28 secrets)                     │
 │                                                                  │
 │   Syncs to GitHub Actions:                                       │
 │   └── INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET,              │
@@ -122,7 +122,7 @@ Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, u
 
 ## Complete Secret Inventory
 
-All 27 secrets that should exist in Infisical, grouped by purpose.
+All 28 secrets that should exist in Infisical, grouped by purpose.
 
 ### 🔐 Infisical Bootstrap (synced to GitHub Actions)
 
@@ -170,6 +170,7 @@ Infisical values take precedence at runtime since they're loaded after the Confi
 | `ConnectionStrings__QuestionDb` | `ConnectionStrings:QuestionDb` | question-svc |
 | `ConnectionStrings__StatDb` | `ConnectionStrings:StatDb` | stats-svc |
 | `ConnectionStrings__VoteDb` | `ConnectionStrings:VoteDb` | vote-svc |
+| `ConnectionStrings__EstimationDb` | `ConnectionStrings:EstimationDb` | estimation-svc |
 
 > **Note:** These duplicate what Terraform puts in the `overflow-infra-config` ConfigMap.
 > Having them in Infisical provides a safety net — if the ConfigMap is missing or stale,
@@ -449,7 +450,4 @@ AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 
 See [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-development-setup).
 
----
-
-*Last updated: March 2026*
 

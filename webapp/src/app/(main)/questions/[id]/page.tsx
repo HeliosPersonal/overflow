@@ -16,7 +16,11 @@ export default async function QuestionDetailedPage({params, searchParams}:
     const {sort} = await searchParams;
     const {data: question, error} = await getQuestionById(id);
     
-    if (error) throw error;
+    if (error) return (
+        <div className='w-full py-4'>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">{error.message}</p>
+        </div>
+    );
     if (!question) return notFound();
     
     const sortMode = sort === 'created' ? 'created' : 'highScore';

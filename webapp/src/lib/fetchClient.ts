@@ -1,6 +1,7 @@
 import {notFound} from "next/navigation";
 import {auth} from "@/auth";
 import {FetchResponse} from "@/lib/types";
+import type {Session} from "next-auth";
 
 export async function fetchClient<T>(
     url: string,
@@ -10,7 +11,16 @@ export async function fetchClient<T>(
     const {body, ...rest} = options;
     const apiUrl = process.env.API_URL;
     if (!apiUrl) throw new Error('Missing API URL');
-    const session = await auth();
+
+    // auth() can throw JWTSessionError when the browser has a stale session cookie
+    // encrypted with a different AUTH_SECRET (e.g. left over from staging).
+    // Treat this as unauthenticated — the invalid cookie will be cleared on next sign-in.
+    let session: Session | null = null;
+    try {
+        session = await auth() as Session | null;
+    } catch (e) {
+        console.warn('[fetchClient] Failed to read session (stale cookie?):', e instanceof Error ? e.message : e);
+    }
     
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -18,12 +28,19 @@ export async function fetchClient<T>(
         ...(rest.headers || {})
     }
     
-    const response = await fetch(apiUrl + url, {
-        method,
-        headers,
-        ...(body ? {body: JSON.stringify(body)} : {}),
-        ...rest
-    })
+    let response: Response;
+    try {
+        response = await fetch(apiUrl + url, {
+            method,
+            headers,
+            ...(body ? {body: JSON.stringify(body)} : {}),
+            ...rest
+        });
+    } catch (e) {
+        const message = e instanceof Error ? e.message : 'Network error';
+        console.warn(`[fetchClient] fetch failed for ${method} ${url}:`, message);
+        return {data: null, error: {message: 'Backend unavailable. Please try again later.', status: 503}};
+    }
 
     const contentType = response.headers.get('Content-type');
     const isJson = contentType?.includes('application/json')

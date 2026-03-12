@@ -415,7 +415,4 @@ After signing in via Google, check the JWT claims in the browser:
 - Publish the OAuth consent screen in Google Cloud Console (Step 1.3, point 7)
 - For production, submit for Google verification if needed
 
----
-
-*Last updated: March 2026*
 

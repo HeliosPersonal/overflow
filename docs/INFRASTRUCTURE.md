@@ -5,8 +5,9 @@
 - [Network Architecture](./NETWORK_ARCHITECTURE.md) — Detailed network diagrams and connection flows
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
-- [Infisical Secret Management](./INFISICAL_SETUP.md) — All 27 secrets, how they flow, GitHub Actions sync
-- [Data Seeder Service](./DATA_SEEDER.md) — LLM-powered content generation, user pool, variability system
+- [Infisical Secret Management](./INFISICAL_SETUP.md) — All 28 secrets, how they flow, GitHub Actions sync
+- [Data Seeder Service](../Overflow.DataSeederService/README.md) — LLM-powered content generation, user pool, variability system
+- [Estimation Service](../Overflow.EstimationService/README.md) — Planning Poker rooms, WebSocket protocol
 - [Terraform README](../terraform/README.md) — Project-specific Terraform
 - [infrastructure-helios](https://github.com/heliospersonal/infrastructure-helios) — Shared infrastructure repository
 - [Kubernetes README](../k8s/README.md) — Kustomize and manifests
@@ -59,7 +60,7 @@
                                       │
                                       ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│ 4. NGINX Ingress  — TLS termination (Let's Encrypt), host + path matching        │
+│ 4. NGINX Ingress  — TLS termination (Cloudflare Origin Certificate), host + path matching │
 │    /api/questions/* → question-svc (with path rewrite)                          │
 └──────────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -109,7 +110,10 @@ PATH                      REWRITE TO           SERVICE            PORT
 /api/profiles/*     →    /profiles/*     →    profile-svc     →  8080
 /api/stats/*        →    /stats/*        →    stats-svc       →  8080
 /api/votes/*        →    /votes/*        →    vote-svc        →  8080
-/*                  →    (no rewrite)    →    overflow-webapp →  3000
+/api/estimation/*/ws →   /estimation/*  →    estimation-svc  →  8080  (WebSocket, direct)
+/api/estimation/*   →    (no rewrite)   →    overflow-webapp →  3000  (HTTP, Next.js BFF proxy)
+/api/auth/*         →    (no rewrite)   →    overflow-webapp →  3000
+/*                  →    (no rewrite)   →    overflow-webapp →  3000
 ```
 
 #### Authentication — Keycloak + NextAuth
@@ -128,12 +132,19 @@ question-svc ──▶ QuestionCreated ──▶ RabbitMQ (overflow-staging vhos
                                            │
                     ┌──────────────────────┼──────────────────────┐
                     ▼                      ▼                      ▼
-               search-svc             stats-svc             profile-svc
-            (index Typesense)     (update projections)  (update reputation)
+               search-svc             stats-svc             question-svc
+            (index Typesense)     (update projections)  (handle VoteCasted)
+
+vote-svc ───▶ VoteCasted / UserReputationChanged ──▶ RabbitMQ
+                                                          │
+                    ┌─────────────────────────────────────┼──────────┐
+                    ▼                                     ▼          ▼
+               profile-svc                           stats-svc  question-svc
+           (update reputation)                   (top users)  (vote count)
 ```
 
-**Events:** `QuestionCreated`, `QuestionUpdated`, `QuestionDeleted`, `AnswerAccepted`,
-`VoteCasted`, `UserReputationChanged`
+**Events:** `QuestionCreated`, `QuestionUpdated`, `QuestionDeleted`, `AnswerCountUpdated`,
+`AnswerAccepted`, `VoteCasted`, `UserReputationChanged`
 
 Wolverine handles message routing, the durable outbox (question-svc), retries, and dead-letter queues.
 
@@ -169,8 +180,9 @@ Wolverine handles message routing, the durable outbox (question-svc), retries, a
   │ profile-svc   │ │ profile-svc   │ │ RabbitMQ      │
   │ stats-svc     │ │ stats-svc     │ │ Typesense     │
   │ vote-svc      │ │ vote-svc      │ └───────────────┘
+  │ estimation-svc│ │ estimation-svc│
   │ webapp        │ │ webapp        │
-  │ data-seeder   │ │ data-seeder   │
+  │ data-seeder   │ │               │
   └───────────────┘ └───────────────┘
 ```
 
@@ -200,7 +212,8 @@ Each .NET 10 service is an ASP.NET Core web application. Shared dependencies com
 | `search-svc` | — | Wolverine (RabbitMQ subscriber) | Typesense .NET client |
 | `profile-svc` | EF Core + Npgsql | Wolverine (RabbitMQ subscriber) | — |
 | `stats-svc` | Marten (document store + event store) | Wolverine (RabbitMQ subscriber) | JasperFx.Events, inline projections |
-| `vote-svc` | EF Core + Npgsql | Wolverine (RabbitMQ subscriber) | — |
+| `vote-svc` | EF Core + Npgsql | Wolverine (RabbitMQ publisher) | — |
+| `estimation-svc` | EF Core + Npgsql | — | WebSocket |
 | `data-seeder-svc` | HTTP calls to other services | — | Bogus (fake data), Polly (resilience) |
 
 **Shared libraries:**
@@ -230,8 +243,8 @@ Each .NET 10 service is an ASP.NET Core web application. Shared dependencies com
 
 | Component | Technology | Description |
 |---|---|---|
-| Relational DB | PostgreSQL | Per-service databases (question, profile, vote) |
-| Document / Event store | Marten (on PostgreSQL) | stats-svc projections and event sourcing |
+| Relational DB | PostgreSQL | Per-service databases (question, profile, vote, stats, estimation) |
+| Document / Event store | Marten (on PostgreSQL) | stats-svc projections |
 | Message queue | RabbitMQ | Async domain events between services |
 | Message framework | Wolverine | Handlers, outbox, retries, RabbitMQ transport |
 | Search engine | Typesense | Full-text question/answer search |
@@ -277,9 +290,10 @@ kube-system         — Cloudflare DDNS, core K8s components
 |---|---|---|---|---|
 | `question-svc` | 8080 | EF Core + PostgreSQL | Questions, answers, tags. Publishes domain events via Wolverine outbox. | `/questions`, `/answers`, `/tags` |
 | `search-svc` | 8080 | Typesense | Full-text search. Subscribes to question events and syncs index. | `/search` |
-| `profile-svc` | 8080 | EF Core + PostgreSQL | User profiles and reputation. Subscribes to vote/answer events. | `/profiles` |
+| `profile-svc` | 8080 | EF Core + PostgreSQL | User profiles and reputation. Subscribes to `UserReputationChanged` events. | `/profiles` |
 | `stats-svc` | 8080 | Marten (document store + event store on PostgreSQL) | Trending tags, top users. Builds inline projections from domain events. | `/stats` |
-| `vote-svc` | 8080 | EF Core + PostgreSQL | Upvote / downvote. Publishes `VoteCasted` events. | `/votes` |
+| `vote-svc` | 8080 | EF Core + PostgreSQL | Upvote / downvote. Publishes `VoteCasted` and `UserReputationChanged` events. | `/votes` |
+| `estimation-svc` | 8080 | EF Core + PostgreSQL | Planning Poker rooms. Real-time updates over WebSocket. No RabbitMQ dependency. | `/estimation` |
 | `overflow-webapp` | 3000 | — | Next.js SSR frontend. | `/` |
 | `data-seeder-svc` | — | HTTP (calls other services) | Background worker — generates LLM content in staging via Bogus + OpenAI-compatible API. | internal only |
 
@@ -343,6 +357,7 @@ k8s/
 │   ├── profile-svc/
 │   ├── stats-svc/
 │   ├── vote-svc/
+│   ├── estimation-svc/
 │   ├── data-seeder-svc/
 │   └── overflow-webapp/
 │
@@ -479,13 +494,15 @@ The `cloudflare-origin` secret is created in `infra-production` by `infrastructu
 
 **External routes:**
 ```
-staging.devoverflow.org/api/questions  →  question-svc:8080
-staging.devoverflow.org/api/search     →  search-svc:8080
-staging.devoverflow.org/api/profiles   →  profile-svc:8080
-staging.devoverflow.org/api/stats      →  stats-svc:8080
-staging.devoverflow.org/api/votes      →  vote-svc:8080
-staging.devoverflow.org/*              →  overflow-webapp:3000
-keycloak.devoverflow.org               →  keycloak:8080
+staging.devoverflow.org/api/questions       →  question-svc:8080
+staging.devoverflow.org/api/search          →  search-svc:8080
+staging.devoverflow.org/api/profiles        →  profile-svc:8080
+staging.devoverflow.org/api/stats           →  stats-svc:8080
+staging.devoverflow.org/api/votes           →  vote-svc:8080
+staging.devoverflow.org/api/estimation/*/ws →  estimation-svc:8080  (WebSocket, direct)
+staging.devoverflow.org/api/estimation/*    →  overflow-webapp:3000  (HTTP, Next.js BFF proxy)
+staging.devoverflow.org/*                   →  overflow-webapp:3000
+keycloak.devoverflow.org                    →  keycloak:8080
 ```
 
 ---
@@ -580,8 +597,16 @@ kubectl rollout undo deployment/question-svc -n apps-staging --to-revision=2
 
 ```bash
 kubectl port-forward svc/postgres 5432:5432 -n infra-production &
-pg_dump -h localhost -U postgres -d staging_questions  > backup_staging_questions.sql
-pg_dump -h localhost -U postgres -d production_questions > backup_production_questions.sql
+pg_dump -h localhost -U postgres -d staging_questions    > backup_staging_questions.sql
+pg_dump -h localhost -U postgres -d staging_profiles     > backup_staging_profiles.sql
+pg_dump -h localhost -U postgres -d staging_votes        > backup_staging_votes.sql
+pg_dump -h localhost -U postgres -d staging_stats        > backup_staging_stats.sql
+pg_dump -h localhost -U postgres -d staging_estimations  > backup_staging_estimations.sql
+pg_dump -h localhost -U postgres -d production_questions   > backup_production_questions.sql
+pg_dump -h localhost -U postgres -d production_profiles    > backup_production_profiles.sql
+pg_dump -h localhost -U postgres -d production_votes       > backup_production_votes.sql
+pg_dump -h localhost -U postgres -d production_stats       > backup_production_stats.sql
+pg_dump -h localhost -U postgres -d production_estimations > backup_production_estimations.sql
 ```
 
 ### Restart all services
@@ -625,7 +650,3 @@ kubectl top nodes
 kubectl exec -it <pod> -n apps-staging -- /bin/sh
 kubectl port-forward svc/question-svc 8080:8080 -n apps-staging
 ```
-
----
-
-*Last updated: February 2026*

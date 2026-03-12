@@ -39,7 +39,7 @@ https://staging.devoverflow.org
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐    │
 │  │  NGINX INGRESS (namespace: ingress)                      │    │
-│  │  • TLS termination (Let's Encrypt certificates)          │    │
+│  │  • TLS termination (Cloudflare Origin Certificate)        │    │
 │  │  • Host-based routing                                    │    │
 │  │  • Path-based routing + rewrite                         │    │
 │  └────────────────────────────┬─────────────────────────────┘    │
@@ -54,8 +54,9 @@ https://staging.devoverflow.org
 │  │ profile-svc  │  │ profile-svc      │  │ rabbitmq         │   │
 │  │ stats-svc    │  │ stats-svc        │  │ typesense        │   │
 │  │ vote-svc     │  │ vote-svc         │  └──────────────────┘   │
+│  │ estimation-svc│  │ estimation-svc  │                         │
 │  │ webapp       │  │ webapp           │                         │
-│  │ data-seeder  │  │ data-seeder      │                         │
+│  │ data-seeder  │  │                  │                         │
 │  └──────────────┘  └──────────────────┘                         │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -124,23 +125,31 @@ webapp (Next.js)
   ├──▶ search-svc.apps-staging.svc.cluster.local:8080
   ├──▶ profile-svc.apps-staging.svc.cluster.local:8080
   ├──▶ stats-svc.apps-staging.svc.cluster.local:8080
-  └──▶ vote-svc.apps-staging.svc.cluster.local:8080
+  ├──▶ vote-svc.apps-staging.svc.cluster.local:8080
+  └──▶ estimation-svc.apps-staging.svc.cluster.local:8080
 ```
 
-### Asynchronous (RabbitMQ / MassTransit)
+### Asynchronous (RabbitMQ / Wolverine)
 
 ```
 question-svc ──▶ QuestionCreated ──▶ RabbitMQ
-                                     vhost: overflow-staging
-                                          │
-               ┌──────────────────────────┼──────────────────────────┐
-               ▼                          ▼                          ▼
-          search-svc                 stats-svc                 profile-svc
-       (index Typesense)         (update counts)           (update reputation)
+                                      vhost: overflow-staging
+                                           │
+               ┌───────────────────────────┤
+               ▼                           ▼
+          search-svc                  stats-svc
+       (index Typesense)          (update counts)
+
+vote-svc ──▶ VoteCasted / UserReputationChanged ──▶ RabbitMQ
+                                                         │
+               ┌─────────────────────────────────────────┼──────────┐
+               ▼                                         ▼          ▼
+          profile-svc                               stats-svc  question-svc
+       (update reputation)                       (top users)  (vote count)
 ```
 
 **Events:** `QuestionCreated` · `QuestionUpdated` · `QuestionDeleted` ·
-`AnswerAccepted` · `VoteCasted` · `UserReputationChanged`
+`AnswerCountUpdated` · `AnswerAccepted` · `VoteCasted` · `UserReputationChanged`
 
 ---
 
@@ -155,8 +164,10 @@ apps-staging ──────┐
 apps-production ───┘         │
                              ├─ staging_questions   staging_profiles
                              ├─ staging_votes       staging_stats
+                             ├─ staging_estimations
                              ├─ production_questions production_profiles
-                             └─ production_votes    production_stats
+                             ├─ production_votes    production_stats
+                             └─ production_estimations
 
 apps-staging ──────┐
                    ├──▶ rabbitmq.infra-production.svc.cluster.local:5672
@@ -207,6 +218,7 @@ ConnectionStrings__questionDb=Host=postgres.infra-production.svc.cluster.local;P
 ConnectionStrings__profileDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_profiles;Username=postgres;Password=xxx
 ConnectionStrings__voteDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_votes;Username=postgres;Password=xxx
 ConnectionStrings__statDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_stats;Username=postgres;Password=xxx
+ConnectionStrings__estimationDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_estimations;Username=postgres;Password=xxx
 
 # RabbitMQ (injected via overflow-infra-config ConfigMap)
 ConnectionStrings__messaging=amqp://admin:xxx@rabbitmq.infra-production.svc.cluster.local:5672/overflow-staging
@@ -225,6 +237,3 @@ AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-alloy.monitoring.svc.cluster.local:4318
 ```
 
----
-
-*Last updated: February 2026*

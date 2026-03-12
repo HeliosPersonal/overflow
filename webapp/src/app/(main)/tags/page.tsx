@@ -11,7 +11,12 @@ export default async function Page({searchParams}: {searchParams: SearchParams }
     
     const {data: tags, error} = await getTags(sort);
     
-    if (error) throw error;
+    if (error) return (
+        <div className='w-full px-6'>
+            <TagHeader isAdmin={isAdmin} />
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 pt-4">{error.message}</p>
+        </div>
+    );
     
     return (
         <div className='w-full px-6'>

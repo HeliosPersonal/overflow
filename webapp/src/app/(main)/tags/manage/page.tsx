@@ -8,7 +8,11 @@ export default async function Page() {
     if (!session?.user?.roles?.includes('admin')) redirect('/tags');
 
     const {data: tags, error} = await getTags();
-    if (error) throw error;
+    if (error) return (
+        <div className='w-full px-6'>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 pt-4">{error.message}</p>
+        </div>
+    );
 
     return (
         <div className='w-full px-6'>

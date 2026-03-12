@@ -11,6 +11,7 @@ import {Snippet} from "@heroui/snippet";
 import {Session} from "next-auth";
 import ErrorButtons from "@/app/(main)/profiles/[id]/ErrorButtons";
 import AuthTestButton from "@/app/(main)/profiles/[id]/AuthTestButton";
+import UpgradeAccountForm from "@/app/(main)/profiles/[id]/UpgradeAccountForm";
 
 type Props = {
     profile: Profile
@@ -20,8 +21,15 @@ type Props = {
 
 export default function ProfileDetailed({profile, currentUserProfile, session}: Props) {
     const [editMode, setEditMode] = useState(false);
+    const isAnonymous = session?.user?.isAnonymous;
+
     return (
         <div className='flex flex-col gap-4 pt-4'>
+            {/* Upgrade banner for anonymous users */}
+            {currentUserProfile && isAnonymous && (
+                <UpgradeAccountForm userId={profile.userId} />
+            )}
+
             <Card>
                 <CardHeader className='text-3xl font-semibold flex justify-between'>
                     <div className='flex items-center gap-3'>

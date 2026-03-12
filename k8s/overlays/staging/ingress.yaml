@@ -189,7 +189,10 @@ spec:
 ---
 # ------------------------------------------------------------------------------
 # ESTIMATION SERVICE INGRESS
-# WebSocket upgrade support enabled for real-time room updates
+# Only the WebSocket endpoint routes directly to estimation-svc.
+# All HTTP API calls (/api/estimation/rooms, etc.) fall through to the webapp
+# catch-all ingress so the Next.js BFF proxy can attach the Bearer token before
+# forwarding to estimation-svc via the internal cluster DNS.
 # ------------------------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -197,12 +200,11 @@ metadata:
   name: estimation-svc-ingress
   namespace: apps-staging
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /estimation$1$2
+    nginx.ingress.kubernetes.io/rewrite-target: /estimation/rooms/$1/ws
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/websocket-services: "estimation-svc"
 spec:
   ingressClassName: nginx
   tls:
@@ -213,7 +215,7 @@ spec:
     - host: staging.devoverflow.org
       http:
         paths:
-          - path: /api/estimation(/|$)(.*)
+          - path: /api/estimation/rooms/([^/]+)/ws
             pathType: ImplementationSpecific
             backend:
               service:

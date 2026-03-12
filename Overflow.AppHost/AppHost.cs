@@ -3,7 +3,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 var keycloak = builder
     .AddKeycloak("keycloak", 6001)
     .WithDataVolume("keycloak-data")
-    .WithRealmImport("../docs/keycloak/overflow-local-realm.json")
     .WithEnvironment("KC_HTTP_ENABLED", "true")
     .WithEnvironment("KC_HOSTNAME_STRICT", "false")
     .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")
@@ -36,6 +35,7 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
     .WithManagementPlugin(port: 15672);
 
+
 var questionService = builder.AddProject<Projects.Overflow_QuestionService>("question-svc")
     .WithReference(keycloak)
     .WithReference(questionDb)
@@ -47,6 +47,7 @@ var questionService = builder.AddProject<Projects.Overflow_QuestionService>("que
 var searchService = builder.AddProject<Projects.Overflow_SearchService>("search-svc")
     .WithEnvironment("TYPESENSEOPTIONS__ConnectionUrl", typesenseReference)
     .WithEnvironment("TYPESENSEOPTIONS__APIKEY", typesenseApiKey)
+    .WithEnvironment("TYPESENSEOPTIONS__CollectionName", "local_questions")
     .WithReference(typesenseReference)
     .WithReference(rabbitmq)
     .WaitFor(typesense)
@@ -73,32 +74,27 @@ var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
     .WaitFor(voteDb)
     .WaitFor(rabbitmq);
 
-var dataSeederService = builder.AddProject<Projects.Overflow_DataSeederService>("data-seeder-svc")
-    .WaitFor(questionService);
-
 var estimationService = builder.AddProject<Projects.Overflow_EstimationService>("estimation-svc")
     .WithReference(keycloak)
     .WithReference(estimationDb)
+    .WithReference(profileService)
     .WaitFor(keycloak)
     .WaitFor(estimationDb);
 
 var yarp = builder
     .AddYarp("gateway")
+    .WithHostPort(8001)
+    .WithContainerRuntimeArgs("--add-host", "host.docker.internal:host-gateway")
     .WithConfiguration(yarpBuilder =>
     {
         yarpBuilder.AddRoute("/questions/{**catch-all}", questionService);
-        yarpBuilder.AddRoute("/test/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/tags/{**catch-all}", questionService);
         yarpBuilder.AddRoute("/search/{**catch-all}", searchService);
         yarpBuilder.AddRoute("/profiles/{**catch-all}", profileService);
         yarpBuilder.AddRoute("/stats/{**catch-all}", statService);
         yarpBuilder.AddRoute("/votes/{**catch-all}", voteService);
         yarpBuilder.AddRoute("/estimation/{**catch-all}", estimationService);
-    })
-    .WithEnvironment("ASPNETCORE_URLS", "http://*:8001")
-    .WithEndpoint(port: 8001, targetPort: 8001, scheme: "http", name: "gateway", isExternal: true)
-    .WithEnvironment("VIRTUAL_HOST", "api.overflow.local")
-    .WithEnvironment("VIRTUAL_PORT", "8001");
+    });
 
 var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")
     .WithReference(keycloak)

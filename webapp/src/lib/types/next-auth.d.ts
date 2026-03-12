@@ -10,6 +10,7 @@ declare module 'next-auth' {
             displayName: string;
             reputation: number;
             roles: string[];
+            isAnonymous?: boolean;
         } & DefaultUser;
         accessToken: string;
     }
@@ -19,6 +20,7 @@ declare module 'next-auth' {
         displayName: string;
         reputation: number;
         roles: string[];
+        isAnonymous?: boolean;
     }
 }
 
@@ -27,6 +29,7 @@ declare module 'next-auth/jwt' {
         accessToken: string;
         refreshToken: string;
         accessTokenExpires: number;
+        profileLastFetched?: number;
         error?: string;
         user: {
             id: string;
@@ -35,6 +38,7 @@ declare module 'next-auth/jwt' {
             roles: string[];
             email: string;
             emailVerified: Date | null;
+            isAnonymous?: boolean;
         };
     }
 }

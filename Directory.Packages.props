@@ -6,10 +6,13 @@
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.1.2" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Yarp" Version="13.1.2" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.11.8" />
     <PackageVersion Include="Aspire.Keycloak.Authentication" Version="13.0.2-preview.1.25603.5" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.1.2" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
+    <PackageVersion Include="CSharpFunctionalExtensions" Version="3.7.0" />
     <PackageVersion Include="OllamaSharp" Version="5.4.23" />
     <PackageVersion Include="Refit" Version="10.0.1" />
     <PackageVersion Include="Refit.HttpClientFactory" Version="10.0.1" />

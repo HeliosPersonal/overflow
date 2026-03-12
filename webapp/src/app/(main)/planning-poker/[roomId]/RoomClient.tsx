@@ -1,0 +1,741 @@
+'use client';
+
+import {useCallback, useEffect, useState} from "react";
+import {useRouter} from "next/navigation";
+import {
+    Button, Input, Card, CardBody, Chip, Divider, Spinner, Tooltip, addToast,
+} from "@heroui/react";
+import {
+    ClipboardDocumentIcon, ArrowLeftOnRectangleIcon, EyeIcon, EyeSlashIcon,
+    StarIcon, ArchiveBoxIcon, ArrowPathIcon,
+} from "@heroicons/react/24/outline";
+import {CheckCircleIcon} from "@heroicons/react/24/solid";
+import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
+import {createGuestAndSignIn} from "@/lib/auth/create-guest";
+import type {PlanningPokerRoom, PlanningPokerParticipant} from "@/lib/types";
+
+export default function RoomClient({roomId, isAuthenticated}: {roomId: string; isAuthenticated: boolean}) {
+    const router = useRouter();
+
+    // Gate: guest name entry before join
+    const [needsGuestName, setNeedsGuestName] = useState(false);
+    const [guestName, setGuestName] = useState('');
+    const [joinLoading, setJoinLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [joinedOnce, setJoinedOnce] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    // Optimistic card selection — updated instantly before server confirms
+    const [optimisticVote, setOptimisticVote] = useState<string | null | undefined>(undefined);
+
+    const {room, status: wsStatus, updateRoom} = useRoomWebSocket(joinedOnce ? roomId : null);
+
+    // Bootstrap: try to join room on mount
+    useEffect(() => {
+        if (!roomId) return;
+        
+        async function bootstrap() {
+            try {
+                // If the user just logged in with a prior guest cookie, claim guest data
+                if (isAuthenticated) {
+                    await fetch('/api/estimation/claim-guest', {method: 'POST'}).catch(() => {});
+                }
+
+                // Attempt join (idempotent for returning participants)
+                const res = await fetch(`/api/estimation/rooms/${roomId}/join`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({}),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    updateRoom(data);
+                    setJoinedOnce(true);
+                } else if (res.status === 400) {
+                    // Parse the error to distinguish "needs name" from "archived"
+                    const errBody = await res.json().catch(() => null);
+                    const errMsg = typeof errBody === 'string' ? errBody
+                        : errBody?.message ?? errBody?.error ?? '';
+                    const isArchived = typeof errMsg === 'string'
+                        && errMsg.toLowerCase().includes('archived');
+
+                    if (isArchived) {
+                        // Archived room — load read-only view
+                        const getRes = await fetch(`/api/estimation/rooms/${roomId}`);
+                        if (getRes.ok) {
+                            const data = await getRes.json();
+                            updateRoom(data);
+                            setJoinedOnce(true);
+                        } else {
+                            addToast({title: 'Room is archived', color: 'warning'});
+                            router.push('/planning-poker');
+                        }
+                    } else if (!isAuthenticated) {
+                        // Guest without a display name — show the name gate
+                        setNeedsGuestName(true);
+                    } else {
+                        // Authenticated user got a 400 for some other reason
+                        addToast({title: errMsg || 'Failed to join room', color: 'danger'});
+                    }
+                } else if (res.status === 404) {
+                    addToast({title: 'Room not found', color: 'danger'});
+                    router.push('/planning-poker');
+                } else {
+                    addToast({title: 'Failed to join room', color: 'danger'});
+                }
+            } catch {
+                addToast({title: 'Network error', color: 'danger'});
+            } finally {
+                setInitialLoading(false);
+            }
+        }
+
+        void bootstrap();
+    }, [roomId, isAuthenticated, router, updateRoom]);
+
+    async function handleGuestJoin() {
+        if (!guestName.trim()) return;
+        setJoinLoading(true);
+        try {
+            // Create anonymous Keycloak user and sign in
+            const result = await createGuestAndSignIn(guestName);
+
+            if (!result.ok) {
+                addToast({title: result.error, color: 'danger'});
+                setJoinLoading(false);
+                return;
+            }
+
+            // Now signed in — join the room (the proxy will attach the Bearer token)
+            const joinRes = await fetch(`/api/estimation/rooms/${roomId}/join`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({displayName: guestName.trim()}),
+            });
+
+            if (joinRes.ok) {
+                // Hard reload so the entire page (including TopNav layout)
+                // re-renders with the new authenticated session
+                window.location.reload();
+            } else {
+                // Fallback: reload anyway
+                window.location.reload();
+            }
+        } catch {
+            addToast({title: 'Network error', color: 'danger'});
+        } finally {
+            setJoinLoading(false);
+        }
+    }
+
+    // ── Mutation helpers ──────────────────────────────────────────────────
+
+    const doAction = useCallback(async (
+        actionName: string,
+        url: string,
+        method: string = 'POST',
+        body?: unknown,
+    ) => {
+        setActionLoading(actionName);
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
+            });
+            if (res.ok) {
+                const ct = res.headers.get('content-type');
+                if (ct?.includes('application/json')) {
+                    const data = await res.json();
+                    updateRoom(data);
+                }
+            } else {
+                const err = await res.json().catch(() => null);
+                const msg = typeof err === 'string' ? err
+                    : err?.message || err?.error || `${actionName} failed`;
+                addToast({title: msg, color: 'danger'});
+            }
+        } catch {
+            addToast({title: `${actionName} failed`, color: 'danger'});
+        } finally {
+            setActionLoading(null);
+        }
+    }, [updateRoom]);
+
+    // When server state arrives via WebSocket, clear the optimistic override
+    useEffect(() => {
+        if (room) {
+            setOptimisticVote(undefined);
+        }
+    }, [room?.viewer?.selectedVote, room?.roundNumber]);
+
+    async function handleVote(value: string) {
+        // Optimistic: highlight the card instantly
+        setOptimisticVote(value);
+
+        // Optimistic: update the participant's hasVoted status immediately
+        if (room) {
+            updateRoom({
+                ...room,
+                participants: room.participants.map(p =>
+                    p.participantId === room.viewer.participantId
+                        ? {...p, hasVoted: true}
+                        : p
+                ),
+            });
+        }
+
+        // All mutations go through HTTP
+        await doAction('Vote', `/api/estimation/rooms/${roomId}/votes`, 'POST', {value});
+    }
+
+    async function handleClearVote() {
+        // Optimistic: deselect card instantly
+        setOptimisticVote(null);
+
+        // Optimistic: update the participant's hasVoted status immediately
+        if (room) {
+            updateRoom({
+                ...room,
+                participants: room.participants.map(p =>
+                    p.participantId === room.viewer.participantId
+                        ? {...p, hasVoted: false}
+                        : p
+                ),
+            });
+        }
+
+        await doAction('Clear vote', `/api/estimation/rooms/${roomId}/votes`, 'DELETE');
+    }
+
+    async function handleReveal() {
+        await doAction('Reveal', `/api/estimation/rooms/${roomId}/reveal`);
+    }
+
+    async function handleReset() {
+        await doAction('Reset', `/api/estimation/rooms/${roomId}/reset`);
+    }
+
+    async function handleArchive() {
+        await doAction('Archive', `/api/estimation/rooms/${roomId}/archive`);
+    }
+
+    async function handleModeToggle() {
+        if (!room) return;
+        const newMode = !room.viewer.isSpectator;
+
+        // Optimistically update: clear card selection & switch mode instantly
+        if (newMode) {
+            updateRoom({
+                ...room,
+                viewer: {...room.viewer, isSpectator: true, selectedVote: null},
+            });
+        }
+
+        await doAction('Mode', `/api/estimation/rooms/${roomId}/mode`, 'POST', {isSpectator: newMode});
+    }
+
+    function handleLeave() {
+        // Just navigate away — the WS close removes the participant server-side
+        router.push('/planning-poker');
+    }
+
+    const roomLink = typeof window !== 'undefined'
+        ? `${window.location.origin}/planning-poker/${roomId}`
+        : room?.canonicalUrl ?? '';
+
+    function copyToClipboard(text: string, label: string) {
+        navigator.clipboard.writeText(text).then(() => {
+            addToast({title: `${label} copied!`, color: 'success'});
+        });
+    }
+
+    // ── Loading / gate states ────────────────────────────────────────────
+
+    if (initialLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Spinner size="lg" label="Loading room..."/>
+            </div>
+        );
+    }
+
+    if (needsGuestName) {
+        return (
+            <div className="max-w-md mx-auto px-4 py-16">
+                <Card shadow="sm">
+                    <CardBody className="flex flex-col gap-4 p-6">
+                        <h2 className="text-xl font-semibold">Join as Guest</h2>
+                        <p className="text-sm text-foreground-500">
+                            Enter a display name to join this room. A guest account will be
+                            created — you can upgrade it to a full account anytime.
+                        </p>
+                        <Input
+                            label="Display name"
+                            placeholder="Jane"
+                            value={guestName}
+                            onValueChange={setGuestName}
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleGuestJoin()}
+                        />
+                        <Button
+                            color="primary"
+                            isLoading={joinLoading}
+                            onPress={handleGuestJoin}
+                            isDisabled={!guestName.trim()}
+                            className="w-full"
+                        >
+                            Join Room
+                        </Button>
+                        <div className="flex items-center gap-3">
+                            <Divider className="flex-1"/>
+                            <span className="text-sm text-foreground-400">or</span>
+                            <Divider className="flex-1"/>
+                        </div>
+                        <Button
+                            variant="flat"
+                            className="w-full"
+                            onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(`/planning-poker/${roomId}`)}`)}
+                        >
+                            Sign In with Existing Account
+                        </Button>
+                    </CardBody>
+                </Card>
+            </div>
+        );
+    }
+
+    if (!room) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Spinner size="lg" label="Connecting..."/>
+            </div>
+        );
+    }
+
+    // ── Room UI ──────────────────────────────────────────────────────────
+
+    const isModerator = room.viewer.isModerator;
+    const isSpectator = room.viewer.isSpectator;
+    const isVoting = room.status === 'Voting';
+    const isRevealed = room.status === 'Revealed';
+    const isArchived = room.status === 'Archived';
+
+    // Resolve displayed card selection: optimistic first, then server state.
+    // Safety net: if the server's participant list says we haven't voted yet
+    // (e.g. after a round reset), discard any stale selection so cards clear.
+    const viewerInList = room.participants.find(p => p.participantId === room.viewer.participantId);
+    const serverSaysNoVote = viewerInList && !viewerInList.hasVoted && !viewerInList.isSpectator && room.status === 'Voting';
+    const effectiveVote = serverSaysNoVote
+        ? (optimisticVote !== undefined ? optimisticVote : null)
+        : (optimisticVote !== undefined ? optimisticVote : room.viewer.selectedVote);
+
+    const activeParticipants = room.participants.filter(p => !p.isSpectator && p.isPresent);
+    const spectators = room.participants.filter(p => p.isSpectator && p.isPresent);
+    const votedCount = activeParticipants.filter(p => p.hasVoted).length;
+
+    return (
+        <div className="max-w-[1536px] mx-auto px-4 py-6">
+            {/* ── Header ────────────────────────────────────────────── */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <h1 className="text-2xl font-bold truncate">{room.title}</h1>
+                    <StatusBadge status={room.status}/>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <Tooltip content="Copy room link">
+                        <Button
+                            size="sm" variant="flat"
+                            onPress={() => copyToClipboard(roomLink, 'Room link')}
+                            startContent={<ClipboardDocumentIcon className="h-4 w-4"/>}
+                        >
+                            Copy Link
+                        </Button>
+                    </Tooltip>
+                    {wsStatus !== 'connected' && (
+                        <Chip size="sm" color="warning" variant="dot">
+                            {wsStatus === 'connecting' ? 'Reconnecting...' : 'Offline'}
+                        </Chip>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Round banner ─────────────────────────────────────── */}
+            <div className={`rounded-xl px-5 py-3 mb-6 flex items-center justify-between
+                ${isRevealed ? 'bg-primary/10 border border-primary/30' :
+                  isArchived ? 'bg-warning/10 border border-warning/30' :
+                  'bg-success/10 border border-success/30'}`}>
+                <div className="flex items-center gap-3">
+                    <span className={`text-2xl font-extrabold tabular-nums
+                        ${isRevealed ? 'text-primary' : isArchived ? 'text-warning' : 'text-success'}`}>
+                        Round {room.roundNumber}
+                    </span>
+                    <span className="text-sm text-foreground-500">
+                        {isVoting ? 'Voting in progress' : isRevealed ? 'Votes revealed' : 'Archived'}
+                    </span>
+                </div>
+                <div className="flex items-center gap-3">
+                    {isVoting && (
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                                {activeParticipants.map(p => (
+                                    <div
+                                        key={p.participantId}
+                                        className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                                            p.hasVoted ? 'bg-success' : 'bg-default-300 dark:bg-default-200'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                            <span className={`text-sm font-semibold tabular-nums ${
+                                votedCount === activeParticipants.length && activeParticipants.length > 0
+                                    ? 'text-success' : 'text-foreground-500'
+                            }`}>
+                                {votedCount}/{activeParticipants.length} voted
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.3fr_3fr_1.3fr]">
+                {/* ── Left: Participants ──────────────────────────────── */}
+                <div>
+                    <Card shadow="sm">
+                        <CardBody className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500">
+                                    Participants ({activeParticipants.length})
+                                </h3>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                {activeParticipants.map(p => (
+                                    <ParticipantRow
+                                        key={p.participantId} participant={p}
+                                        isVoting={isVoting} isRevealed={isRevealed || isArchived}
+                                    />
+                                ))}
+                                {activeParticipants.length === 0 && (
+                                    <p className="text-sm text-foreground-400 py-2">No active voters</p>
+                                )}
+                            </div>
+
+                            {spectators.length > 0 && (
+                                <>
+                                    <Divider className="my-3"/>
+                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-2">
+                                        Spectators ({spectators.length})
+                                    </h3>
+                                    <div className="flex flex-col gap-2">
+                                        {spectators.map(p => (
+                                            <div key={p.participantId}
+                                                 className="flex items-center gap-2 text-sm text-foreground-400">
+                                                <EyeIcon className="h-4 w-4 flex-shrink-0"/>
+                                                <span className="truncate">{p.displayName}</span>
+                                                {p.isModerator && <StarIcon className="h-3.5 w-3.5 text-warning"/>}
+                                                {p.isGuest && (
+                                                    <Chip size="sm" variant="flat" className="text-xs h-5">Guest</Chip>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+
+                            <Divider className="my-3"/>
+                            {/* Mode toggle + Leave */}
+                            <div className="flex flex-col gap-2">
+                                {!isArchived && (
+                                    <Button
+                                        size="sm" variant="flat" fullWidth
+                                        onPress={handleModeToggle}
+                                        isLoading={actionLoading === 'Mode'}
+                                        startContent={isSpectator
+                                            ? <EyeSlashIcon className="h-4 w-4"/>
+                                            : <EyeIcon className="h-4 w-4"/>}
+                                    >
+                                        {isSpectator ? 'Switch to Participant' : 'Switch to Spectator'}
+                                    </Button>
+                                )}
+                                {isModerator && !isArchived && (
+                                    <Button
+                                        size="sm" variant="flat" color="danger" fullWidth
+                                        onPress={handleArchive}
+                                        isLoading={actionLoading === 'Archive'}
+                                        startContent={<ArchiveBoxIcon className="h-4 w-4"/>}
+                                    >
+                                        Archive Room
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm" variant="light" color="danger" fullWidth
+                                    onPress={handleLeave}
+                                    startContent={<ArrowLeftOnRectangleIcon className="h-4 w-4"/>}
+                                >
+                                    Leave Room
+                                </Button>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                {/* ── Center: Deck + controls + results ─────────────── */}
+                <div className="flex flex-col gap-6">
+                    {/* Card deck */}
+                    {!isArchived && !isSpectator && (
+                        <Card shadow="sm">
+                            <CardBody className="p-4">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-3">
+                                    {isVoting ? 'Pick a card' : 'Cards locked'}
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {room.deck.values.map(v => {
+                                        const isSelected = effectiveVote === v;
+                                        return (
+                                            <button
+                                                key={v}
+                                                onClick={() => isVoting && handleVote(v)}
+                                                disabled={!isVoting}
+                                                className={`
+                                                    w-14 h-20 rounded-lg border-2 text-lg font-bold
+                                                    flex items-center justify-center transition-all duration-100
+                                                    ${isSelected
+                                                    ? 'border-primary bg-primary/10 text-primary scale-105 shadow-md'
+                                                    : 'border-default-200 dark:border-default-100 hover:border-primary/50 text-foreground-600'}
+                                                    ${!isVoting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}
+                                                `}
+                                            >
+                                                {v}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {isVoting && effectiveVote && (
+                                    <Button
+                                        size="sm" variant="light" color="danger"
+                                        className="mt-3"
+                                        onPress={handleClearVote}
+                                    >
+                                        Clear my vote
+                                    </Button>
+                                )}
+                            </CardBody>
+                        </Card>
+                    )}
+
+                    {isSpectator && !isArchived && (
+                        <Card shadow="sm">
+                            <CardBody className="p-4">
+                                <div className="flex items-center gap-2 text-foreground-400">
+                                    <EyeIcon className="h-5 w-5"/>
+                                    <p>You are in <strong>Spectator</strong> mode. Switch to Participant to vote.</p>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    )}
+
+                    {/* Results panel */}
+                    {(isRevealed || isArchived) && room.roundSummary && (
+                        <Card shadow="md" className="border border-primary/20">
+                            <CardBody className="p-6">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-4">
+                                    Results — Round {room.roundSummary.roundNumber}
+                                </h3>
+
+                                {room.roundSummary.distribution && Object.keys(room.roundSummary.distribution).length > 0 ? (
+                                    <>
+                                        {/* Average — hero number */}
+                                        {room.roundSummary.numericAverageDisplay && (
+                                            <div className="flex flex-col items-center justify-center mb-6 py-4 rounded-xl bg-primary/5 border border-primary/15">
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-foreground-400 mb-1">
+                                                    Average
+                                                </span>
+                                                <span className="text-5xl font-extrabold text-warning tabular-nums">
+                                                    {room.roundSummary.numericAverageDisplay}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Distribution */}
+                                        <div className="flex flex-wrap gap-4 justify-center">
+                                            {Object.entries(room.roundSummary.distribution)
+                                                .sort(([, a], [, b]) => b - a)
+                                                .map(([value, count]) => (
+                                                    <div key={value}
+                                                         className="flex flex-col items-center gap-1">
+                                                        <div className="w-14 h-20 rounded-lg border-2 border-primary bg-primary/10 text-primary text-lg font-bold flex items-center justify-center">
+                                                            {value}
+                                                        </div>
+                                                        <span className="text-sm font-medium text-foreground-500">
+                                                            {count} vote{count !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-foreground-400 text-center">No votes were cast this round.</p>
+                                )}
+                            </CardBody>
+                        </Card>
+                    )}
+
+                    {/* Moderator action buttons — centered below results */}
+                    {isModerator && !isArchived && (
+                        <div className="flex justify-center gap-4">
+                            <Button
+                                size="md"
+                                color="primary"
+                                variant={isVoting ? 'solid' : 'flat'}
+                                onPress={handleReveal}
+                                isDisabled={!isVoting}
+                                isLoading={actionLoading === 'Reveal'}
+                                className="font-semibold px-6"
+                            >
+                                Reveal Cards
+                            </Button>
+                            <Button
+                                size="md"
+                                color="secondary"
+                                variant={isRevealed ? 'solid' : 'flat'}
+                                onPress={handleReset}
+                                isDisabled={!isRevealed}
+                                isLoading={actionLoading === 'Reset'}
+                                startContent={<ArrowPathIcon className="h-4 w-4"/>}
+                                className="font-semibold px-6"
+                            >
+                                Next Round
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Archived state */}
+                    {isArchived && (
+                        <Card shadow="sm" className="border-warning/30 border">
+                            <CardBody className="p-4">
+                                <div className="flex items-center gap-2 text-warning">
+                                    <ArchiveBoxIcon className="h-5 w-5"/>
+                                    <p className="font-medium">
+                                        This room has been archived and is read-only.
+                                    </p>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    )}
+                </div>
+
+                {/* ── Right: Voting History ────────────────────────────── */}
+                <div>
+                    <div className="sticky top-4">
+                        <Card shadow="sm">
+                            <CardBody className="p-4">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-4">
+                                    Voting History
+                                </h3>
+                                {room.roundHistory && room.roundHistory.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {[...room.roundHistory].reverse().map(h => (
+                                            <div
+                                                key={h.roundNumber}
+                                                className="rounded-lg border border-default-200 dark:border-default-100 p-3"
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-bold text-foreground-700 dark:text-foreground-300">
+                                                        Round {h.roundNumber}
+                                                    </span>
+                                                    {h.numericAverageDisplay && (
+                                                        <span className="text-lg font-extrabold text-primary tabular-nums">
+                                                            {h.numericAverageDisplay}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1 mb-1.5">
+                                                    <Chip size="sm" variant="flat" className="text-xs">
+                                                        {h.voterCount} vote{h.voterCount !== 1 ? 's' : ''}
+                                                    </Chip>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {Object.entries(h.distribution)
+                                                        .sort(([, a], [, b]) => b - a)
+                                                        .map(([value, count]) => (
+                                                            <div key={value} className="flex items-center gap-0.5">
+                                                                <div className="w-7 h-10 rounded-md border-2 border-primary/40 bg-primary/5 text-primary text-xs font-bold flex items-center justify-center">
+                                                                    {value}
+                                                                </div>
+                                                                {count > 1 && (
+                                                                    <span className="text-xs text-foreground-400 font-medium">
+                                                                        x{count}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-foreground-400">
+                                        No rounds completed yet.
+                                    </p>
+                                )}
+                            </CardBody>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function StatusBadge({status}: {status: string}) {
+    const colorMap: Record<string, 'success' | 'primary' | 'warning'> = {
+        Voting: 'success',
+        Revealed: 'primary',
+        Archived: 'warning',
+    };
+    return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="flat">{status}</Chip>;
+}
+
+function ParticipantRow({
+    participant: p,
+    isVoting,
+    isRevealed,
+}: {
+    participant: PlanningPokerParticipant;
+    isVoting: boolean;
+    isRevealed: boolean;
+}) {
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            {/* Vote indicator */}
+            <div className={`w-10 h-14 rounded-md border flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all
+                ${isRevealed && p.revealedVote ? 'border-primary bg-primary/10 text-primary' : 'border-default-200 dark:border-default-100'}`}>
+                {isRevealed
+                    ? (p.revealedVote ?? '—')
+                    : (p.hasVoted
+                        ? <CheckCircleIcon className="h-5 w-5 text-success"/>
+                        : <span className="text-foreground-300">?</span>)
+                }
+            </div>
+            <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="truncate font-medium">{p.displayName}</span>
+                    {p.isModerator && (
+                        <Tooltip content="Moderator">
+                            <StarIcon className="h-3.5 w-3.5 text-warning flex-shrink-0"/>
+                        </Tooltip>
+                    )}
+                    {p.isGuest && (
+                        <Chip size="sm" variant="flat" className="text-xs h-5">Guest</Chip>
+                    )}
+                </div>
+                <span className="text-xs text-foreground-400">
+                    {isVoting ? (p.hasVoted ? 'Voted' : 'Thinking...') : ''}
+                </span>
+            </div>
+        </div>
+    );
+}
+

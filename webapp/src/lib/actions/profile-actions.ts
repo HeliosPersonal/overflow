@@ -17,7 +17,12 @@ export async function getProfileById(id: string) {
 export async function editProfile(id: string, profile: EditProfileSchema) {
     const result = await fetchClient<Profile>(`/profiles/edit`, 'PUT', {body: profile});
 
-    revalidatePath(`/profiles/${id}`)
+    // ProfileService is the source of truth for display names.
+    // Revalidate broadly so all pages showing the user's name pick up the change.
+    revalidatePath(`/profiles/${id}`);
+    revalidatePath('/profiles');
+    revalidatePath('/questions');
+    revalidatePath('/', 'layout');
 
     return result;
 }
@@ -34,7 +39,7 @@ export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>
     const qs = encodeURIComponent(ids.join(','));
     
     const {data: profiles, error: profilesError} = await fetchClient<Profile[]>(
-        `/profiles/batch?ids=${qs}`, 'GET', {cache: 'force-cache', next: {revalidate: 3600}}
+        `/profiles/batch?ids=${qs}`, 'GET', {cache: 'force-cache', next: {revalidate: 60}}
     );
 
     if (profilesError) return {data: null, error:

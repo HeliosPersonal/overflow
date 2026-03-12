@@ -33,7 +33,7 @@ export async function getQuestions(qParams?: QuestionParams): Promise<FetchRespo
     const ids = Array.from(userIds).sort();
     const profilesUrl = '/profiles/batch?' + new URLSearchParams({ids: ids.join(',')});
     const {data: profiles, error: profilesError} = await fetchClient<Profile[]>(profilesUrl, 'GET', 
-        {cache: 'force-cache', next: {revalidate: 3600}});
+        {cache: 'force-cache', next: {revalidate: 60}});
     
     if (profilesError) return {data: null, error: 
             {message: 'Problem getting profiles', status: 500}}
@@ -69,7 +69,7 @@ export async function getQuestionById(id: string): Promise<FetchResponse<Questio
     const ids = Array.from(userIds).sort();
     const profilesUrl = '/profiles/batch?' + new URLSearchParams({ids: ids.join(',')});
     const {data: profiles, error: profilesError} = await fetchClient<Profile[]>(profilesUrl, 'GET',
-        {cache: 'force-cache', next: {revalidate: 3600}});
+        {cache: 'force-cache', next: {revalidate: 60}});
 
     if (profilesError) return {data: null, error:
             {message: 'Problem getting profiles', status: 500}}

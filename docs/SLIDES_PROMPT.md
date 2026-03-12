@@ -25,8 +25,8 @@ Two columns layout:
 
 **Backend:**
 - .NET 10 (ASP.NET Core Minimal APIs)
-- PostgreSQL (4 databases) + Marten (event sourcing)
-- RabbitMQ (MassTransit) for async messaging
+- PostgreSQL (5 databases) + Marten (event sourcing)
+- RabbitMQ (Wolverine) for async messaging
 - Typesense for full-text search
 - Keycloak for authentication (OIDC/JWT)
 
@@ -38,7 +38,7 @@ Two columns layout:
 ### Slide 4 — Architecture Diagram
 Show a diagram with:
 - User browser → Cloudflare CDN → Home Router → K3s NGINX Ingress
-- Ingress routes to: overflow-webapp (Next.js) and 5 API services
+- Ingress routes to: overflow-webapp (Next.js) and 6 API services
 - API services connect to: PostgreSQL, RabbitMQ, Typesense, Keycloak
 - All services communicate via RabbitMQ events
 - Monitoring via Grafana Alloy → Grafana Cloud
@@ -53,15 +53,17 @@ Table or icon grid showing:
 | vote-svc | Upvotes, downvotes | PostgreSQL |
 | stats-svc | Aggregated statistics | PostgreSQL (Marten) |
 | search-svc | Full-text search | Typesense |
+| estimation-svc | Planning Poker rooms | PostgreSQL |
 | data-seeder-svc | LLM-powered seed data generation | — (staging only) |
 
 ### Slide 6 — Event-Driven Communication
 Show message flow:
 - QuestionCreated → search-svc indexes, stats-svc updates counts
-- VoteCasted → profile-svc updates reputation
-- AnswerAccepted → profile-svc awards reputation
+- VoteCasted → question-svc updates vote count
+- UserReputationChanged → profile-svc updates reputation, stats-svc tracks top users
+- AnswerAccepted → search-svc updates accepted flag
 
-All via RabbitMQ with MassTransit consumers.
+All via RabbitMQ with Wolverine message handlers.
 
 ### Slide 7 — Authentication Flow
 Two-path diagram:
@@ -82,7 +84,7 @@ Two Keycloak realms: `overflow` (production), `overflow-staging` (staging + loca
 
 ### Slide 9 — Secret Management
 Flow diagram:
-- **Infisical** = single source of truth (27 secrets per environment)
+- **Infisical** = single source of truth (28 secrets per environment)
 - Syncs 10 secrets → GitHub Actions (bootstrap, Azure, Terraform vars)
 - .NET pods: Infisical SDK loads secrets at startup → IConfiguration
 - Next.js: Infisical SDK loads at build time + runtime → process.env

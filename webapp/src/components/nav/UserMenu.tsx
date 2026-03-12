@@ -1,35 +1,78 @@
-'use client';
+"use client";
 
-import {User} from "next-auth";
-import {Dropdown, DropdownItem, DropdownMenu, DropdownTrigger} from "@heroui/dropdown";
-import {Avatar} from "@heroui/avatar";
-import {signOut} from "next-auth/react";
+import { User } from "next-auth";
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownSection,
+  DropdownTrigger,
+} from "@heroui/dropdown";
+import { Avatar } from "@heroui/avatar";
+import { Chip } from "@heroui/react";
+import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 type Props = {
-    user: User
-}
+  user: User;
+};
 
 export default function UserMenu({ user }: Props) {
-    return (
-        <Dropdown>
-            <DropdownTrigger>
-                <div className='flex items-center gap-2 cursor-pointer'>
-                    <Avatar suppressHydrationWarning
-                            color='primary' size='sm' name={user.displayName?.charAt(0)} />
-                    {user.displayName}
-                </div>
-            </DropdownTrigger>
-            <DropdownMenu>
-                <DropdownItem href={`/profiles/${user.id}`} key='edit'>My Profile</DropdownItem>
-                <DropdownItem
-                    onClick={() => signOut({redirectTo: '/'})}    
-                    key='logout' 
-                    className='text-danger' 
-                    color='danger'
-                >
-                    Sign out
-                </DropdownItem>
-            </DropdownMenu>
-        </Dropdown>
-    );
+  const router = useRouter();
+  const isAnonymous = user.isAnonymous;
+
+  return (
+    <Dropdown>
+      <DropdownTrigger>
+        <div className="flex items-center gap-2 cursor-pointer">
+          <Avatar
+            suppressHydrationWarning
+            color={isAnonymous ? "default" : "primary"}
+            size="sm"
+            name={user.displayName?.charAt(0)}
+          />
+          {user.displayName}
+          {isAnonymous && (
+            <Chip
+              size="sm"
+              variant="flat"
+              color="warning"
+              className="text-xs"
+            >
+              Guest
+            </Chip>
+          )}
+        </div>
+      </DropdownTrigger>
+      <DropdownMenu>
+        {isAnonymous ? (
+          <DropdownSection showDivider>
+            <DropdownItem
+              key="register"
+              description="Add email & password to keep your account"
+              onPress={() => router.push(`/profiles/${user.id}`)}
+            >
+              Complete Registration
+            </DropdownItem>
+          </DropdownSection>
+        ) : (
+          <DropdownSection showDivider>
+            <DropdownItem href={`/profiles/${user.id}`} key="profile">
+              My Profile
+            </DropdownItem>
+          </DropdownSection>
+        )}
+        <DropdownSection>
+          <DropdownItem
+            key="logout"
+            className="text-danger"
+            color="danger"
+            onPress={() => signOut({ redirectTo: "/" })}
+          >
+            Sign out
+          </DropdownItem>
+        </DropdownSection>
+      </DropdownMenu>
+    </Dropdown>
+  );
 }

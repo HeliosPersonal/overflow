@@ -1,265 +1,536 @@
-using Marten;
-using Overflow.EstimationService.DTOs;
-using Overflow.EstimationService.Events;
+using System.Text.Json;
+using CSharpFunctionalExtensions;
+using Microsoft.EntityFrameworkCore;
+using Overflow.EstimationService.Data;
+using Overflow.EstimationService.Exceptions;
 using Overflow.EstimationService.Models;
 
 namespace Overflow.EstimationService.Services;
 
 /// <summary>
-/// Core service handling estimation room commands. All mutations append events
-/// to a Marten event stream (one stream per room). The projected read model
-/// <see cref="EstimationRoomView"/> is rebuilt automatically by the inline projection.
+/// Manages estimation room state using EF Core + PostgreSQL.
+/// All mutation methods return <c>Result&lt;EstimationRoom, RoomError&gt;</c> instead of throwing.
+/// After each successful mutation, broadcasts the updated state via WebSocket.
+///
+/// Reads use <c>AsNoTracking</c> to avoid stale-entity concurrency conflicts when
+/// the WebSocket disconnect handler (separate DI scope) mutates the same room concurrently.
 /// </summary>
 public class EstimationRoomService(
-    IDocumentSession session,
+    EstimationDbContext db,
+    WebSocketBroadcaster broadcaster,
     ILogger<EstimationRoomService> logger)
 {
-    private const int MaxCodeRetries = 10;
-    private const int CodeLength = 6;
-    private static readonly char[] CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".ToCharArray();
+    // ─── Create ──────────────────────────────────────────────────────────
 
-    // ─── Create ─────────────────────────────────────────────────────────
-
-    public async Task<EstimationRoomView> CreateRoomAsync(
-        string title, string moderatorUserId, string moderatorDisplayName, string? deckType)
+    public async Task<Result<EstimationRoom, RoomError>> CreateRoomAsync(
+        string title, string moderatorParticipantId, string? moderatorUserId,
+        string? moderatorGuestId, string moderatorDisplayName, bool isGuest, string? deckType)
     {
         var deck = Decks.GetOrDefault(deckType);
-        var code = await GenerateUniqueCodeAsync();
-        var roomId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
 
-        var created = new RoomCreated(
-            roomId, code, title.Trim(), moderatorUserId, moderatorDisplayName,
-            deck.Id, deck.Values, DateTime.UtcNow);
+        var room = new EstimationRoom
+        {
+            Id = Guid.NewGuid(),
+            Title = title.Trim(),
+            ModeratorUserId = moderatorParticipantId,
+            DeckType = deck.Id,
+            Status = RoomStatus.Voting,
+            RoundNumber = 1,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+            Participants =
+            [
+                new EstimationParticipant
+                {
+                    Id = Guid.NewGuid(),
+                    ParticipantId = moderatorParticipantId,
+                    UserId = moderatorUserId,
+                    GuestId = moderatorGuestId,
+                    DisplayName = moderatorDisplayName,
+                    IsGuest = isGuest,
+                    IsModerator = true,
+                    IsSpectator = false,
+                    JoinedAtUtc = now,
+                }
+            ],
+        };
 
-        session.Events.StartStream<EstimationRoomView>(roomId, created);
-        await session.SaveChangesAsync();
+        db.Rooms.Add(room);
+        await db.SaveChangesAsync();
 
-        logger.LogInformation("Room created: {Code} ({RoomId}) by {UserId}", code, roomId, moderatorUserId);
-
-        return await GetRoomByIdAsync(roomId)
-               ?? throw new InvalidOperationException("Room not found after creation");
+        logger.LogInformation("Room created: {RoomId} by {ParticipantId}", room.Id, moderatorParticipantId);
+        return room;
     }
 
-    // ─── Join ───────────────────────────────────────────────────────────
+    // ─── Join ─────────────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView> JoinRoomAsync(
-        string code, string participantId, string? userId, string? guestId,
+    public async Task<Result<EstimationRoom, RoomError>> JoinRoomAsync(
+        Guid roomId, string participantId, string? userId, string? guestId,
         string displayName, bool isGuest)
     {
-        var room = await GetRoomByCodeAsync(code)
-                   ?? throw new RoomNotFoundException(code);
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
 
         if (room.Status == RoomStatus.Archived)
-            throw new RoomArchivedException(code);
+            return RoomErrors.Archived(roomId);
 
-        var joined = new ParticipantJoined(
-            participantId, userId, guestId, displayName, isGuest, DateTime.UtcNow);
+        var existing = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId);
+        if (existing is not null)
+        {
+            // Update display name across ALL rooms if it changed (e.g. after profile edit or account upgrade).
+            // Uses ExecuteUpdateAsync because entities are loaded with AsNoTracking.
+            if (!string.IsNullOrWhiteSpace(displayName) && existing.DisplayName != displayName)
+            {
+                var affectedRoomIds = await UpdateDisplayNameAcrossRoomsAsync(participantId, displayName);
+                foreach (var affectedId in affectedRoomIds)
+                    await broadcaster.BroadcastRoomUpdateAsync(affectedId);
 
-        session.Events.Append(room.Id, joined);
-        await session.SaveChangesAsync();
+                return await ReloadRoom(roomId);
+            }
 
-        logger.LogInformation("Participant {ParticipantId} joined room {Code}", participantId, code);
+            logger.LogDebug("Participant {ParticipantId} already in room {RoomId}, skipping join",
+                participantId, roomId);
+            return room;
+        }
 
-        return await GetRoomByIdAsync(room.Id)
-               ?? throw new InvalidOperationException("Room not found after join");
+        db.Participants.Add(new EstimationParticipant
+        {
+            Id = Guid.NewGuid(),
+            RoomId = roomId,
+            ParticipantId = participantId,
+            UserId = userId,
+            GuestId = guestId,
+            DisplayName = displayName,
+            IsGuest = isGuest,
+            IsModerator = false,
+            IsSpectator = false,
+            JoinedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+        await TouchRoomAsync(roomId);
+
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Participant {ParticipantId} joined room {RoomId}", participantId, roomId);
+        return await ReloadRoom(roomId);
     }
 
-    // ─── Mode change ────────────────────────────────────────────────────
+    // ─── Mode change ──────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView> ChangeModeAsync(string code, string participantId, bool isSpectator)
+    public async Task<Result<EstimationRoom, RoomError>> ChangeModeAsync(
+        Guid roomId, string participantId, bool isSpectator)
     {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        if (room.Status == RoomStatus.Archived) throw new RoomArchivedException(code);
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
 
-        var participant = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId)
-                          ?? throw new ParticipantNotFoundException(participantId);
+        var room = roomResult.Value;
 
-        var modeChanged = new ParticipantModeChanged(participantId, isSpectator, DateTime.UtcNow);
-        session.Events.Append(room.Id, modeChanged);
+        if (room.Status == RoomStatus.Archived)
+            return RoomErrors.Archived(roomId);
 
-        // Clear vote if switching to spectator during a voting round (documented rule)
+        var participant = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId);
+        if (participant is null)
+            return RoomErrors.ParticipantNotFound(participantId);
+
+        await db.Participants
+            .Where(p => p.RoomId == roomId && p.ParticipantId == participantId)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsSpectator, isSpectator));
+
         if (isSpectator && room.Status == RoomStatus.Voting)
         {
-            var hasVote = room.Votes.Any(v =>
-                v.ParticipantId == participantId && v.RoundNumber == room.RoundNumber);
-            if (hasVote)
-            {
-                session.Events.Append(room.Id,
-                    new VoteCleared(participantId, room.RoundNumber, DateTime.UtcNow));
-            }
+            await db.Votes
+                .Where(v => v.RoomId == roomId && v.ParticipantId == participantId && v.RoundNumber == room.RoundNumber)
+                .ExecuteDeleteAsync();
         }
 
-        await session.SaveChangesAsync();
-        logger.LogInformation("Participant {ParticipantId} mode changed to {Mode} in room {Code}",
-            participantId, isSpectator ? "Spectator" : "Participant", code);
+        await TouchRoomAsync(roomId);
 
-        return await GetRoomByIdAsync(room.Id) ??
-               throw new InvalidOperationException("Room not found after mode change");
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Participant {ParticipantId} mode → {Mode} in room {RoomId}",
+            participantId, isSpectator ? "Spectator" : "Participant", roomId);
+        return await ReloadRoom(roomId);
     }
 
-    // ─── Leave ──────────────────────────────────────────────────────────
+    // ─── Leave ────────────────────────────────────────────────────────────
 
-    public async Task LeaveRoomAsync(string code, string participantId)
+    public async Task<UnitResult<RoomError>> LeaveRoomAsync(Guid roomId, string participantId)
     {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
+        var exists = await db.Participants
+            .AsNoTracking()
+            .AnyAsync(p => p.RoomId == roomId && p.ParticipantId == participantId);
 
-        session.Events.Append(room.Id, new ParticipantLeft(participantId, DateTime.UtcNow));
-        await session.SaveChangesAsync();
+        if (!exists) return UnitResult.Success<RoomError>(); // Already gone
 
-        logger.LogInformation("Participant {ParticipantId} left room {Code}", participantId, code);
+        await db.Votes
+            .Where(v => v.RoomId == roomId && v.ParticipantId == participantId)
+            .ExecuteDeleteAsync();
+
+        await db.Participants
+            .Where(p => p.RoomId == roomId && p.ParticipantId == participantId)
+            .ExecuteDeleteAsync();
+
+        await TouchRoomAsync(roomId);
+
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Participant {ParticipantId} left room {RoomId}", participantId, roomId);
+        return UnitResult.Success<RoomError>();
     }
 
-    // ─── Vote ───────────────────────────────────────────────────────────
+    // ─── Vote ─────────────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView> SubmitVoteAsync(string code, string participantId, string value)
+    public async Task<Result<EstimationRoom, RoomError>> SubmitVoteAsync(
+        Guid roomId, string participantId, string value)
     {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        if (room.Status != RoomStatus.Voting) throw new InvalidRoomStateException("Can only vote during Voting status");
-        if (room.Status == RoomStatus.Archived) throw new RoomArchivedException(code);
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
 
-        var participant = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId)
-                          ?? throw new ParticipantNotFoundException(participantId);
-        if (participant.IsSpectator) throw new SpectatorCannotVoteException();
-        if (participant.LeftAtUtc is not null) throw new InvalidOperationException("Cannot vote after leaving");
-
-        if (!room.DeckValues.Contains(value))
-            throw new InvalidVoteValueException(value);
-
-        var vote = new VoteSubmitted(participantId, room.RoundNumber, value, DateTime.UtcNow);
-        session.Events.Append(room.Id, vote);
-        await session.SaveChangesAsync();
-
-        logger.LogInformation("Vote submitted by {ParticipantId} in room {Code}", participantId, code);
-
-        return await GetRoomByIdAsync(room.Id) ?? throw new InvalidOperationException("Room not found after vote");
-    }
-
-    // ─── Clear vote ─────────────────────────────────────────────────────
-
-    public async Task<EstimationRoomView> ClearVoteAsync(string code, string participantId)
-    {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        if (room.Status != RoomStatus.Voting)
-            throw new InvalidRoomStateException("Can only clear vote during Voting status");
-
-        session.Events.Append(room.Id, new VoteCleared(participantId, room.RoundNumber, DateTime.UtcNow));
-        await session.SaveChangesAsync();
-
-        logger.LogInformation("Vote cleared by {ParticipantId} in room {Code}", participantId, code);
-
-        return await GetRoomByIdAsync(room.Id) ?? throw new InvalidOperationException("Room not found after clear");
-    }
-
-    // ─── Reveal ─────────────────────────────────────────────────────────
-
-    public async Task<EstimationRoomView> RevealVotesAsync(string code, string moderatorId)
-    {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        EnsureModerator(room, moderatorId);
+        var room = roomResult.Value;
 
         if (room.Status != RoomStatus.Voting)
-            throw new InvalidRoomStateException("Can only reveal during Voting status");
+            return RoomErrors.InvalidState("Can only vote during Voting status");
 
-        session.Events.Append(room.Id, new VotesRevealed(room.RoundNumber, DateTime.UtcNow));
-        await session.SaveChangesAsync();
+        var participant = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId);
+        if (participant is null)
+            return RoomErrors.ParticipantNotFound(participantId);
+        if (participant.IsSpectator)
+            return RoomErrors.SpectatorCannotVote();
 
-        logger.LogInformation("Votes revealed in room {Code} by moderator {ModeratorId}", code, moderatorId);
+        var deckValues = Decks.GetOrDefault(room.DeckType).Values;
+        if (!deckValues.Contains(value))
+            return RoomErrors.InvalidVote(value);
 
-        return await GetRoomByIdAsync(room.Id) ?? throw new InvalidOperationException("Room not found after reveal");
+        await db.Votes
+            .Where(v => v.RoomId == roomId && v.ParticipantId == participantId && v.RoundNumber == room.RoundNumber)
+            .ExecuteDeleteAsync();
+
+        db.Votes.Add(new EstimationVote
+        {
+            Id = Guid.NewGuid(),
+            RoomId = roomId,
+            RoundNumber = room.RoundNumber,
+            ParticipantId = participantId,
+            Value = value,
+            SubmittedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+        await TouchRoomAsync(roomId);
+
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogDebug("Vote submitted by {ParticipantId} in room {RoomId}", participantId, roomId);
+        return await ReloadRoom(roomId);
     }
 
-    // ─── Reset ──────────────────────────────────────────────────────────
+    // ─── Clear vote ───────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView> ResetRoundAsync(string code, string moderatorId)
+    public async Task<UnitResult<RoomError>> ClearVoteAsync(Guid roomId, string participantId)
     {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        EnsureModerator(room, moderatorId);
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        if (room.Status != RoomStatus.Voting)
+            return RoomErrors.InvalidState("Can only clear vote during Voting status");
+
+        var deleted = await db.Votes
+            .Where(v => v.RoomId == roomId && v.ParticipantId == participantId && v.RoundNumber == room.RoundNumber)
+            .ExecuteDeleteAsync();
+
+        if (deleted > 0)
+            await TouchRoomAsync(roomId);
+
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogDebug("Vote cleared by {ParticipantId} in room {RoomId}", participantId, roomId);
+        return UnitResult.Success<RoomError>();
+    }
+
+    // ─── Reveal ───────────────────────────────────────────────────────────
+
+    public async Task<Result<EstimationRoom, RoomError>> RevealVotesAsync(Guid roomId, string moderatorId)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
+
+        if (room.Status != RoomStatus.Voting)
+            return RoomErrors.InvalidState("Can only reveal during Voting status");
+
+        var activeVoterIds = room.Participants
+            .Where(p => !p.IsSpectator)
+            .Select(p => p.ParticipantId)
+            .ToHashSet();
+
+        var roundVotes = room.Votes
+            .Where(v => v.RoundNumber == room.RoundNumber && activeVoterIds.Contains(v.ParticipantId))
+            .ToList();
+
+        if (roundVotes.Count == 0)
+            return RoomErrors.InvalidState("Cannot reveal — no votes have been cast yet");
+
+        var distribution = roundVotes.GroupBy(v => v.Value).ToDictionary(g => g.Key, g => g.Count());
+
+        double? numericAverage = null;
+        string? numericAverageDisplay = null;
+        var numericValues = roundVotes
+            .Select(v => double.TryParse(v.Value, out var n) ? (double?)n : null)
+            .Where(n => n.HasValue)
+            .Select(n => n!.Value)
+            .ToList();
+
+        if (numericValues.Count > 0 && numericValues.Count == roundVotes.Count)
+        {
+            numericAverage = numericValues.Average();
+            numericAverageDisplay = Math.Round(numericAverage.Value, 1).ToString("F1");
+        }
+
+        await db.RoundHistory
+            .Where(h => h.RoomId == roomId && h.RoundNumber == room.RoundNumber)
+            .ExecuteDeleteAsync();
+
+        db.RoundHistory.Add(new EstimationRoundHistory
+        {
+            Id = Guid.NewGuid(),
+            RoomId = roomId,
+            RoundNumber = room.RoundNumber,
+            VoterCount = roundVotes.Count,
+            DistributionJson = JsonSerializer.Serialize(distribution),
+            NumericAverage = numericAverage,
+            NumericAverageDisplay = numericAverageDisplay,
+            RevealedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, RoomStatus.Revealed)
+                .SetProperty(r => r.UpdatedAtUtc, now));
+
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Votes revealed in room {RoomId} by {ModeratorId}", roomId, moderatorId);
+        return await ReloadRoom(roomId);
+    }
+
+    // ─── Reset ────────────────────────────────────────────────────────────
+
+    public async Task<Result<EstimationRoom, RoomError>> ResetRoundAsync(Guid roomId, string moderatorId)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
 
         if (room.Status == RoomStatus.Archived)
-            throw new RoomArchivedException(code);
+            return RoomErrors.Archived(roomId);
+
+        if (room.Status != RoomStatus.Revealed)
+            return RoomErrors.InvalidState("Can only start a new round after votes are revealed");
+
+        await db.Votes.Where(v => v.RoomId == roomId).ExecuteDeleteAsync();
 
         var newRound = room.RoundNumber + 1;
-        session.Events.Append(room.Id, new RoundReset(newRound, DateTime.UtcNow));
-        await session.SaveChangesAsync();
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.RoundNumber, newRound)
+                .SetProperty(r => r.Status, RoomStatus.Voting)
+                .SetProperty(r => r.UpdatedAtUtc, now));
 
-        logger.LogInformation("Round reset in room {Code}, new round {Round}", code, newRound);
-
-        return await GetRoomByIdAsync(room.Id) ?? throw new InvalidOperationException("Room not found after reset");
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Round reset in room {RoomId}, new round {Round}", roomId, newRound);
+        return await ReloadRoom(roomId);
     }
 
-    // ─── Archive ────────────────────────────────────────────────────────
+    // ─── Archive ──────────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView> ArchiveRoomAsync(string code, string moderatorId)
+    public async Task<Result<EstimationRoom, RoomError>> ArchiveRoomAsync(Guid roomId, string moderatorId)
     {
-        var room = await GetRoomByCodeAsync(code) ?? throw new RoomNotFoundException(code);
-        EnsureModerator(room, moderatorId);
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
 
         if (room.Status == RoomStatus.Archived)
-            throw new InvalidRoomStateException("Room is already archived");
+            return RoomErrors.InvalidState("Room is already archived");
 
-        session.Events.Append(room.Id, new RoomArchived(DateTime.UtcNow));
-        await session.SaveChangesAsync();
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, RoomStatus.Archived)
+                .SetProperty(r => r.ArchivedAtUtc, now)
+                .SetProperty(r => r.UpdatedAtUtc, now));
 
-        logger.LogInformation("Room {Code} archived by moderator {ModeratorId}", code, moderatorId);
-
-        return await GetRoomByIdAsync(room.Id) ?? throw new InvalidOperationException("Room not found after archive");
+        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        logger.LogInformation("Room {RoomId} archived by {ModeratorId}", roomId, moderatorId);
+        return await ReloadRoom(roomId);
     }
 
-    // ─── Queries ────────────────────────────────────────────────────────
+    // ─── Claim Guest ─────────────────────────────────────────────────────
 
-    public async Task<EstimationRoomView?> GetRoomByCodeAsync(string code)
+    public async Task<int> ClaimGuestAsync(string guestId, string userId, string displayName)
     {
-        return await session.Query<EstimationRoomView>()
-            .FirstOrDefaultAsync(r => r.Code == code);
-    }
+        var guestParticipants = await db.Participants
+            .Where(p => p.GuestId == guestId)
+            .ToListAsync();
 
-    public async Task<EstimationRoomView?> GetRoomByIdAsync(Guid id)
-    {
-        return await session.LoadAsync<EstimationRoomView>(id);
-    }
+        if (guestParticipants.Count == 0) return 0;
 
-    // ─── Helpers ────────────────────────────────────────────────────────
-
-    private async Task<string> GenerateUniqueCodeAsync()
-    {
-        for (var i = 0; i < MaxCodeRetries; i++)
+        var claimed = 0;
+        foreach (var participant in guestParticipants)
         {
-            var code = GenerateCode();
-            var exists = await session.Query<EstimationRoomView>().AnyAsync(r => r.Code == code);
-            if (!exists) return code;
+            var existingAuth = await db.Participants
+                .FirstOrDefaultAsync(p => p.RoomId == participant.RoomId && p.UserId == userId);
+
+            if (existingAuth is not null)
+            {
+                var guestVotes = await db.Votes
+                    .Where(v => v.RoomId == participant.RoomId && v.ParticipantId == guestId)
+                    .ToListAsync();
+
+                foreach (var vote in guestVotes)
+                {
+                    var hasExistingVote = await db.Votes
+                        .AnyAsync(v => v.RoomId == participant.RoomId &&
+                                       v.ParticipantId == userId && v.RoundNumber == vote.RoundNumber);
+                    if (!hasExistingVote)
+                        vote.ParticipantId = userId;
+                    else
+                        db.Votes.Remove(vote);
+                }
+
+                db.Participants.Remove(participant);
+            }
+            else
+            {
+                participant.ParticipantId = userId;
+                participant.UserId = userId;
+                participant.GuestId = null;
+                participant.DisplayName = displayName;
+                participant.IsGuest = false;
+
+                var guestVotes = await db.Votes
+                    .Where(v => v.RoomId == participant.RoomId && v.ParticipantId == guestId)
+                    .ToListAsync();
+                foreach (var vote in guestVotes)
+                    vote.ParticipantId = userId;
+            }
+
+            claimed++;
         }
 
-        throw new InvalidOperationException($"Failed to generate unique room code after {MaxCodeRetries} attempts");
+        await db.SaveChangesAsync();
+
+        if (claimed > 0)
+            logger.LogInformation("Claimed {Count} room(s) for guest {GuestId} → user {UserId}",
+                claimed, guestId, userId);
+
+        return claimed;
     }
 
-    private static string GenerateCode()
+    // ─── Queries ──────────────────────────────────────────────────────────
+
+    public async Task<EstimationRoom?> GetRoomByIdAsync(Guid roomId)
     {
-        return string.Create(CodeLength, CodeChars, (span, chars) =>
-        {
-            for (var i = 0; i < span.Length; i++)
-                span[i] = chars[Random.Shared.Next(chars.Length)];
-        });
+        return await db.Rooms
+            .Include(r => r.Participants)
+            .Include(r => r.Votes)
+            .Include(r => r.RoundHistory)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == roomId);
     }
 
-    private static void EnsureModerator(EstimationRoomView room, string userId)
+    public async Task<IReadOnlyList<EstimationRoom>> GetRoomsForUserAsync(string userId)
     {
-        if (room.ModeratorUserId != userId)
-            throw new NotModeratorException();
+        return await db.Rooms
+            .Include(r => r.Participants)
+            .Include(r => r.RoundHistory)
+            .AsNoTracking()
+            .Where(r => r.Participants.Any(p => p.UserId == userId))
+            .OrderByDescending(r => r.UpdatedAtUtc)
+            .ToListAsync();
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Loads a room with all navigation properties as a read-only snapshot (AsNoTracking).
+    /// This prevents stale tracked entities from causing concurrency exceptions when
+    /// the WebSocket disconnect handler mutates the same room from a different DI scope.
+    /// </summary>
+    private async Task<Result<EstimationRoom, RoomError>> GetRoomWithAll(Guid roomId)
+    {
+        var room = await db.Rooms
+            .Include(r => r.Participants)
+            .Include(r => r.Votes)
+            .Include(r => r.RoundHistory)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == roomId);
+
+        return room is not null
+            ? Result.Success<EstimationRoom, RoomError>(room)
+            : RoomErrors.NotFound(roomId);
+    }
+
+    /// <summary>
+    /// Re-loads the room from DB after a mutation for returning fresh state.
+    /// </summary>
+    private async Task<Result<EstimationRoom, RoomError>> ReloadRoom(Guid roomId)
+    {
+        return await GetRoomWithAll(roomId);
+    }
+
+    /// <summary>
+    /// Updates only UpdatedAtUtc on the room without tracking the entity.
+    /// </summary>
+    private async Task TouchRoomAsync(Guid roomId)
+    {
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.UpdatedAtUtc, now));
+    }
+
+    /// <summary>
+    /// Updates a participant's display name across ALL their rooms (not just the current one).
+    /// Returns the list of affected room IDs so callers can broadcast WebSocket updates.
+    /// Uses ExecuteUpdateAsync — works with AsNoTracking entities.
+    /// </summary>
+    private async Task<List<Guid>> UpdateDisplayNameAcrossRoomsAsync(string participantId, string newDisplayName)
+    {
+        var affectedRoomIds = await db.Participants
+            .Where(p => p.ParticipantId == participantId && p.DisplayName != newDisplayName)
+            .Select(p => p.RoomId)
+            .Distinct()
+            .ToListAsync();
+
+        if (affectedRoomIds.Count == 0) return affectedRoomIds;
+
+        await db.Participants
+            .Where(p => p.ParticipantId == participantId && p.DisplayName != newDisplayName)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.DisplayName, newDisplayName));
+
+        logger.LogInformation(
+            "Updated display name to '{DisplayName}' for participant {ParticipantId} across {Count} room(s)",
+            newDisplayName, participantId, affectedRoomIds.Count);
+
+        return affectedRoomIds;
+    }
+
+    private static UnitResult<RoomError> EnsureModerator(EstimationRoom room, string userId)
+    {
+        return room.ModeratorUserId == userId
+            ? UnitResult.Success<RoomError>()
+            : UnitResult.Failure(RoomErrors.NotModerator());
     }
 }
-
-// ─── Domain exceptions ──────────────────────────────────────────────────────
-
-public class RoomNotFoundException(string code) : Exception($"Room not found: {code}");
-
-public class RoomArchivedException(string code) : Exception($"Room is archived: {code}");
-
-public class ParticipantNotFoundException(string id) : Exception($"Participant not found: {id}");
-
-public class NotModeratorException() : Exception("Only the moderator can perform this action");
-
-public class SpectatorCannotVoteException() : Exception("Spectators cannot vote");
-
-public class InvalidRoomStateException(string msg) : Exception(msg);
-
-public class InvalidVoteValueException(string value) : Exception($"Invalid vote value: {value}");

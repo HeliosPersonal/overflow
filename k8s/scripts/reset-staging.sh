@@ -7,8 +7,8 @@
 #
 # What it does:
 #   1. Scales down all deployments in apps-staging to 0 (prevents writes during reset)
-#   2. Drops & recreates 4 PostgreSQL databases (via a temporary pod):
-#        staging_questions, staging_profiles, staging_votes, staging_stats
+#   2. Drops & recreates 5 PostgreSQL databases (via a temporary pod):
+#        staging_questions, staging_profiles, staging_votes, staging_stats, staging_estimations
 #   3. Drops & recreates the Typesense collection: staging_questions
 #   4. Scales deployments back up to 1
 #
@@ -38,6 +38,7 @@ PG_DATABASES=(
     "staging_profiles"
     "staging_votes"
     "staging_stats"
+    "staging_estimations"
 )
 
 DEPLOYMENTS=(
@@ -46,6 +47,7 @@ DEPLOYMENTS=(
     "profile-svc"
     "stats-svc"
     "vote-svc"
+    "estimation-svc"
     "data-seeder-svc"
     "overflow-webapp"
 )

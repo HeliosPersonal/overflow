@@ -50,7 +50,7 @@ keycloak.devoverflow.org
 │
 ├── overflow  (production realm)
 │   ├── overflow-web         — confidential, webapp (devoverflow.org)
-│   ├── overflow-admin       — confidential + service account, webapp signup
+│   ├── overflow-admin       — confidential + service account, webapp user management
 │   ├── overflow-postman     — public, API testing with Postman
 │   └── overflow             — public, audience target (JWT aud claim)
 │
@@ -58,7 +58,7 @@ keycloak.devoverflow.org
     ├── overflow-web         — confidential, webapp (staging.devoverflow.org)
     ├── overflow-web-local   — confidential, webapp running locally against staging
     ├── overflow-postman     — public, API testing with Postman
-    ├── overflow-admin       — confidential + service account, webapp signup + DataSeederService
+    ├── overflow-admin       — confidential + service account, webapp user management + DataSeederService
     └── overflow-staging     — public, audience target (JWT aud claim)
 ```
 
@@ -67,13 +67,13 @@ keycloak.devoverflow.org
 | Realm | Client ID | Type | Used by | Secret in |
 |---|---|---|---|---|
 | `overflow` | `overflow-web` | Confidential | `devoverflow.org` webapp | Infisical `production` |
-| `overflow` | `overflow-admin` | Confidential + service account | Webapp signup (Admin API) | Infisical `production` |
+| `overflow` | `overflow-admin` | Confidential + service account | Webapp user management (Admin API) | Infisical `production` |
 | `overflow` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
 | `overflow` | `overflow` | Public (audience target) | JWT `aud` claim for all tokens | — |
 | `overflow-staging` | `overflow-web` | Confidential | `staging.devoverflow.org` webapp | Infisical `staging` |
 | `overflow-staging` | `overflow-web-local` | Confidential | Local dev (`localhost:3000`) | `.env.development` |
 | `overflow-staging` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
-| `overflow-staging` | `overflow-admin` | Confidential + service account | Webapp signup + DataSeederService (Admin API) | Infisical `staging` |
+| `overflow-staging` | `overflow-admin` | Confidential + service account | Webapp user management + DataSeederService (Admin API) | Infisical `staging` |
 | `overflow-staging` | `overflow-staging` | Public (audience target) | JWT `aud` claim for all tokens | — |
 
 ---
@@ -231,13 +231,19 @@ Exists purely so other clients' audience mappers can reference it — tokens get
 .NET services validate the JWT `aud` claim matches `KeycloakOptions.Audience`
 via [`AuthExtensions.cs`](../Overflow.Common/CommonExtensions/AuthExtensions.cs).
 
-### `overflow-admin` — Webapp Signup + DataSeederService (Confidential + Service Account)
+### `overflow-admin` — Webapp User Management + DataSeederService (Confidential + Service Account)
 
 Exists in **both realms**. Used for Keycloak Admin API operations:
 
 1. **Webapp signup** — [`signup/route.ts`](../webapp/src/app/api/auth/signup/route.ts) uses
    `client_credentials` grant to get an admin token, then creates users via the Admin REST API.
-2. **DataSeederService** (staging only) — [`KeycloakAdminService.cs`](../Overflow.DataSeederService/Services/KeycloakAdminService.cs)
+2. **Anonymous user creation** — [`anonymous/route.ts`](../webapp/src/app/api/auth/anonymous/route.ts) creates
+   real Keycloak accounts for guest users (Planning Poker, auth-gate) with placeholder emails.
+3. **Account upgrade** — [`upgrade/route.ts`](../webapp/src/app/api/auth/upgrade/route.ts) updates anonymous
+   Keycloak accounts with real email/password.
+4. **Password reset** — [`reset-password/route.ts`](../webapp/src/app/api/auth/reset-password/route.ts) resets
+   user passwords via the Admin API.
+5. **DataSeederService** (staging only) — [`KeycloakAdminService.cs`](../Overflow.DataSeederService/Services/KeycloakAdminService.cs)
    creates realistic users via the same Admin API. It also obtains user tokens via `overflow-web`
    to call backend services as those users.
 
@@ -436,7 +442,7 @@ after 5 minutes — see [Token Settings](#token-settings)).
 
 ---
 
-> For the complete Infisical setup, all 27 secrets, and how they flow through the system,
+> For the complete Infisical setup, all 28 secrets, and how they flow through the system,
 > see [**INFISICAL_SETUP.md**](./INFISICAL_SETUP.md).
 
 ### Environment Slug Mapping
@@ -454,8 +460,8 @@ After importing a realm and generating client secrets, store them in Infisical:
 |---|---|---|---|
 | `Auth__KeycloakSecret` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
 | `Auth__Secret` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
-| `KeycloakOptions__AdminClientId` | staging + production | `overflow-admin` | Webapp signup + DataSeederService |
-| `KeycloakOptions__AdminClientSecret` | staging + production | `overflow-admin` client secret | Webapp signup + DataSeederService |
+| `KeycloakOptions__AdminClientId` | staging + production | `overflow-admin` | Webapp user management + DataSeederService |
+| `KeycloakOptions__AdminClientSecret` | staging + production | `overflow-admin` client secret | Webapp user management + DataSeederService |
 | `KeycloakOptions__NextJsClientId` | staging only | `overflow-web` | DataSeederService |
 | `KeycloakOptions__NextJsClientSecret` | staging only | `overflow-web` client secret | DataSeederService |
 
@@ -707,6 +713,3 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 - Decode the token to verify: `echo "$TOKEN" | cut -d. -f2 | base64 -d | jq '.realm_access.roles'`
 - Make sure this is a **realm role** (not a client role) — `realm_access.roles` is what the app reads
 
----
-
-*Last updated: March 2026*

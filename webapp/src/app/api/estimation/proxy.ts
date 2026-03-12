@@ -14,8 +14,11 @@ export async function proxyEstimation(
     method: string,
     body?: unknown
 ): Promise<NextResponse> {
-    const apiUrl = process.env.API_URL;
-    if (!apiUrl) return NextResponse.json({error: "Missing API_URL"}, {status: 500});
+    // Use a dedicated internal URL for estimation-svc so the server-side proxy calls
+    // the service directly, bypassing the public ingress entirely.
+    // Falls back to API_URL for local dev (Aspire gateway handles routing there).
+    const estimationUrl = process.env.ESTIMATION_SERVICE_URL ?? process.env.API_URL;
+    if (!estimationUrl) return NextResponse.json({error: "Missing ESTIMATION_SERVICE_URL"}, {status: 500});
 
     const session = await auth();
     const headers: HeadersInit = {"Content-Type": "application/json"};
@@ -30,26 +33,36 @@ export async function proxyEstimation(
         headers["Cookie"] = `${GUEST_COOKIE}=${guestId}`;
     }
 
-    const response = await fetch(`${apiUrl}${backendPath}`, {
+    const response = await fetch(`${estimationUrl}${backendPath}`, {
         method,
         headers,
         ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
     });
 
+    // 204 No Content — must not have a body (NextResponse.json crashes with status 204)
+    if (response.status === 204) {
+        return new NextResponse(null, {status: 204});
+    }
+
     const contentType = response.headers.get("content-type");
     const isJson = contentType?.includes("application/json");
-    const data = isJson ? await response.json() : await response.text();
 
-    const nextResponse = isJson
-        ? NextResponse.json(data, {status: response.status})
-        : new NextResponse(data, {status: response.status});
+    // Always use NextResponse.json to avoid new NextResponse(string) which
+    // triggers a TransformStream incompatibility in Node.js (Web Streams API bug).
+    let data: unknown;
+    if (isJson) {
+        data = await response.json();
+    } else {
+        const text = await response.text();
+        data = text ? {message: text} : null;
+    }
+
+    const nextResponse = NextResponse.json(data, {status: response.status});
 
     // Forward any Set-Cookie from backend (guest cookie issuance)
-    const setCookie = response.headers.getSetCookie?.();
-    if (setCookie) {
-        for (const cookie of setCookie) {
-            nextResponse.headers.append("Set-Cookie", cookie);
-        }
+    const setCookieHeader = response.headers.get("set-cookie");
+    if (setCookieHeader) {
+        nextResponse.headers.append("Set-Cookie", setCookieHeader);
     }
 
     return nextResponse;

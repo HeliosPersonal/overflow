@@ -1,17 +1,16 @@
 # Overflow
 
-A Stack Overflow–inspired Q&A platform built as a microservices showcase.  
-Live: **[devoverflow.org](https://devoverflow.org)** · Staging: **[staging.devoverflow.org](https://staging.devoverflow.org)**
+A Stack Overflow–inspired Q&A platform built as a microservices showcase.
 
 ---
 
 ## What Is This?
 
-Overflow is a full-stack, production-deployed Q&A platform. Users can post questions, write answers, vote, search, and earn reputation. The project is intentionally over-engineered — it exists to demonstrate real-world patterns across microservices, Kubernetes, CI/CD, secrets management, and observability.
+Overflow is a full-stack Q&A platform. Users can post questions, write answers, vote, search, and earn reputation. The project is intentionally over-engineered — it exists to demonstrate real-world patterns across microservices, Kubernetes, CI/CD, secrets management, and observability.
 
 ---
 
-## Architecture at a Glance
+## Architecture
 
 ```
 Browser
@@ -26,9 +25,9 @@ NGINX Ingress (K3s on-prem · TLS termination · path routing)
   ├─ /api/questions/*   →  question-svc    (.NET 10, PostgreSQL, Wolverine/RabbitMQ)
   ├─ /api/search/*      →  search-svc      (.NET 10, Typesense)
   ├─ /api/profiles/*    →  profile-svc     (.NET 10, PostgreSQL)
-  ├─ /api/stats/*       →  stats-svc       (.NET 10, PostgreSQL)
+  ├─ /api/stats/*       →  stats-svc       (.NET 10, PostgreSQL/Marten)
   ├─ /api/votes/*       →  vote-svc        (.NET 10, PostgreSQL)
-  └─ /api/estimation/*  →  estimation-svc  (.NET 10, PostgreSQL/Marten, WebSocket)
+  └─ /api/estimation/*  →  estimation-svc  (.NET 10, PostgreSQL, WebSocket)
                               │
                     ┌─────────┴──────────┐
                     │                    │
@@ -59,44 +58,18 @@ All services emit OpenTelemetry traces and metrics to Grafana Alloy → Grafana 
 
 ---
 
-## Repository Layout
-
-```
-overflow/
-├── webapp/                     # Next.js frontend
-├── Overflow.AppHost/           # .NET Aspire orchestrator (local dev only)
-├── Overflow.ServiceDefaults/   # Shared Aspire/OpenTelemetry defaults
-├── Overflow.Common/            # Shared helpers, Infisical bootstrap, Keycloak config
-├── Overflow.Contracts/         # Shared message contracts (RabbitMQ events)
-├── Overflow.QuestionService/   # Questions, answers, tags API
-├── Overflow.SearchService/     # Full-text search via Typesense
-├── Overflow.ProfileService/    # User profiles and reputation
-├── Overflow.StatsService/      # Aggregate statistics
-├── Overflow.VoteService/       # Upvote / downvote
-├── Overflow.EstimationService/ # Planning Poker rooms (event-sourced via Marten)
-├── Overflow.DataSeederService/ # LLM-powered staging content generator
-├── k8s/                        # Kubernetes manifests (Kustomize base + overlays)
-├── terraform/                  # Project-specific Terraform (DBs, vhosts, ConfigMaps)
-└── docs/                       # All documentation
-```
-
----
-
 ## Quick Start
-
-### Run locally (5 minutes)
 
 **Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) · [Node.js 22+](https://nodejs.org/) · [Docker Desktop](https://www.docker.com/products/docker-desktop)
 
 ```bash
 # 1. Clone
-git clone https://github.com/heliospersonal/overflow.git
-cd overflow
+git clone https://github.com/heliospersonal/overflow.git && cd overflow
 
-# 2. Start all backend services (PostgreSQL, RabbitMQ, Typesense, Keycloak included)
+# 2. Start all backend services + dependencies
 cd Overflow.AppHost && dotnet run
 
-# 3. Start frontend (in a new terminal)
+# 3. Start frontend (new terminal)
 cd webapp && npm install && npm run dev
 ```
 
@@ -105,26 +78,46 @@ cd webapp && npm install && npm run dev
 | App | http://localhost:3000 |
 | Aspire Dashboard | http://localhost:18888 |
 
-The `webapp/.env.development` file is committed and works out of the box for local Aspire development.
-
-> For a full walkthrough including Kubernetes deployment, see **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
+> For Kubernetes deployment, see [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
 ---
 
-## Documentation
+## Services
 
-| Document | Description |
-|---|---|
-| [Quick Start](docs/QUICKSTART.md) | Local dev setup + full Kubernetes deployment guide |
-| [Infrastructure](docs/INFRASTRUCTURE.md) | Architecture deep-dive, request flow, ingress routing, SSL |
-| [Network Architecture](docs/NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
-| [Keycloak Setup](docs/KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO |
-| [Google Auth Setup](docs/GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
-| [Infisical Setup](docs/INFISICAL_SETUP.md) | All secrets, how they flow from Infisical to services |
-| [Data Seeder](docs/DATA_SEEDER.md) | LLM-powered content generation for staging |
-| [Planning Poker Prompt](docs/PLANNING_POKER_PROMPT.md) | Claude IDE prompt for adding an Estimation Service and Planning Poker UI |
-| [Kubernetes](k8s/README.md) | Kustomize structure and manifest reference |
-| [Terraform](terraform/README.md) | Project-specific Terraform (DBs, vhosts, ConfigMaps) |
+Each service has its own README with endpoints, configuration, and project structure.
+
+| Service | Description | README |
+|---|---|---|
+| [QuestionService](Overflow.QuestionService/) | Questions, answers, tags — publishes domain events | [README](Overflow.QuestionService/README.md) |
+| [SearchService](Overflow.SearchService/) | Full-text search via Typesense — subscribes to question events | [README](Overflow.SearchService/README.md) |
+| [ProfileService](Overflow.ProfileService/) | User profiles and reputation — auto-creates on first request | [README](Overflow.ProfileService/README.md) |
+| [StatsService](Overflow.StatsService/) | Trending tags, top users — Marten event-sourced projections | [README](Overflow.StatsService/README.md) |
+| [VoteService](Overflow.VoteService/) | Upvote / downvote — publishes vote and reputation events | [README](Overflow.VoteService/README.md) |
+| [EstimationService](Overflow.EstimationService/) | Planning Poker rooms — real-time WebSocket, guest access | [README](Overflow.EstimationService/README.md) |
+| [DataSeederService](Overflow.DataSeederService/) | LLM-powered staging content generator | [README](Overflow.DataSeederService/README.md) |
+
+### Shared Libraries
+
+| Project | Description | README |
+|---|---|---|
+| [Overflow.Common](Overflow.Common/) | Infisical secrets, Keycloak auth, Wolverine+RabbitMQ setup, DB migrations | [README](Overflow.Common/README.md) |
+| [Overflow.Contracts](Overflow.Contracts/) | RabbitMQ message contracts + ReputationHelper | [README](Overflow.Contracts/README.md) |
+| [Overflow.ServiceDefaults](Overflow.ServiceDefaults/) | OpenTelemetry, health endpoints, service discovery | [README](Overflow.ServiceDefaults/README.md) |
+| [Overflow.AppHost](Overflow.AppHost/) | .NET Aspire orchestrator (local dev only) | [README](Overflow.AppHost/README.md) |
+
+---
+
+## Event Flow
+
+```
+question-svc ──► QuestionCreated/Updated/Deleted ──► search-svc (Typesense index)
+             ──► AnswerCountUpdated               ──► search-svc
+             ──► AnswerAccepted                   ──► search-svc
+             ──► UserReputationChanged            ──► profile-svc, stats-svc
+
+vote-svc     ──► VoteCasted                       ──► question-svc (vote count)
+             ──► UserReputationChanged            ──► profile-svc, stats-svc
+```
 
 ---
 
@@ -136,22 +129,23 @@ The `webapp/.env.development` file is committed and works out of the box for loc
 | Staging | `development` | `apps-staging` | https://staging.devoverflow.org |
 | Production | `main` | `apps-production` | https://devoverflow.org |
 
-Pushing to `development` or `main` triggers GitHub Actions → builds Docker images → pushes to GHCR → deploys to Kubernetes.
-
 ---
 
-## Services
+## Documentation
 
-| Service | Purpose | Port |
-|---|---|---|
-| `question-svc` | Questions, answers, tags. Publishes domain events via RabbitMQ. | 8080 |
-| `search-svc` | Full-text search. Subscribes to question events, syncs to Typesense. | 8080 |
-| `profile-svc` | User profiles and reputation. Subscribes to vote/answer events. | 8080 |
-| `stats-svc` | Aggregate platform statistics. | 8080 |
-| `vote-svc` | Upvote / downvote. Publishes vote events. | 8080 |
-| `estimation-svc` | Planning Poker. Event-sourced rooms via Marten. Real-time WebSocket updates. | 8080 |
-| `data-seeder-svc` | Background worker — generates LLM content in staging. | — |
-| `webapp` | Next.js SSR frontend. | 3000 |
+### Platform & Infrastructure
+
+| Document | Description |
+|---|---|
+| [Quick Start](docs/QUICKSTART.md) | Local dev setup + full Kubernetes deployment guide |
+| [Infrastructure](docs/INFRASTRUCTURE.md) | Architecture deep-dive, request flow, ingress routing, SSL, troubleshooting |
+| [Network Architecture](docs/NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
+| [Keycloak Setup](docs/KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO, local dev |
+| [Google Auth Setup](docs/GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
+| [Infisical Setup](docs/INFISICAL_SETUP.md) | All 28 secrets, how they flow from Infisical to services |
+| [Kubernetes](k8s/README.md) | Kustomize structure, manifests, operations |
+| [Terraform](terraform/README.md) | Project-specific Terraform (DBs, vhosts, ConfigMaps) |
+
 
 ---
 
@@ -159,7 +153,6 @@ Pushing to `development` or `main` triggers GitHub Actions → builds Docker ima
 
 - **One database per service** — each microservice owns its schema; no cross-service DB calls.
 - **Event-driven** — services communicate via RabbitMQ. Wolverine handles outbox, retries, and routing.
-- **Event-sourced estimation** — Planning Poker rooms use Marten event streams as the source of truth, with inline projections for current state.
 - **Infisical at runtime** — no secrets baked into images. Every pod fetches secrets from Infisical on startup.
 - **.NET Aspire for local dev** — one `dotnet run` starts the entire backend with all dependencies.
 - **On-premises Kubernetes** — K3s runs on a home server. Cloudflare proxies requests and hides the origin IP.

@@ -1,6 +1,5 @@
 import {getProfileById} from "@/lib/actions/profile-actions";
 import {notFound} from "next/navigation";
-import {handleError} from "@/lib/util";
 import ProfileDetailed from "@/app/(main)/profiles/[id]/ProfileDetailed";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
 import {auth} from "@/auth";
@@ -12,8 +11,16 @@ export default async function Page({params}: {params: Params}) {
     const {data: profile, error} = await getProfileById(id);
     const currentUserProfile = currentUser?.id === id;
 
-    if (error) handleError(error);
-    if (!profile) return notFound()
+    if (error) {
+        return (
+            <div className="px-6 flex flex-col gap-3 pt-4">
+                <h1>Profile details</h1>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">{error.message}</p>
+            </div>
+        );
+    }
+
+    if (!profile) return notFound();
 
     return (
         <div className="px-6 flex flex-col gap-3 pt-4">

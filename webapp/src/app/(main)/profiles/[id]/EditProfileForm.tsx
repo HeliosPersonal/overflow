@@ -4,6 +4,7 @@ import {Input, Textarea} from "@heroui/input";
 import {Button} from "@heroui/button";
 import {Profile} from "@/lib/types";
 import {useTransition} from "react";
+import {useRouter} from "next/navigation";
 import {editProfile} from "@/lib/actions/profile-actions";
 import {handleError, successToast} from "@/lib/util";
 import {editProfileSchema, EditProfileSchema} from "@/lib/schemas/editProfileSchema";
@@ -15,6 +16,7 @@ type Props = {
 
 export default function EditProfileForm({profile, setEditMode}: Props) {
     const [pending, startTransition] = useTransition();
+    const router = useRouter();
     const {register, handleSubmit, formState: {isSubmitting, errors, isValid}} = useForm<EditProfileSchema>({
         resolver: zodResolver(editProfileSchema),
         mode: 'onTouched',
@@ -27,9 +29,16 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
     const onSubmit = (data: EditProfileSchema) => {
         startTransition(async () => {
             const {error} = await editProfile(profile.userId, data);
-            if (error) handleError(error);
+            if (error) {
+                handleError(error);
+                return;
+            }
             successToast('Profile successfully updated');
             setEditMode(false);
+            // Refresh the page to pick up updated displayName in TopNav and all server components.
+            // The revalidatePath calls in editProfile clear cached data, and router.refresh()
+            // triggers server re-render which re-reads the session (updated on next token refresh).
+            router.refresh();
         })
     }
 

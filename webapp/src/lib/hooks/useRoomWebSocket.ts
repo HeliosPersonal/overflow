@@ -3,33 +3,25 @@ import {PlanningPokerRoom} from "@/lib/types";
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
-export function useRoomWebSocket(code: string | null) {
+export function useRoomWebSocket(roomId: string | null) {
     const [room, setRoom] = useState<PlanningPokerRoom | null>(null);
     const [status, setStatus] = useState<ConnectionStatus>('disconnected');
     const wsRef = useRef<WebSocket | null>(null);
-    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    const retriesRef = useRef(0);
-    const maxRetries = 10;
 
     const connect = useCallback(() => {
-        if (!code) return;
+        if (!roomId) return;
         
-        // In production / staging, WebSocket goes through the same-origin ingress path
-        // which rewrites /api/estimation/* to /estimation/*
-        // In local dev, we connect directly to the YARP gateway on port 8001
         let wsUrl: string;
         if (typeof window !== 'undefined') {
             const isDev = window.location.port === '3000' || window.location.port === '4000';
             if (isDev) {
-                // Local dev: connect directly to the Aspire YARP gateway
-                wsUrl = `ws://localhost:8001/estimation/rooms/${code}/ws`;
+                wsUrl = `ws://localhost:8001/estimation/rooms/${roomId}/ws`;
             } else {
-                // Production / staging: same origin, ingress rewrites /api/estimation → /estimation
                 const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                wsUrl = `${proto}//${window.location.host}/api/estimation/rooms/${code}/ws`;
+                wsUrl = `${proto}//${window.location.host}/api/estimation/rooms/${roomId}/ws`;
             }
         } else {
-            return; // SSR — no WebSocket
+            return;
         }
         
         setStatus('connecting');
@@ -39,13 +31,39 @@ export function useRoomWebSocket(code: string | null) {
 
         ws.onopen = () => {
             setStatus('connected');
-            retriesRef.current = 0;
         };
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data) as PlanningPokerRoom;
-                setRoom(data);
+                // Ignore error messages from the server
+                if ((data as unknown as {type?: string})?.type === 'error') {
+                    console.warn('[WS] Server error:', data);
+                    return;
+                }
+                // The WS connection may resolve to a different viewer identity
+                // than the HTTP requests (e.g. guest vs authenticated). When the
+                // viewer identity doesn't match, preserve the viewer object from
+                // the last HTTP-sourced state so isModerator, selectedVote,
+                // isSpectator etc. aren't wiped by WS broadcasts.
+                // However, on round change clear selectedVote so stale picks
+                // from the previous round don't carry over.
+                setRoom(prev => {
+                    if (prev?.viewer && data.viewer
+                        && prev.viewer.participantId !== data.viewer.participantId) {
+                        const roundChanged = prev.roundNumber !== data.roundNumber;
+                        const statusChanged = prev.status !== data.status;
+                        const shouldClearVote = roundChanged || (statusChanged && data.status === 'Voting');
+                        return {
+                            ...data,
+                            viewer: {
+                                ...prev.viewer,
+                                selectedVote: shouldClearVote ? null : prev.viewer.selectedVote,
+                            },
+                        };
+                    }
+                    return data;
+                });
             } catch (e) {
                 console.error('[WS] Failed to parse message:', e);
             }
@@ -54,24 +72,18 @@ export function useRoomWebSocket(code: string | null) {
         ws.onclose = () => {
             setStatus('disconnected');
             wsRef.current = null;
-            
-            // Auto-reconnect with exponential backoff
-            if (retriesRef.current < maxRetries) {
-                const delay = Math.min(1000 * Math.pow(2, retriesRef.current), 30000);
-                retriesRef.current++;
-                reconnectTimeoutRef.current = setTimeout(connect, delay);
-            }
+            // Do NOT auto-reconnect — the server removes the participant on WS close.
+            // Reconnect only happens when the user re-opens the page (re-join flow).
         };
 
         ws.onerror = () => {
             setStatus('error');
         };
-    }, [code]);
+    }, [roomId]);
 
     useEffect(() => {
         connect();
         return () => {
-            clearTimeout(reconnectTimeoutRef.current);
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
@@ -86,4 +98,3 @@ export function useRoomWebSocket(code: string | null) {
 
     return {room, status, updateRoom};
 }
-

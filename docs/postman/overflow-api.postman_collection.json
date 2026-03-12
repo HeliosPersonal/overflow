@@ -522,6 +522,196 @@
       ]
     },
     {
+      "name": "Planning Poker",
+      "description": "Estimation rooms for Planning Poker. All endpoints are under /estimation.\n\nTypical flow:\n1. Create Room (authenticated) → saves {{room_code}}\n2. Join Room (any participant)\n3. Submit Vote\n4. Reveal Votes (moderator only)\n5. Reset Round (moderator only)\n6. Archive Room (moderator only)\n\nWebSocket: connect to {{estimation_ws_url}}/estimation/rooms/{{room_code}}/ws for real-time updates.",
+      "item": [
+        {
+          "name": "Get My Rooms",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/my",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "my"]
+            }
+          }
+        },
+        {
+          "name": "Create Room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('room_code', json.code);",
+                  "    console.log('Created room: ' + json.code);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sprint 42 Planning\",\n  \"deckType\": \"fibonacci\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms"]
+            }
+          }
+        },
+        {
+          "name": "Get Room",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}"]
+            }
+          }
+        },
+        {
+          "name": "Join Room (authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "join"]
+            }
+          }
+        },
+        {
+          "name": "Join Room (guest)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Guest Tester\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "join"]
+            }
+          }
+        },
+        {
+          "name": "Submit Vote",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"5\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/votes",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "votes"]
+            }
+          }
+        },
+        {
+          "name": "Clear My Vote",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/votes/me",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "votes", "me"]
+            }
+          }
+        },
+        {
+          "name": "Change Mode (spectator toggle)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isSpectator\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/mode",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "mode"]
+            }
+          }
+        },
+        {
+          "name": "Reveal Votes (moderator)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/reveal",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "reveal"]
+            }
+          }
+        },
+        {
+          "name": "Reset Round (moderator)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/reset",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "reset"]
+            }
+          }
+        },
+        {
+          "name": "Leave Room",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/leave",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "leave"]
+            }
+          }
+        },
+        {
+          "name": "Archive Room (moderator)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/archive",
+              "host": ["{{base_url}}"],
+              "path": ["estimation", "rooms", "{{room_code}}", "archive"]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Debug (internal only)",
       "description": "Test endpoints on question-svc. Only accessible via kubectl port-forward (no ingress route). Run: kubectl port-forward -n apps-staging svc/question-svc 8080:8080, then use http://localhost:8080 as base URL for these.",
       "item": [

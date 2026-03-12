@@ -6,7 +6,7 @@
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client configuration
 - [Infisical Setup](./INFISICAL_SETUP.md) — Secrets management
-- [Data Seeder](./DATA_SEEDER.md) — LLM-powered staging content generator
+- [Data Seeder](../Overflow.DataSeederService/README.md) — LLM-powered staging content generator
 
 ---
 
@@ -67,7 +67,7 @@ For local development **against the staging environment** (using staging Keycloa
 |---|---|
 | App | http://localhost:3000 |
 | Aspire Dashboard | http://localhost:18888 |
-| Keycloak Admin (via Aspire) | http://localhost:8080/admin |
+| Keycloak Admin (via Aspire) | http://localhost:6001/admin |
 
 ---
 
@@ -112,7 +112,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 ### Step 3 — Configure secrets in Infisical
 
 Add all secrets to Infisical under the `staging` and `production` environments.  
-See [INFISICAL_SETUP.md → Complete Secret Inventory](./INFISICAL_SETUP.md#complete-secret-inventory) for the full list of 27 secrets.
+See [INFISICAL_SETUP.md → Complete Secret Inventory](./INFISICAL_SETUP.md#complete-secret-inventory) for the full list of 28 secrets.
 
 Infisical will **automatically sync** these 10 secrets to GitHub Actions:
 
@@ -157,7 +157,7 @@ The pipeline:
 |---|---|---|---|
 | **URL** | http://localhost:3000 | https://staging.devoverflow.org | https://devoverflow.org |
 | **Aspire Dashboard** | http://localhost:18888 | — | — |
-| **Keycloak** | http://localhost:8080 | https://keycloak.devoverflow.org | https://keycloak.devoverflow.org |
+| **Keycloak** | http://localhost:6001 | https://keycloak.devoverflow.org | https://keycloak.devoverflow.org |
 | **Branch** | — | `development` | `main` |
 | **K8s namespace** | — | `apps-staging` | `apps-production` |
 | **Infisical env** | — | `staging` | `production` |
@@ -220,7 +220,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 | [Network Architecture](./NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
 | [Keycloak Setup](./KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO |
 | [Google Auth Setup](./GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
-| [Infisical Setup](./INFISICAL_SETUP.md) | All 27 secrets, how they flow from Infisical to services |
-| [Data Seeder](./DATA_SEEDER.md) | LLM-powered staging content generation |
+| [Infisical Setup](./INFISICAL_SETUP.md) | All 28 secrets, how they flow from Infisical to services |
+| [Data Seeder](../Overflow.DataSeederService/README.md) | LLM-powered staging content generation |
 | [Kubernetes Manifests](../k8s/README.md) | Kustomize structure and manifest reference |
 | [Terraform](../terraform/README.md) | Project-specific Terraform reference |

@@ -132,8 +132,27 @@ export type PlanningPokerRoundSummary = {
     availableDeck: PlanningPokerDeck
 }
 
+export type PlanningPokerRoundHistory = {
+    roundNumber: number
+    voterCount: number
+    distribution: Record<string, number>
+    numericAverage?: number | null
+    numericAverageDisplay?: string | null
+}
+
+export type PlanningPokerRoomSummary = {
+    roomId: string
+    title: string
+    status: PlanningPokerStatus
+    roundNumber: number
+    participantCount: number
+    completedRounds: number
+    createdAtUtc: string
+    archivedAtUtc?: string | null
+}
+
 export type PlanningPokerRoom = {
-    code: string
+    roomId: string
     title: string
     canonicalUrl: string
     status: PlanningPokerStatus
@@ -144,5 +163,6 @@ export type PlanningPokerRoom = {
     viewer: PlanningPokerViewer
     participants: PlanningPokerParticipant[]
     roundSummary: PlanningPokerRoundSummary
+    roundHistory: PlanningPokerRoundHistory[]
 }
 
