@@ -12,6 +12,7 @@ import { Avatar } from "@heroui/avatar";
 import { Chip } from "@heroui/react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useCookieConsentStore } from "@/lib/hooks/useCookieConsentStore";
 
 type Props = {
   user: User;
@@ -19,6 +20,7 @@ type Props = {
 
 export default function UserMenu({ user }: Props) {
   const router = useRouter();
+  const openPreferences = useCookieConsentStore((s) => s.openPreferences);
   const isAnonymous = user.isAnonymous;
 
   return (
@@ -63,6 +65,12 @@ export default function UserMenu({ user }: Props) {
           </DropdownSection>
         )}
         <DropdownSection>
+          <DropdownItem
+            key="cookie-settings"
+            onPress={openPreferences}
+          >
+            Cookie Settings
+          </DropdownItem>
           <DropdownItem
             key="logout"
             className="text-danger"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import BuildVersion from "@/components/BuildVersion";
+import CookieBanner from "@/components/cookie/CookieBanner";
 
 export const metadata: Metadata = {
   title: "Overflow",
@@ -22,6 +23,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <BuildVersion />
+          <CookieBanner />
         </Providers>
       </body>
     </html>

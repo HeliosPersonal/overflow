@@ -3,6 +3,7 @@
 import {HomeIcon, TagIcon, UserGroupIcon, HandRaisedIcon} from "@heroicons/react/24/outline";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {usePathname} from "next/navigation";
+import CookieSettingsButton from "@/components/cookie/CookieSettingsButton";
 
 export default function SideMenu() {
     const pathname = usePathname();
@@ -14,27 +15,32 @@ export default function SideMenu() {
     ]
     
     return (
-        <Listbox
-            aria-label='nav links'
-            variant='faded'
-            items={navLinks}
-            className='ml-6'
-        >
-            {({key, href, icon: Icon, text}) => (
-                <ListboxItem
-                    href={href}
-                    aria-labelledby={key}
-                    aria-describedby={text}
-                    key={key}
-                    startContent={<Icon className='h-6' />}
-                    classNames={{
-                        base: (href === '/' ? pathname === '/' : pathname.startsWith(href)) ? 'text-primary' : '',
-                        title: 'text-lg'
-                    }}
-                >
-                    {text}
-                </ListboxItem>
-            )}
-        </Listbox>
+        <div className="flex flex-col h-full">
+            <Listbox
+                aria-label='nav links'
+                variant='faded'
+                items={navLinks}
+                className='ml-6'
+            >
+                {({key, href, icon: Icon, text}) => (
+                    <ListboxItem
+                        href={href}
+                        aria-labelledby={key}
+                        aria-describedby={text}
+                        key={key}
+                        startContent={<Icon className='h-6' />}
+                        classNames={{
+                            base: (href === '/' ? pathname === '/' : pathname.startsWith(href)) ? 'text-primary' : '',
+                            title: 'text-lg'
+                        }}
+                    >
+                        {text}
+                    </ListboxItem>
+                )}
+            </Listbox>
+            <div className="mt-auto ml-6 pb-4">
+                <CookieSettingsButton />
+            </div>
+        </div>
     );
 }
