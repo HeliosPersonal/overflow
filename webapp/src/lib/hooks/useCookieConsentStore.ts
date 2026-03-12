@@ -62,7 +62,7 @@ export const useCookieConsentStore = create<CookieConsentState>()(
             name: 'overflow-cookie-consent',
             // Only persist `consent` — UI flags reset on load
             partialize: (state) => ({ consent: state.consent }),
-            onRehydrate: () => {
+            onRehydrateStorage: () => {
                 return (state) => {
                     if (state) {
                         state.showBanner = state.consent === null;
