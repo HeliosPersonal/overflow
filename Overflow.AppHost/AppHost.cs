@@ -35,6 +35,13 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
     .WithManagementPlugin(port: 15672);
 
+#pragma warning disable ASPIRECERTIFICATES001
+var redis = builder
+    .AddRedis("redis")
+    .WithRedisInsight()
+    .WithoutHttpsCertificate()
+#pragma warning restore ASPIRECERTIFICATES001
+    .WithDataVolume("redis-data");
 
 var questionService = builder.AddProject<Projects.Overflow_QuestionService>("question-svc")
     .WithReference(keycloak)
@@ -77,9 +84,11 @@ var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
 var estimationService = builder.AddProject<Projects.Overflow_EstimationService>("estimation-svc")
     .WithReference(keycloak)
     .WithReference(estimationDb)
+    .WithReference(redis)
     .WithReference(profileService)
     .WaitFor(keycloak)
-    .WaitFor(estimationDb);
+    .WaitFor(estimationDb)
+    .WaitFor(redis);
 
 var yarp = builder
     .AddYarp("gateway")

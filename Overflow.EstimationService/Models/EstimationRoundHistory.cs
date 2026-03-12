@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Overflow.EstimationService.Models;
 
 public class EstimationRoundHistory
@@ -11,5 +13,5 @@ public class EstimationRoundHistory
     public string? NumericAverageDisplay { get; set; }
     public DateTime RevealedAtUtc { get; set; }
 
-    public EstimationRoom Room { get; set; } = null!;
+    [JsonIgnore] public EstimationRoom Room { get; set; } = null!;
 }

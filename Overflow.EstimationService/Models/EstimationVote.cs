@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Overflow.EstimationService.Models;
 
 public class EstimationVote
@@ -9,5 +11,5 @@ public class EstimationVote
     public string Value { get; set; } = string.Empty; // must be in deck values
     public DateTime SubmittedAtUtc { get; set; }
 
-    public EstimationRoom Room { get; set; } = null!;
+    [JsonIgnore] public EstimationRoom Room { get; set; } = null!;
 }

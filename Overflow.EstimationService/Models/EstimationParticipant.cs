@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Overflow.EstimationService.Models;
 
 public class EstimationParticipant
@@ -13,5 +15,5 @@ public class EstimationParticipant
     public bool IsSpectator { get; set; }
     public DateTime JoinedAtUtc { get; set; }
 
-    public EstimationRoom Room { get; set; } = null!;
+    [JsonIgnore] public EstimationRoom Room { get; set; } = null!;
 }

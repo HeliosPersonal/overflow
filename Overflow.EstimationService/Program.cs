@@ -6,6 +6,10 @@ using Overflow.EstimationService.Data;
 using Overflow.EstimationService.Extensions;
 using Overflow.EstimationService.Services;
 using Overflow.ServiceDefaults;
+using StackExchange.Redis;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,9 +31,60 @@ builder.Services.AddControllers()
 // ── EF Core + PostgreSQL ─────────────────────────────────────────────────
 builder.AddNpgsqlDbContext<EstimationDbContext>("estimationDb");
 
+// ── Redis ────────────────────────────────────────────────────────────────
+// Dev: Aspire injects "ConnectionStrings:estimation-redis" automatically
+// Staging/Prod: Infisical provides "ConnectionStrings__Redis" (maps to "ConnectionStrings:Redis")
+var redisConnectionString = builder.Configuration.GetConnectionString("estimation-redis")
+                            ?? builder.Configuration.GetConnectionString("Redis")
+                            ?? "localhost:6379";
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+{
+    var options = ConfigurationOptions.Parse(redisConnectionString);
+    options.AbortOnConnectFail = false; // Don't block startup if Redis is temporarily unreachable
+    return ConnectionMultiplexer.Connect(options);
+});
+
+// ── FusionCache (L1 in-memory + L2 Redis + backplane for cross-pod invalidation) ──
+builder.Services.AddFusionCache()
+    .WithDefaultEntryOptions(new FusionCacheEntryOptions
+    {
+        Duration = TimeSpan.FromSeconds(30),
+        IsFailSafeEnabled = true,
+        FailSafeMaxDuration = TimeSpan.FromMinutes(5),
+        FailSafeThrottleDuration = TimeSpan.FromSeconds(5),
+    })
+    .WithSerializer(new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+    }))
+    .WithDistributedCache(sp =>
+    {
+        var redis = sp.GetRequiredService<IConnectionMultiplexer>();
+        return new Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache(
+            Microsoft.Extensions.Options.Options.Create(
+                new Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions
+                {
+                    ConnectionMultiplexerFactory = () => Task.FromResult(redis)
+                }));
+    })
+    .WithBackplane(sp =>
+    {
+        var redis = sp.GetRequiredService<IConnectionMultiplexer>();
+        return new RedisBackplane(
+            new RedisBackplaneOptions
+            {
+                ConnectionMultiplexerFactory = () => Task.FromResult(redis)
+            });
+    });
+
 // ── Services ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<EstimationRoomService>();
 builder.Services.AddSingleton<WebSocketBroadcaster>();
+builder.Services.AddSingleton<RoomCacheService>();
+builder.Services.AddSingleton<CrossPodBroadcastService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CrossPodBroadcastService>());
 
 // ── Profile Service (display name resolution) ───────────────────────────
 builder.Services.AddHttpClient<ProfileServiceClient>(client =>

@@ -10,14 +10,19 @@ namespace Overflow.EstimationService.Services;
 /// <summary>
 /// Manages estimation room state using EF Core + PostgreSQL.
 /// All mutation methods return <c>Result&lt;EstimationRoom, RoomError&gt;</c> instead of throwing.
-/// After each successful mutation, broadcasts the updated state via WebSocket.
+/// After each successful mutation, invalidates the FusionCache entry and publishes
+/// a cross-pod broadcast so every pod pushes fresh state to its local WebSocket connections.
+///
+/// Reads use <see cref="RoomCacheService"/> (L1 in-memory + L2 Redis) to avoid hitting the DB
+/// on every request. Mutations still go through EF Core directly, then invalidate the cache.
 ///
 /// Reads use <c>AsNoTracking</c> to avoid stale-entity concurrency conflicts when
 /// the WebSocket disconnect handler (separate DI scope) mutates the same room concurrently.
 /// </summary>
 public class EstimationRoomService(
     EstimationDbContext db,
-    WebSocketBroadcaster broadcaster,
+    RoomCacheService roomCache,
+    CrossPodBroadcastService crossPodBroadcast,
     ILogger<EstimationRoomService> logger)
 {
     // ─── Create ──────────────────────────────────────────────────────────
@@ -59,6 +64,10 @@ public class EstimationRoomService(
         db.Rooms.Add(room);
         await db.SaveChangesAsync();
 
+        // Invalidate user rooms cache for the moderator
+        if (moderatorUserId is not null)
+            await roomCache.InvalidateUserRoomsAsync(moderatorUserId);
+
         logger.LogInformation("Room created: {RoomId} by {ParticipantId}", room.Id, moderatorParticipantId);
         return room;
     }
@@ -86,7 +95,7 @@ public class EstimationRoomService(
             {
                 var affectedRoomIds = await UpdateDisplayNameAcrossRoomsAsync(participantId, displayName);
                 foreach (var affectedId in affectedRoomIds)
-                    await broadcaster.BroadcastRoomUpdateAsync(affectedId);
+                    await InvalidateAndBroadcastAsync(affectedId);
 
                 return await ReloadRoom(roomId);
             }
@@ -112,7 +121,10 @@ public class EstimationRoomService(
         await db.SaveChangesAsync();
         await TouchRoomAsync(roomId);
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        if (userId is not null)
+            await roomCache.InvalidateUserRoomsAsync(userId);
+
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} joined room {RoomId}", participantId, roomId);
         return await ReloadRoom(roomId);
     }
@@ -147,7 +159,7 @@ public class EstimationRoomService(
 
         await TouchRoomAsync(roomId);
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} mode → {Mode} in room {RoomId}",
             participantId, isSpectator ? "Spectator" : "Participant", roomId);
         return await ReloadRoom(roomId);
@@ -157,11 +169,11 @@ public class EstimationRoomService(
 
     public async Task<UnitResult<RoomError>> LeaveRoomAsync(Guid roomId, string participantId)
     {
-        var exists = await db.Participants
+        var participant = await db.Participants
             .AsNoTracking()
-            .AnyAsync(p => p.RoomId == roomId && p.ParticipantId == participantId);
+            .FirstOrDefaultAsync(p => p.RoomId == roomId && p.ParticipantId == participantId);
 
-        if (!exists) return UnitResult.Success<RoomError>(); // Already gone
+        if (participant is null) return UnitResult.Success<RoomError>(); // Already gone
 
         await db.Votes
             .Where(v => v.RoomId == roomId && v.ParticipantId == participantId)
@@ -173,7 +185,10 @@ public class EstimationRoomService(
 
         await TouchRoomAsync(roomId);
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        if (participant.UserId is not null)
+            await roomCache.InvalidateUserRoomsAsync(participant.UserId);
+
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} left room {RoomId}", participantId, roomId);
         return UnitResult.Success<RoomError>();
     }
@@ -217,7 +232,7 @@ public class EstimationRoomService(
         await db.SaveChangesAsync();
         await TouchRoomAsync(roomId);
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogDebug("Vote submitted by {ParticipantId} in room {RoomId}", participantId, roomId);
         return await ReloadRoom(roomId);
     }
@@ -241,7 +256,7 @@ public class EstimationRoomService(
         if (deleted > 0)
             await TouchRoomAsync(roomId);
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogDebug("Vote cleared by {ParticipantId} in room {RoomId}", participantId, roomId);
         return UnitResult.Success<RoomError>();
     }
@@ -312,7 +327,7 @@ public class EstimationRoomService(
                 .SetProperty(r => r.Status, RoomStatus.Revealed)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Votes revealed in room {RoomId} by {ModeratorId}", roomId, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -345,7 +360,7 @@ public class EstimationRoomService(
                 .SetProperty(r => r.Status, RoomStatus.Voting)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Round reset in room {RoomId}, new round {Round}", roomId, newRound);
         return await ReloadRoom(roomId);
     }
@@ -372,7 +387,11 @@ public class EstimationRoomService(
                 .SetProperty(r => r.ArchivedAtUtc, now)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await broadcaster.BroadcastRoomUpdateAsync(roomId);
+        // Invalidate user rooms cache for all participants
+        var userIds = room.Participants.Select(p => p.UserId).Where(u => u is not null);
+        await roomCache.InvalidateRoomAndUsersAsync(roomId, userIds);
+
+        await crossPodBroadcast.PublishRoomUpdateAsync(roomId);
         logger.LogInformation("Room {RoomId} archived by {ModeratorId}", roomId, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -387,6 +406,7 @@ public class EstimationRoomService(
 
         if (guestParticipants.Count == 0) return 0;
 
+        var affectedRoomIds = new List<Guid>();
         var claimed = 0;
         foreach (var participant in guestParticipants)
         {
@@ -427,10 +447,16 @@ public class EstimationRoomService(
                     vote.ParticipantId = userId;
             }
 
+            affectedRoomIds.Add(participant.RoomId);
             claimed++;
         }
 
         await db.SaveChangesAsync();
+
+        // Invalidate cache for all affected rooms
+        foreach (var roomId in affectedRoomIds.Distinct())
+            await roomCache.InvalidateRoomAsync(roomId);
+        await roomCache.InvalidateUserRoomsAsync(userId);
 
         if (claimed > 0)
             logger.LogInformation("Claimed {Count} room(s) for guest {GuestId} → user {UserId}",
@@ -443,29 +469,46 @@ public class EstimationRoomService(
 
     public async Task<EstimationRoom?> GetRoomByIdAsync(Guid roomId)
     {
-        return await db.Rooms
-            .Include(r => r.Participants)
-            .Include(r => r.Votes)
-            .Include(r => r.RoundHistory)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == roomId);
+        return await roomCache.GetRoomAsync(roomId);
     }
 
     public async Task<IReadOnlyList<EstimationRoom>> GetRoomsForUserAsync(string userId)
     {
-        return await db.Rooms
-            .Include(r => r.Participants)
-            .Include(r => r.RoundHistory)
-            .AsNoTracking()
-            .Where(r => r.Participants.Any(p => p.UserId == userId))
-            .OrderByDescending(r => r.UpdatedAtUtc)
-            .ToListAsync();
+        return await roomCache.GetRoomsForUserAsync(userId);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Invalidates the room cache and publishes a cross-pod broadcast notification.
+    /// Every pod (including this one) will receive the notification, reload from DB (or L2 cache),
+    /// and push fresh state to its local WebSocket connections.
+    /// Failures are logged but never propagated — cache/broadcast issues must not break mutations.
+    /// </summary>
+    private async Task InvalidateAndBroadcastAsync(Guid roomId)
+    {
+        try
+        {
+            await roomCache.InvalidateRoomAsync(roomId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to invalidate cache for room {RoomId}", roomId);
+        }
+
+        try
+        {
+            await crossPodBroadcast.PublishRoomUpdateAsync(roomId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish cross-pod broadcast for room {RoomId}", roomId);
+        }
+    }
+
+    /// <summary>
     /// Loads a room with all navigation properties as a read-only snapshot (AsNoTracking).
+    /// For validation before mutations, bypasses cache to ensure freshest state.
     /// This prevents stale tracked entities from causing concurrency exceptions when
     /// the WebSocket disconnect handler mutates the same room from a different DI scope.
     /// </summary>
@@ -484,7 +527,8 @@ public class EstimationRoomService(
     }
 
     /// <summary>
-    /// Re-loads the room from DB after a mutation for returning fresh state.
+    /// Re-loads the room directly from DB after a mutation.
+    /// Bypasses cache since we just invalidated it — ensures the caller gets the freshest state.
     /// </summary>
     private async Task<Result<EstimationRoom, RoomError>> ReloadRoom(Guid roomId)
     {

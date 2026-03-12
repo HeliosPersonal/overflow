@@ -1,7 +1,8 @@
 # ====================================================================================
 # ESTIMATION SERVICE - Deployment
 # ====================================================================================
-# Planning Poker estimation rooms with event-sourced state via Marten/PostgreSQL
+# Planning Poker estimation rooms with FusionCache (L1 + L2 Redis) + cross-pod
+# WebSocket broadcast via Redis pub/sub. Multi-pod safe.
 # Part of the Overflow microservices backend
 # ====================================================================================
 
@@ -13,7 +14,7 @@ metadata:
     app: estimation-svc
     component: api
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: estimation-svc
