@@ -117,7 +117,7 @@ replicas:
   - name: vote-svc
     count: 1
   - name: estimation-svc
-    count: 1
+    count: 2
   - name: overflow-webapp
     count: 1
   - name: data-seeder-svc
