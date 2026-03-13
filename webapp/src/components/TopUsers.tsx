@@ -55,9 +55,9 @@ export default function TopUsers() {
     const maxDelta = filteredUsers.length > 0 ? Math.max(...filteredUsers.map(u => u.delta)) : 1;
 
     return (
-        <div className="rounded-2xl border border-default-200 bg-white dark:bg-zinc-900/60 backdrop-blur-sm overflow-hidden">
+        <div className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden">
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-default-200/50 dark:border-default-100">
+            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-content3">
                 <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-yellow-100/60 dark:bg-yellow-900/20">
                     <TrophyIcon className="w-5 h-5 text-yellow-300 dark:text-yellow-400/60"/>
                 </span>
@@ -85,7 +85,7 @@ export default function TopUsers() {
                                 <Link href={`/profiles/${u.userId}`} className="shrink-0">
                                     <div className={`
                                         relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
-                                        ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900
+                                        ring-2 ring-offset-1 ring-offset-content2
                                         ${rank ? `${rank.ring} ${rank.bg} ${rank.text}` : 'ring-default-300 bg-default-100 text-default-500'}
                                         transition-transform group-hover:scale-105
                                     `}>
@@ -112,7 +112,7 @@ export default function TopUsers() {
                                         </span>
                                     </div>
                                     {/* Bar track */}
-                                    <div className="h-2 w-full rounded-full bg-default-100/70 overflow-hidden">
+                                    <div className="h-2 w-full rounded-full bg-content3 shadow-inset-sm overflow-hidden">
                                         <motion.div
                                             className={`h-full rounded-full ${barColor}`}
                                             initial={{width: 0}}

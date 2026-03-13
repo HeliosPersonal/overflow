@@ -12,8 +12,8 @@ type Props = {
 
 export default function QuestionCard({question}: Props) {
     return (
-        <div className='flex gap-6 px-6 w-full'>
-            <div className='flex flex-col items-end text-sm gap-3 min-w-8'>
+        <div className='flex gap-0 w-full rounded-xl overflow-hidden'>
+            <div className='flex flex-col items-end justify-start text-sm gap-3 min-w-16 bg-content3 px-4 py-4 text-foreground-500'>
                 <div className='flex items-center gap-1'>
                     <HandThumbUpIcon className='h-4 w-4' />
                     <span>{question.votes}</span>
@@ -22,7 +22,7 @@ export default function QuestionCard({question}: Props) {
                     <CheckIcon
                         className={clsx('h-4 w-4', {
                             'text-success': question.hasAcceptedAnswer,
-                            'text-default-300': !question.hasAcceptedAnswer
+                            'text-foreground-300': !question.hasAcceptedAnswer
                         })}
                         strokeWidth={3}
                     />
@@ -33,7 +33,7 @@ export default function QuestionCard({question}: Props) {
                     <span>{question.viewCount}</span>
                 </div>
             </div>
-            <div className='flex flex-1 justify-between min-h-32'>
+            <div className='flex flex-1 justify-between min-h-32 px-6 py-4'>
                 <div className='flex flex-col gap-2 w-full'>
                     <Link
                         href={`/questions/${question.id}`}
@@ -48,9 +48,7 @@ export default function QuestionCard({question}: Props) {
                         <div className='flex gap-2'>
                             {question.tagSlugs.map(slug => (
                                 <Link href={`/questions?tag=${slug}`} key={slug}>
-                                    <Chip
-                                        variant='bordered'
-                                    >
+                                    <Chip variant='flat' size='sm' className='bg-content3 text-foreground-600 hover:bg-content4 transition-colors'>
                                         {slug}
                                     </Chip>
                                 </Link>

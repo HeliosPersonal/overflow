@@ -9,9 +9,9 @@ export default async function Page({searchParams}: {searchParams: SearchParams})
 
     if (error) {
         return (
-            <div className="flex flex-col gap-3 px-6 pt-4">
-                <h1>User table</h1>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">{error.message}</p>
+            <div className="min-h-full bg-content1 flex flex-col gap-3 px-6 pt-4">
+                <h1>Leaderboard</h1>
+                <p className="text-sm text-foreground-400">{error.message}</p>
             </div>
         );
     }
@@ -19,8 +19,8 @@ export default async function Page({searchParams}: {searchParams: SearchParams})
     if (!profiles) return null;
 
     return (
-        <div className="flex flex-col gap-3 px-6 pt-4">
-            <h1>User table</h1>
+        <div className="min-h-full bg-content1 flex flex-col gap-3 px-6 pt-4 pb-6">
+            <h1>Leaderboard</h1>
             <ProfilesList profiles={profiles} />
         </div>
     );

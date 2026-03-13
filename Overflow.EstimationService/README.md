@@ -35,6 +35,19 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 
 ---
 
+## TODO
+
+- [ ] **Auto-delete archived rooms after 30 days** — Archived rooms should be automatically purged from the database
+  after 30 days to keep storage lean. Implementation options:
+    - A background `IHostedService` / `BackgroundService` that runs a nightly sweep (
+      `DELETE FROM "Rooms" WHERE "IsArchived" = true AND "ArchivedAtUtc" < NOW() - INTERVAL '30 days'`)
+    - Or a Hangfire/Quartz scheduled job if scheduling infra is added later
+    - Cache entries for deleted rooms should be evicted and a Redis pub/sub broadcast sent so all pods close any
+      lingering WebSocket connections gracefully
+    - The frontend already shows the hint: *"Archived rooms are automatically deleted after 30 days"*
+
+---
+
 ## Caching & Multi-Pod Architecture
 
 The service uses **FusionCache** with Redis as L2 distributed cache and backplane, plus Redis pub/sub for cross-pod

@@ -21,7 +21,7 @@ export default function RichTextEditor({ onChange, onBlur, value, errorMessage }
         content: '',
         editorProps: {
             attributes: {
-                class: clsx('w-full p-3 bg-default-100 rounded-xl min-h-60 prose ' +
+                class: clsx('w-full p-3 bg-content3 rounded-b-xl min-h-60 prose ' +
                     'dark:prose-invert max-w-none dark:prose-pre:bg-primary-100', {
                     'bg-red-50 dark:bg-red-900/30': errorMessage
                 })
@@ -61,10 +61,9 @@ export default function RichTextEditor({ onChange, onBlur, value, errorMessage }
     }, [editor, value]);
     
     return (
-        <div>
+        <div className="bg-content3 border border-content4 rounded-xl overflow-hidden">
             <MenuBar editor={editor} />
             <EditorContent editor={editor} />
         </div>
-        
     );
 }

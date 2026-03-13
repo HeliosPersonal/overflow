@@ -15,14 +15,14 @@ export default async function Page({searchParams}: {searchParams: SearchParams }
     const {data: tags, error} = await getTags(sort);
     
     if (error) return (
-        <div className='w-full px-6'>
+        <div className='min-h-full bg-content1 w-full px-6'>
             <TagHeader isAdmin={isAdmin} />
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 pt-4">{error.message}</p>
+            <p className="text-sm text-foreground-400 pt-4">{error.message}</p>
         </div>
     );
-    
+
     return (
-        <div className='w-full px-6'>
+        <div className='min-h-full bg-content1 w-full px-6 pb-6'>
             <TagHeader isAdmin={isAdmin} />
             <div className='grid grid-cols-3 gap-4'>
                 {Array.isArray(tags) && tags.map(tag => (

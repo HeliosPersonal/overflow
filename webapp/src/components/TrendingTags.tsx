@@ -46,10 +46,9 @@ export default function TrendingTags() {
         : 1;
 
     return (
-        <div
-            className="rounded-2xl border border-default-200 bg-white dark:bg-zinc-900/60 backdrop-blur-sm overflow-hidden">
+        <div className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden">
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-default-200/50 dark:border-default-100">
+            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-content3">
                 <span
                     className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100/60 dark:bg-orange-900/20">
                     <FireIcon className="w-5 h-5 text-orange-300 dark:text-orange-400/70"/>
@@ -92,7 +91,7 @@ export default function TrendingTags() {
                                         </span>
                                     </div>
                                     {/* Bar track */}
-                                    <div className="h-2 w-full rounded-full bg-default-100/70 overflow-hidden">
+                                    <div className="h-2 w-full rounded-full bg-content3 shadow-inset-sm overflow-hidden">
                                         <motion.div
                                             className={`h-full rounded-full ${color}`}
                                             initial={{width: 0}}

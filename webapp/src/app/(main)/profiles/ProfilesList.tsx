@@ -29,30 +29,34 @@ export default function ProfilesList({profiles}: Props) {
     }
 
     return (
+        <div className="rounded-xl overflow-hidden border border-content3 shadow-inset-md bg-content2">
         <Table
             onSortChange={(sort) => onSortChange(sort)}
             sortDescriptor={{column: 'reputation', direction: 'descending'}}
             aria-label='User profiles'
             selectionMode='single'
             onRowAction={(key) => router.push(`/profiles/${key}`)}
+            classNames={{
+                th: 'bg-content3 text-foreground-500 uppercase text-xs tracking-wide font-semibold',
+                td: 'text-foreground-600',
+                tr: 'hover:bg-content3 transition-colors duration-150 cursor-pointer',
+            }}
+            removeWrapper
         >
             <TableHeader columns={columns}>
                 {(column) =>
-                    <TableColumn
-                        key={column.key}
-                        allowsSorting
-                    >
+                    <TableColumn key={column.key} allowsSorting>
                         {column.label}
                     </TableColumn>}
             </TableHeader>
             <TableBody items={profiles}>
                 {(item) => (
-                    <TableRow key={item.userId}
-                              className='hover:cursor-pointer'>
+                    <TableRow key={item.userId}>
                         {(columnKey) => <TableCell>{getKeyValue(item, columnKey)}</TableCell>}
                     </TableRow>
                 )}
             </TableBody>
         </Table>
+        </div>
     );
 }

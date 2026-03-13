@@ -3,6 +3,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import BuildVersion from "@/components/BuildVersion";
 import CookieBanner from "@/components/cookie/CookieBanner";
+import CookieSettingsButton from "@/components/cookie/CookieSettingsButton";
 
 export const metadata: Metadata = {
   title: "Overflow",
@@ -19,11 +20,14 @@ export default function RootLayout({
 }>) {
   return (
     <html suppressHydrationWarning lang="en" className="h-full">
-      <body className="flex flex-col border-neutral-200 dark:border-neutral-800 dark:bg-default-50 h-full">
+      <body className="flex flex-col h-full bg-background">
         <Providers>
           {children}
           <BuildVersion />
           <CookieBanner />
+          <div className="fixed bottom-4 right-4 z-50">
+            <CookieSettingsButton />
+          </div>
         </Providers>
       </body>
     </html>

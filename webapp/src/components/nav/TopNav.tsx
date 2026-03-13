@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {AcademicCapIcon} from "@heroicons/react/24/outline";
+import {SparklesIcon} from "@heroicons/react/24/solid";
 import ThemeToggle from "@/components/nav/ThemeToggle";
 import SearchInput from "@/components/nav/SearchInput";
 import LoginButton from "@/components/nav/LoginButton";
@@ -10,11 +10,11 @@ import RegisterButton from "@/components/nav/RegisterButton";
 export default async function TopNav() {
     const user = await getCurrentUser();
     return (
-        <header className='p-2 w-full fixed top-0 z-50 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black'>
+        <header className='p-2 w-full fixed top-0 z-50 bg-content1 shadow-raise-sm'>
             <div className='flex px-10 mx-auto'>
                 <div className='flex items-center gap-6'>
                     <Link href='/' className='flex items-center gap-3 max-h-16'>
-                        <AcademicCapIcon className='size-10 text-primary' />
+                        <SparklesIcon className='size-10 text-primary' />
                         <h3 className='text-xl font-semibold uppercase'>Overflow</h3>
                     </Link>
                 </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import {useState} from "react";
-import {Card, CardBody, CardHeader} from "@heroui/card";
 import {Input} from "@heroui/input";
 import {Button} from "@heroui/button";
 import {Divider} from "@heroui/divider";
@@ -90,76 +89,33 @@ export default function UpgradeAccountForm({userId}: Props) {
     }
 
     return (
-        <Card className="border-2 border-warning/30">
-            <CardHeader className="text-xl font-semibold flex items-center gap-2 px-5 pt-5">
+        <div className="bg-content2 border border-content3 shadow-raise-sm rounded-2xl p-5 flex flex-col gap-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
                 🎉 Complete Your Registration
-            </CardHeader>
+            </h2>
             <Divider/>
-            <CardBody className="flex flex-col gap-4 px-5 pb-5">
-                <p className="text-sm text-foreground-500">
-                    You&apos;re using a guest account. Add an email and password to keep your
-                    account permanently, or sign in with Google.
-                </p>
-
-                {/* Google sign-in option */}
-                <GoogleSignInButton/>
-
-                <div className="flex items-center gap-3">
-                    <Divider className="flex-1"/>
-                    <span className="text-sm text-foreground-400">or</span>
-                    <Divider className="flex-1"/>
-                </div>
-
-                {/* Email + password form */}
-                <div className="flex gap-3">
-                    <Input
-                        label="First name"
-                        placeholder="John"
-                        value={firstName}
-                        onValueChange={setFirstName}
-                    />
-                    <Input
-                        label="Last name"
-                        placeholder="Doe"
-                        value={lastName}
-                        onValueChange={setLastName}
-                    />
-                </div>
-                <Input
-                    label="Email"
-                    placeholder="you@example.com"
-                    type="email"
-                    value={email}
-                    onValueChange={setEmail}
-                    isRequired
-                />
-                <Input
-                    label="Password"
-                    placeholder="At least 8 characters"
-                    type="password"
-                    value={password}
-                    onValueChange={setPassword}
-                    isRequired
-                />
-                <Input
-                    label="Confirm password"
-                    type="password"
-                    value={confirmPassword}
-                    onValueChange={setConfirmPassword}
-                    isRequired
-                />
-                {error && <p className="text-sm text-danger">{error}</p>}
-                <Button
-                    color="primary"
-                    className="w-full"
-                    isLoading={loading}
-                    isDisabled={!email.trim() || !password}
-                    onPress={handleUpgrade}
-                >
-                    Complete Registration
-                </Button>
-            </CardBody>
-        </Card>
+            <p className="text-sm text-foreground-500">
+                You&apos;re using a guest account. Add an email and password to keep your
+                account permanently, or sign in with Google.
+            </p>
+            <GoogleSignInButton/>
+            <div className="flex items-center gap-3">
+                <Divider className="flex-1"/>
+                <span className="text-sm text-foreground-400">or</span>
+                <Divider className="flex-1"/>
+            </div>
+            <div className="flex gap-3">
+                <Input label="First name" placeholder="John" value={firstName} onValueChange={setFirstName}/>
+                <Input label="Last name" placeholder="Doe" value={lastName} onValueChange={setLastName}/>
+            </div>
+            <Input label="Email" placeholder="you@example.com" type="email" value={email} onValueChange={setEmail} isRequired/>
+            <Input label="Password" placeholder="At least 8 characters" type="password" value={password} onValueChange={setPassword} isRequired/>
+            <Input label="Confirm password" type="password" value={confirmPassword} onValueChange={setConfirmPassword} isRequired/>
+            {error && <p className="text-sm text-danger">{error}</p>}
+            <Button color="primary" className="w-full" isLoading={loading}
+                isDisabled={!email.trim() || !password} onPress={handleUpgrade}>
+                Complete Registration
+            </Button>
+        </div>
     );
 }
-

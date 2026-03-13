@@ -31,15 +31,16 @@ export default function AppPagination({totalCount}: Props) {
     };
 
     return (
-        <div className='flex justify-between items-center pt-3 pb-6 px-6'>
+        <div className='bg-content1 border-t border-content2 flex justify-between items-center pt-3 pb-6 px-6'>
             <div className='flex items-center gap-2'>
-                <span>Page size: </span>
+                <span className='text-sm text-foreground-500'>Page size: </span>
                 <div className='flex items-center gap-1'>
                     {PAGE_SIZES.map((size, i) => (
                         <Button
                             key={i}
                             type='button'
-                            variant={size === pageSize ? 'solid' : 'bordered'}
+                            variant={size === pageSize ? 'flat' : 'light'}
+                            className={size === pageSize ? 'bg-content3 text-foreground-800' : 'text-foreground-500'}
                             isIconOnly
                             size='sm'
                             onPress={() => {

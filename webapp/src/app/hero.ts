@@ -40,7 +40,7 @@ export default heroui({
                     foreground: "#ffffff",
                 },
                 secondary: {
-                    DEFAULT: brand[300],
+                    DEFAULT: "#9573da",
                     foreground: "#ffffff",
                 },
                 danger: {
@@ -130,7 +130,7 @@ export default heroui({
                     foreground: "#ffffff",
                 },
                 secondary: {
-                    DEFAULT: brand[300],
+                    DEFAULT: "#9573da",
                     foreground: "#ffffff",
                 },
                 danger: {

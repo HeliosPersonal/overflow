@@ -13,7 +13,7 @@ export default async function QuestionDetailedHeader({question}: Props) {
     const currentUser = await getCurrentUser();
 
     return (
-        <div className='flex flex-col w-full border-b border-neutral-200 dark:border-neutral-800 gap-4 pb-4 px-6'>
+        <div className='flex flex-col w-full border-b border-content3 gap-4 pb-4 px-6 pt-5'>
             <div className='flex justify-between gap-4'>
                 <h1 className='first-letter:uppercase'>
                     {question.title}

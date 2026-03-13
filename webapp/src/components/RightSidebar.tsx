@@ -15,8 +15,7 @@ export default function RightSidebar() {
     if (hide) return null;
 
     return (
-        <aside
-            className='basis-1/5 shrink-0 px-6 pt-4 border-l border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#18181b] overflow-y-auto'>
+        <aside className='basis-1/5 shrink-0 px-6 pt-4 bg-content1 overflow-y-auto'>
             <div className='flex flex-col gap-6'>
                 <TrendingTags/>
                 <TopUsers/>

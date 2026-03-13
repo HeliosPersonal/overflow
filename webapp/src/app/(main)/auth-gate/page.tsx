@@ -3,7 +3,7 @@
 import {useState} from "react";
 import {Button} from "@heroui/button";
 import {Input} from "@heroui/input";
-import {Card, CardBody, Divider} from "@heroui/react";
+import {Divider} from "@heroui/react";
 import {useSearchParams, useRouter} from "next/navigation";
 import {UserIcon} from "@heroicons/react/24/outline";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
@@ -38,8 +38,8 @@ export default function AuthGatePage() {
     }
 
     return (
-        <div className='h-full flex items-center justify-center'>
-            <div className='w-full max-w-md space-y-6 px-4'>
+        <div className='min-h-full bg-content1 flex items-center justify-center'>
+            <div className='w-full max-w-md space-y-6 px-4 py-8'>
                 <div className='text-center'>
                     <h1 className='text-4xl font-bold mb-2'>Welcome to Overflow</h1>
                     <p className='text-foreground-500'>
@@ -47,30 +47,22 @@ export default function AuthGatePage() {
                     </p>
                 </div>
 
-                {/* Sign in option */}
-                <Card shadow="sm">
-                    <CardBody className="flex flex-col gap-3 p-5">
-                        <h2 className="text-lg font-semibold">Have an account?</h2>
-                        <p className="text-sm text-foreground-500">
-                            Sign in to access all features including asking questions,
-                            voting, and managing your profile.
-                        </p>
-                        <Button
-                            color='primary'
-                            className="w-full"
-                            onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`)}
-                        >
-                            Sign In
-                        </Button>
-                        <Button
-                            variant="flat"
-                            className="w-full"
-                            onPress={() => router.push(`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`)}
-                        >
-                            Create Account
-                        </Button>
-                    </CardBody>
-                </Card>
+                {/* Sign in card */}
+                <div className="bg-content2 border border-content3 rounded-2xl shadow-raise-sm p-5 flex flex-col gap-3">
+                    <h2 className="text-lg font-semibold text-foreground-700">Have an account?</h2>
+                    <p className="text-sm text-foreground-500">
+                        Sign in to access all features including asking questions,
+                        voting, and managing your profile.
+                    </p>
+                    <Button color='primary' className="w-full"
+                        onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`)}>
+                        Sign In
+                    </Button>
+                    <Button variant="flat" className="w-full bg-content3"
+                        onPress={() => router.push(`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`)}>
+                        Create Account
+                    </Button>
+                </div>
 
                 <div className="flex items-center gap-3">
                     <Divider className="flex-1"/>
@@ -78,39 +70,35 @@ export default function AuthGatePage() {
                     <Divider className="flex-1"/>
                 </div>
 
-                {/* Guest option */}
-                <Card shadow="sm">
-                    <CardBody className="flex flex-col gap-3 p-5">
-                        <div className="flex items-center gap-2">
-                            <UserIcon className="h-5 w-5 text-foreground-500"/>
-                            <h2 className="text-lg font-semibold">Continue as Guest</h2>
-                        </div>
-                        <p className="text-sm text-foreground-500">
-                            Browse and participate with a display name.
-                            You can upgrade to a full account anytime from your profile.
-                        </p>
-                        <Input
-                            label="Display name"
-                            placeholder="Bob"
-                            value={name}
-                            onValueChange={setName}
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleContinueAsGuest()}
-                        />
-                        {error && (
-                            <p className="text-sm text-danger">{error}</p>
-                        )}
-                        <Button
-                            variant="bordered"
-                            className="w-full"
-                            isDisabled={!name.trim()}
-                            isLoading={loading}
-                            onPress={handleContinueAsGuest}
-                        >
-                            Continue as {name.trim() || 'Guest'}
-                        </Button>
-                    </CardBody>
-                </Card>
+                {/* Guest card */}
+                <div className="bg-content2 border border-content3 rounded-2xl shadow-raise-sm p-5 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                        <UserIcon className="h-5 w-5 text-foreground-500"/>
+                        <h2 className="text-lg font-semibold text-foreground-700">Continue as Guest</h2>
+                    </div>
+                    <p className="text-sm text-foreground-500">
+                        Browse and participate with a display name.
+                        You can upgrade to a full account anytime from your profile.
+                    </p>
+                    <Input
+                        label="Display name"
+                        placeholder="Bob"
+                        value={name}
+                        onValueChange={setName}
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleContinueAsGuest()}
+                    />
+                    {error && <p className="text-sm text-danger">{error}</p>}
+                    <Button
+                        variant="flat"
+                        className="w-full bg-content3"
+                        isDisabled={!name.trim()}
+                        isLoading={loading}
+                        onPress={handleContinueAsGuest}
+                    >
+                        Continue as {name.trim() || 'Guest'}
+                    </Button>
+                </div>
             </div>
         </div>
     );

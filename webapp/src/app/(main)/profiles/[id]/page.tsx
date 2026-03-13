@@ -13,9 +13,9 @@ export default async function Page({params}: {params: Params}) {
 
     if (error) {
         return (
-            <div className="px-6 flex flex-col gap-3 pt-4">
+            <div className="min-h-full bg-content1 px-6 flex flex-col gap-3 pt-4">
                 <h1>Profile details</h1>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">{error.message}</p>
+                <p className="text-sm text-foreground-400">{error.message}</p>
             </div>
         );
     }
@@ -23,7 +23,7 @@ export default async function Page({params}: {params: Params}) {
     if (!profile) return notFound();
 
     return (
-        <div className="px-6 flex flex-col gap-3 pt-4">
+        <div className="min-h-full bg-content1 px-6 flex flex-col gap-3 pt-4 pb-6">
             <h1>Profile details</h1>
             <ProfileDetailed
                 profile={profile}
