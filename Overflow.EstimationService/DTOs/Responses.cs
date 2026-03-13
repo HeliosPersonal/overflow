@@ -35,6 +35,7 @@ public record ViewerResponse(
 public record ParticipantResponse(
     string ParticipantId,
     string DisplayName,
+    string? AvatarUrl,
     bool IsGuest,
     bool IsModerator,
     bool IsSpectator,
@@ -71,5 +72,6 @@ public record RoomSummaryResponse(
     int ParticipantCount,
     int CompletedRounds,
     DateTime CreatedAtUtc,
-    DateTime? ArchivedAtUtc
+    DateTime? ArchivedAtUtc,
+    bool IsModerator = false
 );

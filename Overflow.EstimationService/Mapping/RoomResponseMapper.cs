@@ -74,6 +74,7 @@ public static class RoomResponseMapper
             return new ParticipantResponse(
                 p.ParticipantId,
                 p.DisplayName,
+                p.AvatarUrl,
                 p.IsGuest,
                 p.IsModerator,
                 p.IsSpectator,

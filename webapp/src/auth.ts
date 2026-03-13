@@ -121,6 +121,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         displayName,
                         reputation: profile?.reputation || 0,
                         isAnonymous,
+                        avatarUrl: profile?.avatarUrl ?? null,
                         roles: (() => {
                             try {
                                 const payload = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64').toString());
@@ -163,6 +164,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         email: user.email || '',
                         emailVerified: new Date(),
                         isAnonymous: user.isAnonymous,
+                        avatarUrl: user.avatarUrl ?? null,
                     };
                     
                     token.accessToken = (user as typeof user & { accessToken: string }).accessToken;
@@ -197,7 +199,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     token.user = profileData
                         ? { ...profileData, roles: kcRoles }
-                        : { id: '', displayName: '', reputation: 0, roles: kcRoles, email: '', emailVerified: null };
+                        : { id: '', displayName: '', reputation: 0, roles: kcRoles, email: '', emailVerified: null, avatarUrl: null };
                     token.accessToken = account.access_token
                     token.refreshToken = account.refresh_token;
                     token.accessTokenExpires = now + account.expires_in!;
@@ -208,11 +210,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             
                 // Token still valid — but periodically re-fetch profile from ProfileService
                 // (source of truth for displayName/reputation) so session stays current.
+                // Also re-fetch immediately if avatarUrl is missing (just saved but not in session yet).
                 if (token.accessTokenExpires && now < token.accessTokenExpires) {
                     const PROFILE_REFRESH_INTERVAL = 60; // seconds
                     const lastFetched = token.profileLastFetched ?? 0;
+                    const avatarMissing = !token.user?.avatarUrl;
                     
-                    if (now - lastFetched >= PROFILE_REFRESH_INTERVAL && token.accessToken) {
+                    if ((avatarMissing || now - lastFetched >= PROFILE_REFRESH_INTERVAL) && token.accessToken) {
                         try {
                             const profileRes = await fetch(apiConfig.baseUrl + '/profiles/me', {
                                 headers: { Authorization: `Bearer ${token.accessToken}` }
@@ -222,6 +226,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                                 if (token.user) {
                                     token.user.displayName = profile.displayName ?? token.user.displayName;
                                     token.user.reputation = profile.reputation ?? token.user.reputation;
+                                    token.user.avatarUrl = profile.avatarUrl !== undefined ? profile.avatarUrl : token.user.avatarUrl;
                                 }
                             }
                         } catch {
@@ -269,6 +274,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             if (token.user) {
                                 token.user.displayName = profile.displayName ?? token.user.displayName;
                                 token.user.reputation = profile.reputation ?? token.user.reputation;
+                                token.user.avatarUrl = profile.avatarUrl !== undefined ? profile.avatarUrl : token.user.avatarUrl;
                             }
                         }
                     } catch (profileError) {

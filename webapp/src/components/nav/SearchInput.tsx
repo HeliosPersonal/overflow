@@ -55,12 +55,11 @@ export default function SearchInput() {
     };
 
     return (
-        <div ref={containerRef} className='flex flex-col w-full' onBlur={handleBlur}>
+        <div ref={containerRef} className='relative flex flex-col w-full' onBlur={handleBlur}>
             <Input
                 startContent={<MagnifyingGlassIcon className='size-6' />}
-                className='ml-6'
                 type='search'
-                placeholder='Search'
+                placeholder='Search questions...'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={handleFocus}
@@ -68,7 +67,7 @@ export default function SearchInput() {
             />
             {showDropdown && results && (
                 <div
-                    className='absolute top-full z-50 bg-white dark:bg-default-50 shadow-lg border-2 border-neutral-800 w-[50%]'>
+                    className='absolute top-full z-50 bg-white dark:bg-default-50 shadow-lg border-2 border-neutral-800 w-full'>
                     <Listbox
                         onAction={onAction}
                         items={results}

@@ -8,7 +8,7 @@ import {
   DropdownSection,
   DropdownTrigger,
 } from "@heroui/dropdown";
-import { Avatar } from "@heroui/avatar";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
 import { Chip } from "@heroui/react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -27,8 +27,9 @@ export default function UserMenu({ user }: Props) {
     <Dropdown>
       <DropdownTrigger>
         <div className="flex items-center gap-2 cursor-pointer">
-          <Avatar
-            suppressHydrationWarning
+          <DiceBearAvatar
+            userId={user.id}
+            avatarJson={user.avatarUrl}
             color={isAnonymous ? "default" : "primary"}
             size="sm"
             name={user.displayName?.charAt(0)}

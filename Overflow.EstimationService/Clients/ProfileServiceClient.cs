@@ -21,15 +21,15 @@ public class ProfileServiceClient(
         PropertyNameCaseInsensitive = true
     };
 
-    private static string CacheKey(string userId) => $"profile-name:{userId}";
+    private static string CacheKey(string userId) => $"profile:{userId}";
 
     /// <summary>
-    /// Gets the display name for a user from the Profile Service.
+    /// Gets the profile data (display name + avatar URL) for a user from the Profile Service.
     /// Returns null if the profile cannot be fetched (caller should fall back to token claims).
     /// </summary>
-    public async Task<string?> GetDisplayNameAsync(string userId, string? accessToken = null)
+    public async Task<ProfileData?> GetProfileDataAsync(string userId, string? accessToken = null)
     {
-        return await cache.GetOrSetAsync<string?>(
+        return await cache.GetOrSetAsync<ProfileData?>(
             CacheKey(userId),
             async (_, ct) =>
             {
@@ -51,7 +51,9 @@ public class ProfileServiceClient(
 
                     var json = await response.Content.ReadAsStringAsync(ct);
                     var profile = JsonSerializer.Deserialize<ProfileResponse>(json, JsonOptions);
-                    return profile?.DisplayName;
+                    return profile is not null
+                        ? new ProfileData(profile.DisplayName, profile.AvatarUrl)
+                        : null;
                 }
                 catch (Exception ex)
                 {
@@ -67,5 +69,17 @@ public class ProfileServiceClient(
         );
     }
 
-    private record ProfileResponse(string Id, string DisplayName, int Reputation);
+    /// <summary>
+    /// Gets the display name for a user from the Profile Service.
+    /// Returns null if the profile cannot be fetched (caller should fall back to token claims).
+    /// </summary>
+    public async Task<string?> GetDisplayNameAsync(string userId, string? accessToken = null)
+    {
+        var data = await GetProfileDataAsync(userId, accessToken);
+        return data?.DisplayName;
+    }
+
+    public record ProfileData(string DisplayName, string? AvatarUrl);
+
+    private record ProfileResponse(string Id, string DisplayName, int Reputation, string? AvatarUrl);
 }

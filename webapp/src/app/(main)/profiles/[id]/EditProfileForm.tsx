@@ -35,9 +35,6 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
             }
             successToast('Profile successfully updated');
             setEditMode(false);
-            // Refresh the page to pick up updated displayName in TopNav and all server components.
-            // The revalidatePath calls in editProfile clear cached data, and router.refresh()
-            // triggers server re-render which re-reads the session (updated on next token refresh).
             router.refresh();
         })
     }

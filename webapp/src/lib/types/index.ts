@@ -60,6 +60,7 @@ export type Profile = {
     displayName: string
     description?: string
     reputation: number
+    avatarUrl?: string | null
 }
 
 export type FetchResponse<T> = {
@@ -112,6 +113,7 @@ export type PlanningPokerViewer = {
 export type PlanningPokerParticipant = {
     participantId: string
     displayName: string
+    avatarUrl?: string | null
     isGuest: boolean
     isModerator: boolean
     isSpectator: boolean
@@ -149,6 +151,7 @@ export type PlanningPokerRoomSummary = {
     completedRounds: number
     createdAtUtc: string
     archivedAtUtc?: string | null
+    isModerator?: boolean
 }
 
 export type PlanningPokerRoom = {

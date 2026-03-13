@@ -1,7 +1,7 @@
 'use client';
 
 import {Answer} from "@/lib/types";
-import {Avatar} from "@heroui/avatar";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
 import {handleError, timeAgo} from "@/lib/util";
 import { Button } from "@heroui/button";
 import {User} from "next-auth";
@@ -58,7 +58,9 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
             </div>
 
             <div className='flex items-center gap-2 bg-content4 px-3 py-2 rounded-lg text-sm'>
-                <Avatar className='h-8 w-8 shrink-0' color='primary'
+                <DiceBearAvatar className='h-8 w-8 shrink-0' color='primary'
+                        userId={answer.userId}
+                        avatarJson={answer.author?.avatarUrl}
                         name={answer.author?.displayName.charAt(0)} />
                 <div className='flex flex-col'>
                     <span className='font-extralight text-xs'>answered {timeAgo(answer.createdAt)}</span>

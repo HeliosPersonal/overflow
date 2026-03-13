@@ -16,12 +16,13 @@ import { signIn } from 'next-auth/react';
  */
 export async function createGuestAndSignIn(
     displayName: string,
+    avatarUrl?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
     // Step 1 — Create anonymous Keycloak user (server-side)
     const createResponse = await fetch('/api/auth/anonymous', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayName.trim() }),
+        body: JSON.stringify({ displayName: displayName.trim(), avatarUrl }),
     });
 
     if (!createResponse.ok) {
@@ -40,6 +41,17 @@ export async function createGuestAndSignIn(
 
     if (!signInResult?.ok) {
         return { ok: false, error: 'Failed to sign in. Please try again.' };
+    }
+
+    // Step 3 — Save avatar to the profile (must complete before page reload)
+    if (avatarUrl) {
+        try {
+            await fetch('/api/profile/avatar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatarUrl }),
+            });
+        } catch { /* best-effort */ }
     }
 
     return { ok: true };

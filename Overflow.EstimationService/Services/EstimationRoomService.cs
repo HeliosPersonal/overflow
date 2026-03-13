@@ -29,7 +29,8 @@ public class EstimationRoomService(
 
     public async Task<Result<EstimationRoom, RoomError>> CreateRoomAsync(
         string title, string moderatorParticipantId, string? moderatorUserId,
-        string? moderatorGuestId, string moderatorDisplayName, bool isGuest, string? deckType)
+        string? moderatorGuestId, string moderatorDisplayName, bool isGuest, string? deckType,
+        string? avatarUrl = null)
     {
         var deck = Decks.GetOrDefault(deckType);
         var now = DateTime.UtcNow;
@@ -53,6 +54,7 @@ public class EstimationRoomService(
                     UserId = moderatorUserId,
                     GuestId = moderatorGuestId,
                     DisplayName = moderatorDisplayName,
+                    AvatarUrl = avatarUrl,
                     IsGuest = isGuest,
                     IsModerator = true,
                     IsSpectator = false,
@@ -76,7 +78,7 @@ public class EstimationRoomService(
 
     public async Task<Result<EstimationRoom, RoomError>> JoinRoomAsync(
         Guid roomId, string participantId, string? userId, string? guestId,
-        string displayName, bool isGuest)
+        string displayName, bool isGuest, string? avatarUrl = null)
     {
         var roomResult = await GetRoomWithAll(roomId);
         if (roomResult.IsFailure) return roomResult.Error;
@@ -89,11 +91,16 @@ public class EstimationRoomService(
         var existing = room.Participants.FirstOrDefault(p => p.ParticipantId == participantId);
         if (existing is not null)
         {
-            // Update display name across ALL rooms if it changed (e.g. after profile edit or account upgrade).
+            // Update display name and avatar across ALL rooms if changed (e.g. after profile edit or account upgrade).
             // Uses ExecuteUpdateAsync because entities are loaded with AsNoTracking.
-            if (!string.IsNullOrWhiteSpace(displayName) && existing.DisplayName != displayName)
+            var nameChanged = !string.IsNullOrWhiteSpace(displayName) && existing.DisplayName != displayName;
+            var avatarChanged = avatarUrl is not null && existing.AvatarUrl != avatarUrl;
+
+            if (nameChanged || avatarChanged)
             {
-                var affectedRoomIds = await UpdateDisplayNameAcrossRoomsAsync(participantId, displayName);
+                var affectedRoomIds = await UpdateProfileAcrossRoomsAsync(participantId,
+                    nameChanged ? displayName : existing.DisplayName,
+                    avatarChanged ? avatarUrl : existing.AvatarUrl);
                 foreach (var affectedId in affectedRoomIds)
                     await InvalidateAndBroadcastAsync(affectedId);
 
@@ -113,6 +120,7 @@ public class EstimationRoomService(
             UserId = userId,
             GuestId = guestId,
             DisplayName = displayName,
+            AvatarUrl = avatarUrl,
             IsGuest = isGuest,
             IsModerator = false,
             IsSpectator = false,
@@ -546,14 +554,16 @@ public class EstimationRoomService(
     }
 
     /// <summary>
-    /// Updates a participant's display name across ALL their rooms (not just the current one).
+    /// Updates a participant's display name and avatar URL across ALL their rooms (not just the current one).
     /// Returns the list of affected room IDs so callers can broadcast WebSocket updates.
     /// Uses ExecuteUpdateAsync — works with AsNoTracking entities.
     /// </summary>
-    private async Task<List<Guid>> UpdateDisplayNameAcrossRoomsAsync(string participantId, string newDisplayName)
+    private async Task<List<Guid>> UpdateProfileAcrossRoomsAsync(string participantId, string newDisplayName,
+        string? newAvatarUrl)
     {
         var affectedRoomIds = await db.Participants
-            .Where(p => p.ParticipantId == participantId && p.DisplayName != newDisplayName)
+            .Where(p => p.ParticipantId == participantId
+                        && (p.DisplayName != newDisplayName || p.AvatarUrl != newAvatarUrl))
             .Select(p => p.RoomId)
             .Distinct()
             .ToListAsync();
@@ -561,12 +571,14 @@ public class EstimationRoomService(
         if (affectedRoomIds.Count == 0) return affectedRoomIds;
 
         await db.Participants
-            .Where(p => p.ParticipantId == participantId && p.DisplayName != newDisplayName)
-            .ExecuteUpdateAsync(s => s.SetProperty(p => p.DisplayName, newDisplayName));
+            .Where(p => p.ParticipantId == participantId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.DisplayName, newDisplayName)
+                .SetProperty(p => p.AvatarUrl, newAvatarUrl));
 
         logger.LogInformation(
-            "Updated display name to '{DisplayName}' for participant {ParticipantId} across {Count} room(s)",
-            newDisplayName, participantId, affectedRoomIds.Count);
+            "Updated profile for participant {ParticipantId} across {Count} room(s)",
+            participantId, affectedRoomIds.Count);
 
         return affectedRoomIds;
     }

@@ -59,7 +59,8 @@ public class RoomsController(
             r.Participants.Count,
             r.RoundHistory.Count,
             r.CreatedAtUtc,
-            r.ArchivedAtUtc
+            r.ArchivedAtUtc,
+            r.ModeratorUserId == userId
         )).ToList();
 
         return Ok(summaries);
@@ -79,7 +80,8 @@ public class RoomsController(
             return BadRequest("Display name is required for guest users");
 
         var result = await svc.CreateRoomAsync(req.Title, identity.ParticipantId,
-            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType);
+            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType,
+            identity.AvatarUrl);
         return result.IsSuccess
             ? Created($"/estimation/rooms/{result.Value.Id}",
                 RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))
@@ -104,7 +106,7 @@ public class RoomsController(
         }
 
         var result = await svc.JoinRoomAsync(roomId, identity.ParticipantId, identity.UserId,
-            identity.GuestId, identity.DisplayName, identity.IsGuest);
+            identity.GuestId, identity.DisplayName, identity.IsGuest, identity.AvatarUrl);
 
         return result.IsSuccess
             ? Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))

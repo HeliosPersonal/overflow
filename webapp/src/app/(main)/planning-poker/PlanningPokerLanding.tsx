@@ -2,8 +2,8 @@
 
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
-import {Button, Chip, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
-import {SparklesIcon, UserGroupIcon, HashtagIcon} from "@heroicons/react/24/outline";
+import {Button, Chip, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tooltip} from "@heroui/react";
+import {SparklesIcon, UserGroupIcon, HashtagIcon, StarIcon} from "@heroicons/react/24/outline";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 
 export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated: boolean}) {
@@ -114,7 +114,14 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                             {recentSessions.map(r => (
                                 <TableRow key={r.roomId}>
                                     <TableCell>
-                                        <span className="font-medium">{r.title}</span>
+                                        <span className="font-medium flex items-center gap-1.5">
+                                            {r.title}
+                                            {r.isModerator && (
+                                                <Tooltip content="You are the moderator">
+                                                    <StarIcon className="h-4 w-4 text-warning flex-shrink-0"/>
+                                                </Tooltip>
+                                            )}
+                                        </span>
                                     </TableCell>
                                     <TableCell>
                                         <RoomStatusChip status={r.status}/>

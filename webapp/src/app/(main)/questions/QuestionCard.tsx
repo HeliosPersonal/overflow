@@ -1,7 +1,7 @@
 import {Question} from "@/lib/types";
 import Link from "next/link";
 import {Chip} from "@heroui/chip";
-import {Avatar} from "@heroui/avatar";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
 import clsx from "clsx";
 import {CheckIcon, HandThumbUpIcon, EyeIcon} from "@heroicons/react/24/outline";
 import {htmlToExcerpt, timeAgo} from "@/lib/util";
@@ -57,9 +57,11 @@ export default function QuestionCard({question}: Props) {
                         </div>
                         
                         <div className='text-sm flex items-center gap-2'>
-                            <Avatar 
+                            <DiceBearAvatar 
                                 className='h-6 w-6'
                                 color='primary'
+                                userId={question.askerId}
+                                avatarJson={question.author?.avatarUrl}
                                 name={question.author?.displayName?.charAt(0)}
                             />
                             <Link href={`/profiles/${question.askerId}`}>

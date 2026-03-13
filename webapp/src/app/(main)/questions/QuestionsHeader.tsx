@@ -6,6 +6,7 @@ import {Tab, Tabs} from "@heroui/tabs";
 import {useTagStore} from "@/lib/hooks/useTagStore";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Key} from "react";
+import SearchInput from "@/components/nav/SearchInput";
 
 type Props = {
     tag?: string;
@@ -44,6 +45,9 @@ export default function QuestionsHeader({tag, total}: Props) {
                         Ask Question
                     </Button>
                 </Link>
+            </div>
+            <div className='px-6'>
+                <SearchInput />
             </div>
             <div className='flex justify-between px-6 items-center'>
                 <div>{total} {total === 1 ? 'Question' : 'Questions'}</div>

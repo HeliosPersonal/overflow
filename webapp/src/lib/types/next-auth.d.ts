@@ -11,6 +11,7 @@ declare module 'next-auth' {
             reputation: number;
             roles: string[];
             isAnonymous?: boolean;
+            avatarUrl?: string | null;
         } & DefaultUser;
         accessToken: string;
     }
@@ -21,6 +22,7 @@ declare module 'next-auth' {
         reputation: number;
         roles: string[];
         isAnonymous?: boolean;
+        avatarUrl?: string | null;
     }
 }
 
@@ -39,6 +41,7 @@ declare module 'next-auth/jwt' {
             email: string;
             emailVerified: Date | null;
             isAnonymous?: boolean;
+            avatarUrl?: string | null;
         };
     }
 }

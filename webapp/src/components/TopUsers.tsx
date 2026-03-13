@@ -6,6 +6,7 @@ import {TopUserWithProfile} from "@/lib/types";
 import {TrophyIcon, ArrowTrendingUpIcon} from "@heroicons/react/24/solid";
 import {motion} from "framer-motion";
 import Link from "next/link";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
 
 const RANK_STYLES = [
     {ring: 'ring-yellow-200', bg: 'bg-yellow-50/80 dark:bg-yellow-900/15', text: 'text-yellow-400 dark:text-yellow-300/70', medal: '🥇'},
@@ -84,15 +85,19 @@ export default function TopUsers() {
                                 {/* Avatar */}
                                 <Link href={`/profiles/${u.userId}`} className="shrink-0">
                                     <div className={`
-                                        relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+                                        relative w-10 h-10 rounded-full
                                         ring-2 ring-offset-1 ring-offset-content2
-                                        ${rank ? `${rank.ring} ${rank.bg} ${rank.text}` : 'ring-default-300 bg-default-100 text-default-500'}
+                                        ${rank ? `${rank.ring}` : 'ring-default-300'}
                                         transition-transform group-hover:scale-105
                                     `}>
-                                        {index < 3 ? (
-                                            <span className="text-base leading-none">{rank!.medal}</span>
-                                        ) : (
-                                            initials
+                                        <DiceBearAvatar
+                                            userId={u.userId}
+                                            avatarJson={u.profile!.avatarUrl}
+                                            className="w-10 h-10"
+                                            name={initials}
+                                        />
+                                        {index < 3 && (
+                                            <span className="absolute -bottom-1 -right-1 text-xs leading-none">{rank!.medal}</span>
                                         )}
                                     </div>
                                 </Link>

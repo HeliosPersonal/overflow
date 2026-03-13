@@ -12,6 +12,10 @@ import {
 import {CheckCircleIcon} from "@heroicons/react/24/solid";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
+import AvatarPicker from "@/components/AvatarPicker";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import {generateAvatarUrl, AVATAR_EYES, AVATAR_MOUTH} from "@/lib/avatar";
 import type {PlanningPokerRoom, PlanningPokerParticipant} from "@/lib/types";
 
 export default function RoomClient({roomId, isAuthenticated}: {roomId: string; isAuthenticated: boolean}) {
@@ -20,6 +24,11 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
     // Gate: guest name entry before join
     const [needsGuestName, setNeedsGuestName] = useState(false);
     const [guestName, setGuestName] = useState('');
+    const [avatarJson, setAvatarJson] = useState<string | null>(() => {
+        const eyes = AVATAR_EYES[Math.floor(Math.random() * AVATAR_EYES.length)];
+        const mouth = AVATAR_MOUTH[Math.floor(Math.random() * AVATAR_MOUTH.length)];
+        return JSON.stringify({ eyes: [eyes], mouth: [mouth] });
+    });
     const [joinLoading, setJoinLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [joinedOnce, setJoinedOnce] = useState(false);
@@ -98,7 +107,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
         setJoinLoading(true);
         try {
             // Create anonymous Keycloak user and sign in
-            const result = await createGuestAndSignIn(guestName);
+            const result = await createGuestAndSignIn(guestName, avatarJson ?? undefined);
 
             if (!result.ok) {
                 addToast({title: result.error, color: 'danger'});
@@ -218,6 +227,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
 
     async function handleArchive() {
         await doAction('Archive', `/api/estimation/rooms/${roomId}/archive`);
+        router.push('/planning-poker');
     }
 
     async function handleModeToggle() {
@@ -264,33 +274,85 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
         return (
             <div className="min-h-full bg-content1 flex items-center justify-center">
                 <div className="max-w-md w-full px-4 py-16 flex flex-col gap-4">
-                    <div className="bg-content2 border border-content3 shadow-raise-sm rounded-2xl p-6 flex flex-col gap-4">
-                        <h2 className="text-xl font-semibold">Join as Guest</h2>
-                        <p className="text-sm text-foreground-500">
-                            Enter a display name to join this room. A guest account will be
-                            created — you can upgrade it to a full account anytime.
-                        </p>
-                        <Input
-                            label="Display name"
-                            placeholder="Jane"
-                            value={guestName}
-                            onValueChange={setGuestName}
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleGuestJoin()}
-                        />
-                        <Button color="primary" isLoading={joinLoading} onPress={handleGuestJoin}
-                                isDisabled={!guestName.trim()} className="w-full">
-                            Join Room
-                        </Button>
-                        <div className="flex items-center gap-3">
-                            <Divider className="flex-1"/>
-                            <span className="text-sm text-foreground-400">or</span>
-                            <Divider className="flex-1"/>
+                    <div className="bg-content2 border border-content3 shadow-raise-sm rounded-2xl overflow-hidden">
+                        {/* ── Header ── */}
+                        <div className="px-6 pt-6 pb-4">
+                            <h2 className="text-xl font-semibold">Set up your profile</h2>
+                            <p className="text-sm text-foreground-500 mt-1">
+                                Choose a name and avatar to join this room.
+                            </p>
                         </div>
-                        <Button variant="flat" className="w-full bg-content3"
-                                onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(`/planning-poker/${roomId}`)}`)}>
-                            Sign In with Existing Account
-                        </Button>
+
+                        <Divider />
+
+                        {/* ── Display name ── */}
+                        <div className="px-6 py-5">
+                            <label className="text-xs font-semibold uppercase tracking-wide text-foreground-400 mb-2 block">
+                                Display name
+                            </label>
+                            <Input
+                                placeholder="Jane"
+                                value={guestName}
+                                onValueChange={setGuestName}
+                                autoFocus
+                                size="lg"
+                                onKeyDown={(e) => e.key === 'Enter' && handleGuestJoin()}
+                            />
+                        </div>
+
+                        <Divider />
+
+                        {/* ── Avatar ── */}
+                        <div className="px-6 py-5">
+                            <label className="text-xs font-semibold uppercase tracking-wide text-foreground-400 mb-3 block">
+                                Your avatar
+                            </label>
+                            <AvatarPicker seed={guestName.trim() || 'guest'} value={avatarJson} onChange={setAvatarJson}>
+                                {({avatarSrc, onOpen}) => (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <button type="button" onClick={onOpen} className="group relative">
+                                            <img
+                                                src={avatarSrc}
+                                                alt="Avatar"
+                                                className="h-20 w-20 rounded-full ring-2 ring-foreground-200 group-hover:ring-primary transition-all"
+                                            />
+                                            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                                                Edit
+                                            </span>
+                                        </button>
+                                        <button type="button" onClick={onOpen}
+                                            className="text-xs text-primary hover:underline">
+                                            Customize avatar
+                                        </button>
+                                    </div>
+                                )}
+                            </AvatarPicker>
+                        </div>
+
+                        <Divider />
+
+                        {/* ── Actions ── */}
+                        <div className="px-6 py-5 flex flex-col gap-3">
+                            <Button color="primary" size="lg" isLoading={joinLoading} onPress={handleGuestJoin}
+                                    isDisabled={!guestName.trim()} className="w-full font-semibold">
+                                Join Room
+                            </Button>
+
+                            <div className="flex items-center gap-3 my-1">
+                                <Divider className="flex-1"/>
+                                <span className="text-xs text-foreground-400">or sign in</span>
+                                <Divider className="flex-1"/>
+                            </div>
+
+                            <GoogleSignInButton
+                                callbackUrl={`/planning-poker/${roomId}`}
+                                label="Continue with Google"
+                            />
+                            <Button variant="flat" className="w-full bg-content3"
+                                    onPress={() => router.push(`/login?callbackUrl=${encodeURIComponent(`/planning-poker/${roomId}`)}`)}>
+                                Sign In with Email
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -414,6 +476,12 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                         <div key={p.participantId}
                                              className="flex items-center gap-2 text-sm text-foreground-400">
                                             <EyeIcon className="h-4 w-4 flex-shrink-0"/>
+                                            <DiceBearAvatar
+                                                userId={p.participantId}
+                                                avatarJson={p.avatarUrl}
+                                                name={p.displayName}
+                                                size="sm"
+                                            />
                                             <span className="truncate">{p.displayName}</span>
                                             {p.isModerator && <StarIcon className="h-3.5 w-3.5 text-warning"/>}
                                             {p.isGuest && <Chip size="sm" variant="flat" className="text-xs h-5">Guest</Chip>}
@@ -634,6 +702,12 @@ function ParticipantRow({participant: p, isVoting, isRevealed}: {
                         : <span className="text-foreground-300">?</span>)
                 }
             </div>
+            <DiceBearAvatar
+                userId={p.participantId}
+                avatarJson={p.avatarUrl}
+                name={p.displayName}
+                size="sm"
+            />
             <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
                     <span className="truncate font-medium">{p.displayName}</span>
