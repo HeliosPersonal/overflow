@@ -32,19 +32,23 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 - **Disconnect = leave** — WebSocket close removes the participant from the room and broadcasts updated state
 - **Guest-to-account claim** — `POST /estimation/claim-guest` migrates legacy cookie-based guest participation to an
   authenticated user
+- **Automatic room cleanup** — archived rooms are permanently deleted after a configurable retention period (default: 30
+  days)
 
 ---
 
-## TODO
+## Archived Room Cleanup
 
-- [ ] **Auto-delete archived rooms after 30 days** — Archived rooms should be automatically purged from the database
-  after 30 days to keep storage lean. Implementation options:
-    - A background `IHostedService` / `BackgroundService` that runs a nightly sweep (
-      `DELETE FROM "Rooms" WHERE "IsArchived" = true AND "ArchivedAtUtc" < NOW() - INTERVAL '30 days'`)
-    - Or a Hangfire/Quartz scheduled job if scheduling infra is added later
-    - Cache entries for deleted rooms should be evicted and a Redis pub/sub broadcast sent so all pods close any
-      lingering WebSocket connections gracefully
-    - The frontend already shows the hint: *"Archived rooms are automatically deleted after 30 days"*
+Archived rooms are **automatically deleted after 30 days** (configurable) to keep storage lean.
+
+| Setting                     | Default | Description                                              |
+|-----------------------------|---------|----------------------------------------------------------|
+| `RoomCleanup:RetentionDays` | `30`    | Days after archival before a room is permanently deleted |
+| `RoomCleanup:IntervalHours` | `24`    | How often the cleanup background job runs                |
+
+Implemented via `ArchivedRoomCleanupService` (`BackgroundService`). On each run it bulk-deletes expired rooms
+along with all related votes, round history, and participants. Override via `appsettings.json`, environment
+variables, or Infisical (`RoomCleanup__RetentionDays`, `RoomCleanup__IntervalHours`).
 
 ---
 
@@ -82,11 +86,12 @@ Pod A (mutation)                          Pod B (WebSocket connections)
 
 ### Key Services
 
-| Service                    | Lifetime           | Purpose                                                                                       |
-|----------------------------|--------------------|-----------------------------------------------------------------------------------------------|
-| `RoomCacheService`         | Singleton          | Cache-aside reads for rooms + user room lists via FusionCache                                 |
-| `CrossPodBroadcastService` | Singleton (hosted) | Redis pub/sub: publishes room mutations, subscribes on startup to trigger local WS broadcasts |
-| `WebSocketBroadcaster`     | Singleton          | Tracks local WebSocket connections, sends viewer-scoped snapshots                             |
+| Service                      | Lifetime           | Purpose                                                                                       |
+|------------------------------|--------------------|-----------------------------------------------------------------------------------------------|
+| `RoomCacheService`           | Singleton          | Cache-aside reads for rooms + user room lists via FusionCache                                 |
+| `CrossPodBroadcastService`   | Singleton (hosted) | Redis pub/sub: publishes room mutations, subscribes on startup to trigger local WS broadcasts |
+| `WebSocketBroadcaster`       | Singleton          | Tracks local WebSocket connections, sends viewer-scoped snapshots                             |
+| `ArchivedRoomCleanupService` | Singleton (hosted) | Periodically deletes archived rooms past the configured retention period (default: 30 days)   |
 
 ### Fail-Safe Behavior
 
@@ -602,10 +607,13 @@ Overflow.EstimationService/
 │   ├── EstimationRoundHistory.cs# Round history entity
 │   └── DeckDefinition.cs       # Deck definitions (Fibonacci, etc.)
 ├── Services/
-│   ├── EstimationRoomService.cs   # Room business logic (all mutations)
-│   ├── RoomCacheService.cs        # FusionCache layer (L1 + L2 Redis) for room reads
-│   ├── CrossPodBroadcastService.cs# Redis pub/sub for cross-pod WS broadcast
-│   └── WebSocketBroadcaster.cs    # WS connection tracking + viewer-scoped broadcast
+│   ├── EstimationRoomService.cs     # Room business logic (all mutations)
+│   ├── RoomCacheService.cs          # FusionCache layer (L1 + L2 Redis) for room reads
+│   ├── CrossPodBroadcastService.cs  # Redis pub/sub for cross-pod WS broadcast
+│   ├── WebSocketBroadcaster.cs      # WS connection tracking + viewer-scoped broadcast
+│   └── ArchivedRoomCleanupService.cs# Background job: deletes expired archived rooms
+├── Options/
+│   └── RoomCleanupOptions.cs        # IOptions for room cleanup (RetentionDays, IntervalHours)
 ├── Auth/
 │   ├── IdentityResolver.cs      # JWT → user, cookie → guest resolution
 │   └── GuestIdentity.cs         # Guest cookie issuance + reading
@@ -637,6 +645,8 @@ Overflow.EstimationService/
 | `KeycloakOptions:*`                  | appsettings + ConfigMap  | JWT validation settings                                                         |
 | `APP_BASE_URL`                       | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                        |
 | `PROFILE_SERVICE_URL`                | Aspire / ConfigMap       | ProfileService base URL for name resolution                                     |
+| `RoomCleanup:RetentionDays`          | appsettings / Infisical  | Days before archived rooms are deleted (default: 30)                            |
+| `RoomCleanup:IntervalHours`          | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                 |
 
 > **Redis connection string format** (staging/prod):
 `redis.infra-production.svc.cluster.local:6379,password=...,abortConnect=false`  
@@ -681,12 +691,9 @@ wscat -c "ws://localhost:8001/estimation/rooms/{roomId}/ws" \
 - **Add room history and replay** — Store completed round results (votes, average, consensus) in a `RoundHistory` table
   and expose `GET /estimation/rooms/{id}/history`. This lets teams review past estimations and track estimation accuracy
   over time.
-- **Add room expiration with automatic cleanup** — Rooms currently persist indefinitely. Adding a configurable TTL (
-  e.g., 24 hours of inactivity) with a background `IHostedService` that archives stale rooms would prevent database
-  bloat and keep the rooms list manageable.
-- **Support custom card decks** — Currently decks are predefined server-side. Allowing moderators to define custom card
-  values (e.g., t-shirt sizes, risk levels) at room creation would make the tool more flexible for different estimation
-  methodologies.
+- **Support user-defined custom card decks** — Currently decks are predefined server-side (Fibonacci, T-Shirts).
+  Allowing moderators to define fully custom card values at room creation would make the tool more flexible for
+  different estimation methodologies.
 
 ---
 

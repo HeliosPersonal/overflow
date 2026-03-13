@@ -4,6 +4,7 @@ using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.Data;
 using Overflow.EstimationService.Extensions;
+using Overflow.EstimationService.Options;
 using Overflow.EstimationService.Services;
 using Overflow.ServiceDefaults;
 using StackExchange.Redis;
@@ -97,6 +98,11 @@ builder.Services.AddHttpClient<ProfileServiceClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(5);
 });
 builder.Services.AddScoped<IdentityResolver>();
+
+// ── Archived room cleanup ────────────────────────────────────────────────
+builder.Services.Configure<RoomCleanupOptions>(
+    builder.Configuration.GetSection(RoomCleanupOptions.SectionName));
+builder.Services.AddHostedService<ArchivedRoomCleanupService>();
 
 builder.Services.AddHealthChecks()
     .AddDatabaseHealthCheck<EstimationDbContext>();
