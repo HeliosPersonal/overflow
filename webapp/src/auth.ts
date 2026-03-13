@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials"
 import {apiConfig, authConfig} from "@/lib/config";
 import { loginSchema } from "@/lib/validators/auth";
 import { isAnonymousEmail } from "@/lib/keycloak-admin";
+import { cookies } from "next/headers";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     debug: false,
@@ -211,12 +212,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // Token still valid — but periodically re-fetch profile from ProfileService
                 // (source of truth for displayName/reputation) so session stays current.
                 // Also re-fetch immediately if avatarUrl is missing (just saved but not in session yet).
+                // Also re-fetch immediately if the profile_dirty cookie is set (profile was just edited).
                 if (token.accessTokenExpires && now < token.accessTokenExpires) {
                     const PROFILE_REFRESH_INTERVAL = 60; // seconds
                     const lastFetched = token.profileLastFetched ?? 0;
                     const avatarMissing = !token.user?.avatarUrl;
+
+                    let profileDirty = false;
+                    try {
+                        const cookieStore = await cookies();
+                        profileDirty = cookieStore.get('profile_dirty')?.value === '1';
+                    } catch { /* edge runtime or non-request context */ }
                     
-                    if ((avatarMissing || now - lastFetched >= PROFILE_REFRESH_INTERVAL) && token.accessToken) {
+                    if ((profileDirty || avatarMissing || now - lastFetched >= PROFILE_REFRESH_INTERVAL) && token.accessToken) {
                         try {
                             const profileRes = await fetch(apiConfig.baseUrl + '/profiles/me', {
                                 headers: { Authorization: `Bearer ${token.accessToken}` }
@@ -233,6 +241,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             // Non-fatal — keep existing session values
                         }
                         token.profileLastFetched = now;
+
+                        // Clear the dirty flag after re-fetching
+                        if (profileDirty) {
+                            try {
+                                const cookieStore = await cookies();
+                                cookieStore.delete('profile_dirty');
+                            } catch { /* ignore */ }
+                        }
                     }
                     
                     return token;

@@ -40,17 +40,21 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4'>
+        <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-5'>
             <Input
                 {...register('displayName')}
                 label='Display name'
+                size='lg'
+                classNames={{ input: 'text-lg', label: 'text-base' }}
                 isInvalid={!!errors.displayName}
                 errorMessage={errors.displayName?.message}
             />
             <Textarea
                 {...register('description')}
                 label='Description'
-                rows={4}
+                size='lg'
+                rows={6}
+                classNames={{ input: 'text-lg', label: 'text-base' }}
                 isInvalid={!!errors.description}
                 errorMessage={errors.description?.message}
             />
@@ -58,6 +62,7 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
                 isLoading={isSubmitting || pending}
                 isDisabled={isSubmitting || !isValid}
                 color='primary'
+                size='lg'
                 className='w-fit'
                 type='submit'
             >Submit</Button>

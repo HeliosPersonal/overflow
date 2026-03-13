@@ -35,6 +35,7 @@ export default function ProfilesList({profiles}: Props) {
             sortDescriptor={{column: 'reputation', direction: 'descending'}}
             aria-label='User profiles'
             selectionMode='single'
+            radius='none'
             onRowAction={(key) => router.push(`/profiles/${key}`)}
             classNames={{
                 th: 'bg-content3 text-foreground-500 uppercase text-xs tracking-wide font-semibold',

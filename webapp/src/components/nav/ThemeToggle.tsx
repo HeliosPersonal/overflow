@@ -25,7 +25,7 @@ export default function ThemeToggle() {
             onPress={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         >
             {theme === 'light' ? (
-                <MoonIcon className='h-8' />
+                <MoonIcon className='h-6' />
             ) : (
                 <SunIcon className='h-8 ' />
             )}

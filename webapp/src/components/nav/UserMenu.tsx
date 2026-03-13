@@ -31,7 +31,7 @@ export default function UserMenu({ user }: Props) {
             userId={user.id}
             avatarJson={user.avatarUrl}
             color={isAnonymous ? "default" : "primary"}
-            size="sm"
+            size="md"
             name={user.displayName?.charAt(0)}
           />
           {user.displayName}

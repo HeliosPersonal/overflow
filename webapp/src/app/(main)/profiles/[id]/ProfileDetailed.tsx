@@ -91,7 +91,7 @@ export default function ProfileDetailed({
                 name={profile.displayName?.charAt(0)}
               />
             )}
-            <span className="text-3xl font-semibold">{profile.displayName}</span>
+            <span className="text-4xl font-bold">{profile.displayName}</span>
           </div>
           {currentUserProfile && (
             <Button onPress={() => setEditMode((prev) => !prev)} variant="bordered">
@@ -100,11 +100,11 @@ export default function ProfileDetailed({
           )}
         </div>
         <Divider />
-        <div className="px-5 py-4">
+        <div className="px-5 py-5">
           {editMode ? (
             <EditProfileForm profile={profile} setEditMode={setEditMode} />
           ) : (
-            <p className="text-foreground-500">
+            <p className="text-lg text-foreground-500">
               {profile?.description || "No profile description added yet"}
             </p>
           )}

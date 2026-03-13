@@ -7,7 +7,7 @@ import {
 } from "@heroui/react";
 import {
     ClipboardDocumentIcon, ArrowLeftOnRectangleIcon, EyeIcon, EyeSlashIcon,
-    StarIcon, ArchiveBoxIcon, ArrowPathIcon,
+    FlagIcon, ArchiveBoxIcon, ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import {CheckCircleIcon} from "@heroicons/react/24/solid";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
@@ -474,16 +474,16 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                 <div className="flex flex-col gap-2">
                                     {spectators.map(p => (
                                         <div key={p.participantId}
-                                             className="flex items-center gap-2 text-sm text-foreground-400">
+                                             className="flex items-center gap-3 p-3 rounded-xl bg-content3 border border-content4 text-foreground-400">
                                             <EyeIcon className="h-4 w-4 flex-shrink-0"/>
                                             <DiceBearAvatar
                                                 userId={p.participantId}
                                                 avatarJson={p.avatarUrl}
                                                 name={p.displayName}
-                                                size="sm"
+                                                className="h-12 w-12 shrink-0"
                                             />
-                                            <span className="truncate">{p.displayName}</span>
-                                            {p.isModerator && <StarIcon className="h-3.5 w-3.5 text-warning"/>}
+                                            <span className="truncate text-base font-medium">{p.displayName}</span>
+                                            {p.isModerator && <FlagIcon className="h-4 w-4 text-warning"/>}
                                             {p.isGuest && <Chip size="sm" variant="flat" className="text-xs h-5">Guest</Chip>}
                                         </div>
                                     ))}
@@ -519,10 +519,10 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                 <div className="flex flex-col gap-6">
                     {!isArchived && !isSpectator && (
                         <div className="bg-content2 border border-content3 shadow-raise-sm rounded-xl p-4">
-                            <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-500 mb-3 text-center">
                                 {isVoting ? 'Pick a card' : 'Cards locked'}
                             </h3>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 justify-center">
                                 {room.deck.values.map(v => {
                                     const isSelected = effectiveVote === v;
                                     return (
@@ -543,10 +543,12 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                 })}
                             </div>
                             {isVoting && effectiveVote && (
-                                <Button size="sm" variant="light" color="danger" className="mt-3"
+                                <div className="flex justify-center mt-3">
+                                <Button size="sm" variant="light" color="danger"
                                     onPress={handleClearVote}>
                                     Clear my vote
                                 </Button>
+                                </div>
                             )}
                         </div>
                     )}
@@ -570,7 +572,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                     {room.roundSummary.numericAverageDisplay && (
                                         <div className="flex flex-col items-center justify-center mb-6 py-4 rounded-xl bg-content3">
                                             <span className="text-xs font-semibold uppercase tracking-wider text-foreground-400 mb-1">Average</span>
-                                            <span className="text-5xl font-extrabold text-warning tabular-nums">
+                                            <span className="text-6xl font-extrabold text-warning tabular-nums">
                                                 {room.roundSummary.numericAverageDisplay}
                                             </span>
                                         </div>
@@ -638,7 +640,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="text-sm font-bold text-foreground-700">Round {h.roundNumber}</span>
                                                 {h.numericAverageDisplay && (
-                                                    <span className="text-lg font-extrabold text-primary tabular-nums">
+                                                    <span className="text-3xl font-extrabold text-warning tabular-nums">
                                                         {h.numericAverageDisplay}
                                                     </span>
                                                 )}
@@ -692,29 +694,29 @@ function ParticipantRow({participant: p, isVoting, isRevealed}: {
     participant: PlanningPokerParticipant; isVoting: boolean; isRevealed: boolean;
 }) {
     return (
-        <div className="flex items-center gap-2 text-sm">
-            <div className={`w-10 h-14 rounded-md border flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all
-                ${isRevealed && p.revealedVote ? 'border-primary bg-primary/10 text-primary' : 'border-content3'}`}>
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-content3 border border-content4">
+            <div className={`w-14 h-20 rounded-lg border-2 flex items-center justify-center text-lg font-bold flex-shrink-0 transition-all
+                ${isRevealed && p.revealedVote ? 'border-primary bg-primary/10 text-primary' : 'border-content4 bg-content2'}`}>
                 {isRevealed
                     ? (p.revealedVote ?? '—')
                     : (p.hasVoted
-                        ? <CheckCircleIcon className="h-5 w-5 text-success"/>
-                        : <span className="text-foreground-300">?</span>)
+                        ? <CheckCircleIcon className="h-6 w-6 text-success"/>
+                        : <span className="text-foreground-300 text-lg">?</span>)
                 }
             </div>
             <DiceBearAvatar
                 userId={p.participantId}
                 avatarJson={p.avatarUrl}
                 name={p.displayName}
-                size="sm"
+                className="h-[72px] w-[72px] shrink-0"
             />
             <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
-                    <span className="truncate font-medium">{p.displayName}</span>
-                    {p.isModerator && <Tooltip content="Moderator"><StarIcon className="h-3.5 w-3.5 text-warning flex-shrink-0"/></Tooltip>}
+                    <span className="truncate font-semibold text-xl">{p.displayName}</span>
+                    {p.isModerator && <Tooltip content="Moderator"><FlagIcon className="h-5 w-5 text-warning flex-shrink-0"/></Tooltip>}
                     {p.isGuest && <Chip size="sm" variant="flat" className="text-xs h-5">Guest</Chip>}
                 </div>
-                <span className="text-xs text-foreground-400">
+                <span className="text-base text-foreground-400">
                     {isVoting ? (p.hasVoted ? 'Voted' : 'Thinking...') : ''}
                 </span>
             </div>

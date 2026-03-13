@@ -14,6 +14,11 @@ export default function SideMenu({ isAdmin = false }: { isAdmin?: boolean }) {
         {key: 'leaderboard', icon: TrophyIcon, text: 'Leaderboard', href: '/profiles'},
     ]
 
+    const isActive = (href: string) => {
+        if (href === '/profiles') return pathname === '/profiles';
+        return pathname.startsWith(href);
+    };
+
     return (
         <div className="flex flex-col h-full">
             <Listbox
@@ -30,7 +35,7 @@ export default function SideMenu({ isAdmin = false }: { isAdmin?: boolean }) {
                         key={key}
                         startContent={<Icon className='h-6' />}
                         classNames={{
-                            base: pathname.startsWith(href)
+                            base: isActive(href)
                                 ? 'bg-content3 shadow-raise-sm rounded-xl text-foreground-800'
                                 : 'hover:bg-content2 rounded-xl text-foreground-500',
                             title: 'text-base font-medium'

@@ -20,7 +20,7 @@ const BG_COLORS = [
     'f9e8d9', 'a3d9a5', 'f5c6aa', 'cce2cb', 'e2cfc4',
 ];
 
-const COLOR_FEATURES = new Set(['skinColor']);
+const COLOR_FEATURES = new Set(['skinColor', 'clothesColor', 'hairColor', 'facialHairColor']);
 
 export default function AvatarPicker({ value, seed, onChange, children }: Props) {
     const [open, setOpen] = useState(false);
@@ -101,7 +101,8 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
             <Modal
                 isOpen={open}
                 onOpenChange={setOpen}
-                size="3xl"
+                size="4xl"
+                backdrop="blur"
                 scrollBehavior="inside"
                 classNames={{
                     base: 'bg-content2 max-h-[90vh]',
@@ -118,7 +119,7 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
                             <img
                                 src={previewSrc}
                                 alt="Avatar preview"
-                                className="h-24 w-24 rounded-full ring-3 ring-primary/40 shrink-0"
+                                className="h-28 w-28 rounded-full ring-3 ring-primary/40 shrink-0"
                             />
                             <div className="flex flex-col gap-2">
                                 <p className="text-sm text-foreground-500">

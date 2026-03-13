@@ -10,9 +10,12 @@ export const AVATAR_FEATURES: FeatureDef[] = [
     { key: 'eyebrows',       label: 'Eyebrows',     values: ['angryNatural', 'defaultNatural', 'flatNatural', 'frownNatural', 'raisedExcitedNatural', 'sadConcernedNatural', 'unibrowNatural', 'upDownNatural', 'angry', 'default', 'raisedExcited', 'sadConcerned', 'upDown'] },
     { key: 'mouth',          label: 'Mouth',        values: ['concerned', 'default', 'disbelief', 'eating', 'grimace', 'sad', 'screamOpen', 'serious', 'smile', 'tongue', 'twinkle', 'vomit'] },
     { key: 'top',            label: 'Hair / Hat',   values: ['bob', 'bun', 'curly', 'curvy', 'dreads', 'dreads01', 'dreads02', 'frida', 'fro', 'froBand', 'frizzle', 'longButNotTooLong', 'miaWallace', 'shaggy', 'shaggyMullet', 'shavedSides', 'shortCurly', 'shortFlat', 'shortRound', 'shortWaved', 'sides', 'straight01', 'straight02', 'straightAndStrand', 'theCaesar', 'theCaesarAndSidePart', 'bigHair', 'hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04'] },
+    { key: 'hairColor',      label: 'Hair Color',   values: ['a55728', '2c1b18', 'b58143', 'd6b370', '724133', '4a312c', 'f59797', 'ecdcbf', 'c93305', 'e8e1e1'] },
     { key: 'accessories',    label: 'Accessories',  values: ['kurt', 'prescription01', 'prescription02', 'round', 'sunglasses', 'wayfarers', 'eyepatch'] },
     { key: 'clothing',       label: 'Clothing',     values: ['blazerAndShirt', 'blazerAndSweater', 'collarAndSweater', 'graphicShirt', 'hoodie', 'overall', 'shirtCrewNeck', 'shirtScoopNeck', 'shirtVNeck'] },
+    { key: 'clothesColor',   label: 'Clothes Color', values: ['262e33', '65c9ff', '5199e4', '25557c', 'e6e6e6', '929598', '3c4f5c', 'b1e2ff', 'a7ffc4', 'ffafb9', 'ffffb1', 'ff488e', 'ff5c5c', 'ffffff'] },
     { key: 'facialHair',     label: 'Facial Hair',  values: ['beardLight', 'beardMajestic', 'beardMedium', 'moustacheFancy', 'moustacheMagnum'] },
+    { key: 'facialHairColor', label: 'Facial Hair Color', values: ['a55728', '2c1b18', 'b58143', 'd6b370', '724133', '4a312c', 'f59797', 'ecdcbf', 'c93305', 'e8e1e1'] },
     { key: 'skinColor',      label: 'Skin',         values: ['614335', 'd08b5b', 'ae5d29', 'edb98a', 'ffdbb4', 'fd9841', 'f8d25c'] },
 ];
 
@@ -41,6 +44,11 @@ export function generateAvatarUrl(seed: string, options?: AvatarOptions): string
             if (v !== undefined) opts[k] = v;
         }
     }
+
+    // When the user explicitly selects accessories or facial hair, force probability to
+    // 100% so the selection always renders (DiceBear defaults both to 10%).
+    if (opts.accessories) opts.accessoriesProbability = 100;
+    if (opts.facialHair) opts.facialHairProbability = 100;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return createAvatar(avataaars as any, opts).toDataUri();

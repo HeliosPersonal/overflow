@@ -2,8 +2,8 @@
 
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
-import {Button, Chip, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tooltip} from "@heroui/react";
-import {SparklesIcon, UserGroupIcon, HashtagIcon, StarIcon} from "@heroicons/react/24/outline";
+import {Button, Chip, Spinner, Tooltip} from "@heroui/react";
+import {SparklesIcon, UserGroupIcon, HashtagIcon, FlagIcon} from "@heroicons/react/24/outline";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 
 export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated: boolean}) {
@@ -83,55 +83,41 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                         No sessions yet. Create your first room above!
                     </p>
                 ) : (
-                    <div className="rounded-xl overflow-hidden border border-content4">
-                    <Table
-                        aria-label="Recent planning poker sessions"
-                        selectionMode="single"
-                        onRowAction={(key) => router.push(`/planning-poker/${key}`)}
-                        classNames={{
-                            base: 'bg-content3',
-                            tr: 'cursor-pointer bg-content3 hover:bg-content4 transition-colors duration-150',
-                            th: 'bg-content4 text-foreground-500 uppercase text-xs tracking-wide border-b border-content4',
-                            td: 'text-foreground-600 border-b border-content4/60',
-                        }}
-                        removeWrapper
-                    >
-                        <TableHeader>
-                            <TableColumn>TITLE</TableColumn>
-                            <TableColumn>STATUS</TableColumn>
-                            <TableColumn>
-                                <span className="flex items-center gap-1">
-                                    <UserGroupIcon className="h-4 w-4"/>PARTICIPANTS
-                                </span>
-                            </TableColumn>
-                            <TableColumn>
-                                <span className="flex items-center gap-1">
-                                    <HashtagIcon className="h-4 w-4"/>ROUNDS
-                                </span>
-                            </TableColumn>
-                        </TableHeader>
-                        <TableBody>
-                            {recentSessions.map(r => (
-                                <TableRow key={r.roomId}>
-                                    <TableCell>
-                                        <span className="font-medium flex items-center gap-1.5">
-                                            {r.title}
-                                            {r.isModerator && (
-                                                <Tooltip content="You are the moderator">
-                                                    <StarIcon className="h-4 w-4 text-warning flex-shrink-0"/>
-                                                </Tooltip>
-                                            )}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <RoomStatusChip status={r.status}/>
-                                    </TableCell>
-                                    <TableCell>{r.participantCount}</TableCell>
-                                    <TableCell>{r.completedRounds}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div className="flex flex-col gap-3">
+                        {recentSessions.map(r => (
+                            <div
+                                key={r.roomId}
+                                className="flex items-center gap-4 p-4 rounded-xl bg-content3 border border-content4 hover:bg-content4 transition-colors duration-150 cursor-pointer"
+                                onClick={() => router.push(`/planning-poker/${r.roomId}`)}
+                            >
+                                {/* Title + status */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-2xl text-foreground-700 truncate">{r.title}</span>
+                                        {r.isModerator && (
+                                            <Tooltip content="You are the moderator">
+                                                <FlagIcon className="h-4 w-4 text-warning flex-shrink-0"/>
+                                            </Tooltip>
+                                        )}
+                                    </div>
+                                    <RoomStatusChip status={r.status}/>
+                                </div>
+
+                                {/* Stat blocks */}
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="flex flex-col items-center justify-center w-18 h-18 rounded-lg bg-content2 border border-content4">
+                                        <UserGroupIcon className="h-5 w-5 text-foreground-400 mb-0.5"/>
+                                        <span className="text-xl font-bold text-foreground-700">{r.participantCount}</span>
+                                        <span className="text-x text-foreground-400 leading-none">players</span>
+                                    </div>
+                                    <div className="flex flex-col items-center justify-center w-18 h-18 rounded-lg bg-content2 border border-content4">
+                                        <HashtagIcon className="h-5 w-5 text-foreground-400 mb-0.5"/>
+                                        <span className="text-xl font-bold text-foreground-700">{r.completedRounds}</span>
+                                        <span className="text-xs text-foreground-400 leading-none">rounds</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -141,9 +127,9 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
 }
 
 function RoomStatusChip({status}: {status: string}) {
-    const colorMap: Record<string, 'success' | 'primary' | 'warning'> = {
+    const colorMap: Record<string, 'success' | 'secondary' | 'warning'> = {
         Voting: 'success',
-        Revealed: 'primary',
+        Revealed: 'secondary',
         Archived: 'warning',
     };
     return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="flat">{status}</Chip>;
