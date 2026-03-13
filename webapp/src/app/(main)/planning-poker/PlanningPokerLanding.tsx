@@ -83,15 +83,16 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                         No sessions yet. Create your first room above!
                     </p>
                 ) : (
-                    <div className="rounded-xl overflow-hidden shadow-inset-md bg-content1">
+                    <div className="rounded-xl overflow-hidden border border-content4">
                     <Table
                         aria-label="Recent planning poker sessions"
                         selectionMode="single"
                         onRowAction={(key) => router.push(`/planning-poker/${key}`)}
                         classNames={{
-                            tr: 'cursor-pointer hover:bg-content2 transition-colors duration-150',
-                            th: 'bg-content1 text-foreground-400 uppercase text-xs tracking-wide',
-                            td: 'text-foreground-600',
+                            base: 'bg-content3',
+                            tr: 'cursor-pointer bg-content3 hover:bg-content4 transition-colors duration-150',
+                            th: 'bg-content4 text-foreground-500 uppercase text-xs tracking-wide border-b border-content4',
+                            td: 'text-foreground-600 border-b border-content4/60',
                         }}
                         removeWrapper
                     >
