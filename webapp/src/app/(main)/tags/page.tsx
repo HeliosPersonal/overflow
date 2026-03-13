@@ -2,12 +2,15 @@ import {getTags} from "@/lib/actions/tag-actions";
 import TagCard from "@/app/(main)/tags/TagCard";
 import TagHeader from "@/app/(main)/tags/TagsHeader";
 import {auth} from "@/auth";
+import {redirect} from "next/navigation";
 
 type SearchParams = Promise<{sort?: string}>
 export default async function Page({searchParams}: {searchParams: SearchParams }) {
     const {sort} = await searchParams;
     const session = await auth();
     const isAdmin = session?.user?.roles?.includes('admin') ?? false;
+
+    if (!isAdmin) redirect('/questions');
     
     const {data: tags, error} = await getTags(sort);
     
