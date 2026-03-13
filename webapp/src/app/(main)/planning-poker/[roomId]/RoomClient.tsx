@@ -1,6 +1,6 @@
 'use client';
 
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {useRouter} from "next/navigation";
 import {
     Button, Input, Chip, Divider, Spinner, Tooltip, addToast,
@@ -35,8 +35,40 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     // Optimistic card selection — updated instantly before server confirms
     const [optimisticVote, setOptimisticVote] = useState<string | null | undefined>(undefined);
+    // Prevent double-leave (explicit leave + beforeunload both firing)
+    const hasLeftRef = useRef(false);
 
     const {room, status: wsStatus, updateRoom} = useRoomWebSocket(joinedOnce ? roomId : null);
+
+    // ── Leave on tab close / external navigation ─────────────────────────
+    // Uses sendBeacon so the request survives page teardown.
+    // pagehide is more reliable than beforeunload on mobile Safari.
+    useEffect(() => {
+        if (!joinedOnce) return;
+
+        const leaveUrl = `/api/estimation/rooms/${roomId}/leave`;
+
+        function handlePageLeave() {
+            if (hasLeftRef.current) return;
+            hasLeftRef.current = true;
+            navigator.sendBeacon(leaveUrl);
+        }
+
+        window.addEventListener('pagehide', handlePageLeave);
+        window.addEventListener('beforeunload', handlePageLeave);
+
+        // Cleanup: also fire leave on SPA unmount (e.g. navigating to another page).
+        // sendBeacon is used because it is fire-and-forget and won't be cancelled
+        // when React tears down the component.
+        return () => {
+            window.removeEventListener('pagehide', handlePageLeave);
+            window.removeEventListener('beforeunload', handlePageLeave);
+            if (!hasLeftRef.current) {
+                hasLeftRef.current = true;
+                navigator.sendBeacon(leaveUrl);
+            }
+        };
+    }, [joinedOnce, roomId]);
 
     // Bootstrap: try to join room on mount
     useEffect(() => {
@@ -227,6 +259,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
 
     async function handleArchive() {
         await doAction('Archive', `/api/estimation/rooms/${roomId}/archive`);
+        hasLeftRef.current = true; // Prevent redundant leave on navigation
         router.push('/planning-poker');
     }
 
@@ -245,8 +278,12 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
         await doAction('Mode', `/api/estimation/rooms/${roomId}/mode`, 'POST', {isSpectator: newMode});
     }
 
-    function handleLeave() {
-        // Just navigate away — the WS close removes the participant server-side
+    async function handleLeave() {
+        if (!hasLeftRef.current) {
+            hasLeftRef.current = true;
+            // Fire-and-forget — don't block navigation on the API response
+            fetch(`/api/estimation/rooms/${roomId}/leave`, {method: 'POST'}).catch(() => {});
+        }
         router.push('/planning-poker');
     }
 

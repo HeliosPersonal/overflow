@@ -72,7 +72,7 @@ export function useRoomWebSocket(roomId: string | null) {
         ws.onclose = () => {
             setStatus('disconnected');
             wsRef.current = null;
-            // Do NOT auto-reconnect — the server removes the participant on WS close.
+            // Do NOT auto-reconnect — the server marks the participant as absent on WS close.
             // Reconnect only happens when the user re-opens the page (re-join flow).
         };
 

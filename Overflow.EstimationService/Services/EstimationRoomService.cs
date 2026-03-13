@@ -95,6 +95,7 @@ public class EstimationRoomService(
             // Uses ExecuteUpdateAsync because entities are loaded with AsNoTracking.
             var nameChanged = !string.IsNullOrWhiteSpace(displayName) && existing.DisplayName != displayName;
             var avatarChanged = avatarUrl is not null && existing.AvatarUrl != avatarUrl;
+            var wasAbsent = !existing.IsPresent;
 
             if (nameChanged || avatarChanged)
             {
@@ -103,9 +104,23 @@ public class EstimationRoomService(
                     avatarChanged ? avatarUrl : existing.AvatarUrl);
                 foreach (var affectedId in affectedRoomIds)
                     await InvalidateAndBroadcastAsync(affectedId);
+            }
 
+            // Restore presence if the participant was absent (came back after leaving)
+            if (wasAbsent)
+            {
+                await db.Participants
+                    .Where(p => p.RoomId == roomId && p.ParticipantId == participantId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsPresent, true));
+                await TouchRoomAsync(roomId);
+                await InvalidateAndBroadcastAsync(roomId);
+                logger.LogInformation("Participant {ParticipantId} returned to room {RoomId}",
+                    participantId, roomId);
                 return await ReloadRoom(roomId);
             }
+
+            if (nameChanged || avatarChanged)
+                return await ReloadRoom(roomId);
 
             logger.LogDebug("Participant {ParticipantId} already in room {RoomId}, skipping join",
                 participantId, roomId);
@@ -175,21 +190,33 @@ public class EstimationRoomService(
 
     // ─── Leave ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Marks the participant as absent (IsPresent = false) without deleting them.
+    /// This preserves moderator status, room membership, and vote history so that
+    /// the user can return later and still be recognized as the same participant.
+    /// Current-round votes are cleared so they don't count while the user is away.
+    /// </summary>
     public async Task<UnitResult<RoomError>> LeaveRoomAsync(Guid roomId, string participantId)
     {
         var participant = await db.Participants
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.RoomId == roomId && p.ParticipantId == participantId);
 
-        if (participant is null) return UnitResult.Success<RoomError>(); // Already gone
+        if (participant is null) return UnitResult.Success<RoomError>(); // Not in room
+        if (!participant.IsPresent) return UnitResult.Success<RoomError>(); // Already absent
 
-        await db.Votes
-            .Where(v => v.RoomId == roomId && v.ParticipantId == participantId)
-            .ExecuteDeleteAsync();
+        // Clear current-round votes so an absent participant doesn't block "everyone voted"
+        var room = await db.Rooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roomId);
+        if (room is not null)
+        {
+            await db.Votes
+                .Where(v => v.RoomId == roomId && v.ParticipantId == participantId && v.RoundNumber == room.RoundNumber)
+                .ExecuteDeleteAsync();
+        }
 
         await db.Participants
             .Where(p => p.RoomId == roomId && p.ParticipantId == participantId)
-            .ExecuteDeleteAsync();
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsPresent, false));
 
         await TouchRoomAsync(roomId);
 
@@ -197,7 +224,7 @@ public class EstimationRoomService(
             await roomCache.InvalidateUserRoomsAsync(participant.UserId);
 
         await InvalidateAndBroadcastAsync(roomId);
-        logger.LogInformation("Participant {ParticipantId} left room {RoomId}", participantId, roomId);
+        logger.LogInformation("Participant {ParticipantId} left room {RoomId} (marked absent)", participantId, roomId);
         return UnitResult.Success<RoomError>();
     }
 
@@ -285,7 +312,7 @@ public class EstimationRoomService(
             return RoomErrors.InvalidState("Can only reveal during Voting status");
 
         var activeVoterIds = room.Participants
-            .Where(p => !p.IsSpectator)
+            .Where(p => !p.IsSpectator && p.IsPresent)
             .Select(p => p.ParticipantId)
             .ToHashSet();
 

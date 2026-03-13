@@ -14,6 +14,7 @@ public class EstimationParticipant
     public bool IsGuest { get; set; }
     public bool IsModerator { get; set; }
     public bool IsSpectator { get; set; }
+    public bool IsPresent { get; set; } = true;
     public DateTime JoinedAtUtc { get; set; }
 
     [JsonIgnore] public EstimationRoom Room { get; set; } = null!;

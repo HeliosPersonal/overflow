@@ -25,11 +25,11 @@ public static class RoomResponseMapper
             .FirstOrDefault(v => v.ParticipantId == viewerParticipantId)?.Value;
 
         var activeParticipants = room.Participants
-            .Where(p => !p.IsSpectator)
+            .Where(p => !p.IsSpectator && p.IsPresent)
             .ToList();
 
         var spectators = room.Participants
-            .Where(p => p.IsSpectator)
+            .Where(p => p.IsSpectator && p.IsPresent)
             .ToList();
 
         // Build distribution + average only after reveal
@@ -80,7 +80,7 @@ public static class RoomResponseMapper
                 p.IsSpectator,
                 hasVoted && !p.IsSpectator,
                 revealedVote,
-                true // IsPresent — participants are only in the list if they're present (leave = delete)
+                p.IsPresent
             );
         }).ToList();
 

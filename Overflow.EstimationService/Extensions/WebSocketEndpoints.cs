@@ -90,14 +90,15 @@ public static class WebSocketEndpoints
             {
                 broadcaster.RemoveConnection(roomId, identity.ParticipantId);
 
-                // Disconnect = leave: remove participant from the room
+                // Disconnect = mark absent: set IsPresent = false on the participant
                 try
                 {
                     using var scope = scopeFactory.CreateScope();
                     var leaveService = scope.ServiceProvider.GetRequiredService<EstimationRoomService>();
                     var leaveResult = await leaveService.LeaveRoomAsync(roomId, identity.ParticipantId);
                     if (leaveResult.IsSuccess)
-                        logger.LogInformation("Participant {ParticipantId} auto-left room {RoomId} on WS disconnect",
+                        logger.LogInformation(
+                            "Participant {ParticipantId} marked absent in room {RoomId} on WS disconnect",
                             identity.ParticipantId, roomId);
                     else
                         logger.LogWarning(
