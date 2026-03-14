@@ -3,8 +3,22 @@
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {Button, Chip, Spinner, Tooltip} from "@heroui/react";
-import {SparklesIcon, UserGroupIcon, HashtagIcon, FlagIcon} from "@heroicons/react/24/outline";
+import {SparklesIcon, UserGroupIcon, HashtagIcon, FlagIcon, ClockIcon} from "@heroicons/react/24/outline";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
+import {timeAgo} from "@/lib/util";
+import {differenceInDays} from "date-fns";
+
+function roomAge(r: PlanningPokerRoomSummary): string {
+    const created = `Created ${timeAgo(r.createdAtUtc)}`;
+
+    if (r.status === 'Archived' && r.archivedAtUtc) {
+        const daysLeft = r.retentionDays - differenceInDays(new Date(), new Date(r.archivedAtUtc));
+        if (daysLeft <= 0) return `${created} · expires soon`;
+        return `${created} · auto-deletes in ${daysLeft}d`;
+    }
+
+    return created;
+}
 
 export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated: boolean}) {
     const router = useRouter();
@@ -101,6 +115,10 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                         )}
                                     </div>
                                     <RoomStatusChip status={r.status}/>
+                                    <span className="text-xs text-foreground-400 flex items-center gap-1 mt-1">
+                                        <ClockIcon className="h-3.5 w-3.5"/>
+                                        {roomAge(r)}
+                                    </span>
                                 </div>
 
                                 {/* Stat blocks */}

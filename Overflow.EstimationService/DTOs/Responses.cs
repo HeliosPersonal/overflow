@@ -73,5 +73,6 @@ public record RoomSummaryResponse(
     int CompletedRounds,
     DateTime CreatedAtUtc,
     DateTime? ArchivedAtUtc,
-    bool IsModerator = false
+    bool IsModerator,
+    int RetentionDays
 );

@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Exceptions;
 using Overflow.EstimationService.Mapping;
+using Overflow.EstimationService.Options;
 using Overflow.EstimationService.Services;
 
 namespace Overflow.EstimationService.Controllers;
@@ -14,9 +16,11 @@ namespace Overflow.EstimationService.Controllers;
 public class RoomsController(
     EstimationRoomService svc,
     IdentityResolver identityResolver,
+    IOptions<RoomCleanupOptions> cleanupOptions,
     IConfiguration configuration) : ControllerBase
 {
     private string BaseUrl => configuration["APP_BASE_URL"] ?? "http://localhost:3000";
+    private int RetentionDays => cleanupOptions.Value.RetentionDays;
 
     // ─── POST /estimation/claim-guest ────────────────────────────────────
 
@@ -51,17 +55,21 @@ public class RoomsController(
 
         var rooms = await svc.GetRoomsForUserAsync(userId);
 
-        var summaries = rooms.Select(r => new RoomSummaryResponse(
-            r.Id,
-            r.Title,
-            r.Status,
-            r.RoundNumber,
-            r.Participants.Count,
-            r.RoundHistory.Count,
-            r.CreatedAtUtc,
-            r.ArchivedAtUtc,
-            r.ModeratorUserId == userId
-        )).ToList();
+        var summaries = rooms
+            .OrderBy(r => r.Status)
+            .ThenByDescending(r => r.CreatedAtUtc)
+            .Select(r => new RoomSummaryResponse(
+                r.Id,
+                r.Title,
+                r.Status,
+                r.RoundNumber,
+                r.Participants.Count,
+                r.RoundHistory.Count,
+                r.CreatedAtUtc,
+                r.ArchivedAtUtc,
+                r.ModeratorUserId == userId,
+                RetentionDays
+            )).ToList();
 
         return Ok(summaries);
     }

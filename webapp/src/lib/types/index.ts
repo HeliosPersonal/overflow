@@ -152,6 +152,7 @@ export type PlanningPokerRoomSummary = {
     createdAtUtc: string
     archivedAtUtc?: string | null
     isModerator?: boolean
+    retentionDays: number
 }
 
 export type PlanningPokerRoom = {

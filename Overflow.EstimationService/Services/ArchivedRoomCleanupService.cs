@@ -52,13 +52,18 @@ public class ArchivedRoomCleanupService(
         var cutoff = DateTime.UtcNow.AddDays(-_options.RetentionDays);
 
         // Find archived rooms past the retention window
-        var expiredRoomIds = await db.Rooms
+        var expiredRooms = await db.Rooms
             .Where(r => r.Status == RoomStatus.Archived && r.ArchivedAtUtc != null && r.ArchivedAtUtc < cutoff)
-            .Select(r => r.Id)
+            .Select(r => new { r.Id, r.Title })
             .ToListAsync(ct);
 
-        if (expiredRoomIds.Count == 0)
+        if (expiredRooms.Count == 0)
             return 0;
+
+        var expiredRoomIds = expiredRooms.Select(r => r.Id).ToList();
+
+        foreach (var room in expiredRooms)
+            logger.LogInformation("Deleting archived room {RoomId} ({RoomTitle})", room.Id, room.Title);
 
         // Delete related entities first (votes, round history, participants), then the rooms.
         // Using ExecuteDeleteAsync for efficient bulk deletion without loading entities.
