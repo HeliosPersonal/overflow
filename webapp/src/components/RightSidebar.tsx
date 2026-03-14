@@ -5,14 +5,13 @@ import TrendingTags from "@/components/TrendingTags";
 import TopUsers from "@/components/TopUsers";
 
 /**
- * Right sidebar that hides itself on planning-poker pages
- * where the room needs full width.
+ * Right sidebar — only shows on questions, tags, and leaderboard list pages.
  */
 export default function RightSidebar() {
     const pathname = usePathname();
-    const hide = pathname.startsWith('/planning-poker');
+    const show = pathname.startsWith('/questions') || pathname.startsWith('/tags') || pathname === '/profiles';
 
-    if (hide) return null;
+    if (!show) return null;
 
     return (
         <aside className='basis-1/5 shrink-0 px-6 pt-4 bg-content1 overflow-y-auto'>

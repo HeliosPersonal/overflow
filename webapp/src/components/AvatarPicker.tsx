@@ -20,7 +20,7 @@ const BG_COLORS = [
     'f9e8d9', 'a3d9a5', 'f5c6aa', 'cce2cb', 'e2cfc4',
 ];
 
-const COLOR_FEATURES = new Set(['skinColor', 'clothesColor', 'hairColor', 'facialHairColor']);
+const COLOR_FEATURES = new Set(['skinColor', 'clothesColor', 'hairColor', 'facialHairColor', 'accessoriesColor']);
 
 export default function AvatarPicker({ value, seed, onChange, children }: Props) {
     const [open, setOpen] = useState(false);

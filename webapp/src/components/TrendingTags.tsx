@@ -79,7 +79,7 @@ export default function TrendingTags() {
                                     {/* Label row */}
                                     <div className="flex items-center justify-between mb-2">
                                         <Link
-                                            href={`/?tag=${tag.tag}`}
+                                            href={`/questions?tag=${tag.tag}`}
                                             className="flex items-center gap-1 text-sm font-semibold text-foreground-600 hover:text-primary transition-colors truncate"
                                         >
                                             <HashtagIcon className="w-3.5 h-3.5 opacity-50 shrink-0"/>

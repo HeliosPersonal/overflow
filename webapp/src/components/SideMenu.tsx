@@ -8,13 +8,14 @@ export default function SideMenu({ isAdmin = false }: { isAdmin?: boolean }) {
     const pathname = usePathname();
 
     const navLinks = [
-        {key: 'poker', icon: Squares2X2Icon, text: 'Dashboard', href: '/planning-poker'},
+        {key: 'poker', icon: Squares2X2Icon, text: 'Dashboard', href: '/'},
         {key: 'home', icon: HomeIcon, text: 'Questions', href: '/questions'},
         ...(isAdmin ? [{key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'}] : []),
         {key: 'leaderboard', icon: TrophyIcon, text: 'Leaderboard', href: '/profiles'},
     ]
 
     const isActive = (href: string) => {
+        if (href === '/') return pathname === '/' || pathname.startsWith('/planning-poker');
         if (href === '/profiles') return pathname === '/profiles';
         return pathname.startsWith(href);
     };

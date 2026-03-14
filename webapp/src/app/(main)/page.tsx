@@ -1,5 +1,9 @@
-import {redirect} from "next/navigation";
+import {auth} from "@/auth";
+import PlanningPokerLanding from "@/app/(main)/planning-poker/PlanningPokerLanding";
 
-export default function Home() {
-    redirect('/planning-poker');
+export default async function Home() {
+    const session = await auth();
+    const isAuthenticated = !!session?.user;
+
+    return <PlanningPokerLanding isAuthenticated={isAuthenticated}/>;
 }
