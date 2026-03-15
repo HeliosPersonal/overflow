@@ -17,8 +17,13 @@ export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/';
+    const urlError = searchParams.get('error');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(
+        urlError === 'EMAIL_NOT_VERIFIED'
+            ? 'Please verify your email before signing in. Check your inbox for the verification link.'
+            : null
+    );
 
     const {
         register,

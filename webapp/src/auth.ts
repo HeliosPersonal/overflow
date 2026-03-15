@@ -122,6 +122,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         displayName,
                         reputation: profile?.reputation || 0,
                         isAnonymous,
+                        emailVerified: userInfo.email_verified ?? false,
                         avatarUrl: profile?.avatarUrl ?? null,
                         roles: (() => {
                             try {
@@ -151,6 +152,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         })
     ],
     callbacks: {
+        async signIn({user, account}) {
+            // Block credentials login for non-anonymous users who haven't verified their email.
+            // Anonymous (guest) users always have emailVerified=true on their placeholder email.
+            // Keycloak SSO (provider='keycloak') handles verification on its own.
+            if (account?.provider === 'credentials') {
+                const u = user as typeof user & { emailVerified?: boolean; isAnonymous?: boolean };
+                if (!u.isAnonymous && u.emailVerified === false) {
+                    console.warn('[Auth] Login blocked — email not verified:', user.email);
+                    return '/login?error=EMAIL_NOT_VERIFIED';
+                }
+            }
+            return true;
+        },
         async jwt({token, account, user}) {
             try {
                 const now = Math.floor(Date.now() / 1000);
