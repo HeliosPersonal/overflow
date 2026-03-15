@@ -193,13 +193,12 @@ Authorization: Basic api:{ApiKey}
 
 | Environment | Config | Notes |
 |---|---|---|
-| **Development** | `appsettings.Development.json` | API key committed for local dev |
-| **Staging** | Infisical secret `Mailgun__ApiKey` | Domain + From overridden in `appsettings.Staging.json` (`staging.devoverflow.org`) |
-| **Production** | Infisical secret `Mailgun__ApiKey` | Uses defaults from `appsettings.json` (`devoverflow.org`) |
+| **Development** | `appsettings.Development.json` | API key in dotnet user-secrets |
+| **Staging** | Infisical secret `Mailgun__ApiKey` | FromName overridden to "Overflow Staging" in `appsettings.Staging.json` |
+| **Production** | Infisical secret `Mailgun__ApiKey` | Uses defaults from `appsettings.json` |
 
-> **Important:** Staging sends from `staging.devoverflow.org`, so `appsettings.Staging.json`
-> overrides `Domain` to `staging.devoverflow.org`. Mailgun requires the API domain to match
-> the verified sending domain. Both domains must be verified in the Mailgun dashboard (EU region).
+> All environments use the same verified Mailgun domain (`devoverflow.org`) and send
+> from `noreply@devoverflow.org`. Staging is distinguished by `FromName: "Overflow Staging"`.
 
 ### Infisical Secrets
 

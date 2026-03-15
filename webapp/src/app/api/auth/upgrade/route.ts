@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { apiConfig } from '@/lib/config';
+import { apiConfig, authConfig } from '@/lib/config';
 import {
     KeycloakAdminClient,
     KeycloakAdminError,
     isAnonymousEmail,
 } from '@/lib/keycloak-admin';
+import { createResetToken } from '@/lib/resetTokens';
 
 /**
  * POST /api/auth/upgrade
@@ -16,11 +17,14 @@ import {
  *   1. Verify the caller is authenticated and is an anonymous user.
  *   2. Check that the desired email isn't already taken.
  *   3. Update the Keycloak user: set real email, username, and name.
+ *      Set emailVerified=false — the user must verify via email link.
  *   4. Set the new password.
  *   5. Update display name in the ProfileService.
+ *   6. Send a verification email via NotificationService.
  *
- * After this, the user can sign in with their chosen email + password,
- * and `isAnonymousEmail()` will return false for their new email.
+ * After this, the user must click the verification link before they can
+ * sign in with the new credentials. The verify-email API route sets
+ * emailVerified=true in Keycloak.
  *
  * Request body: { email: string, password: string, firstName?: string, lastName?: string }
  */
@@ -54,14 +58,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
         }
 
-        // 3. Update Keycloak user: replace placeholder email with real one
+        // 3. Update Keycloak user: replace placeholder email with real one.
+        //    emailVerified=false — user must verify via email link before sign-in.
         await kc.updateUser(userId, {
             ...kcUser,
             username: email,
             email,
             firstName: firstName || kcUser.firstName,
             lastName: lastName || kcUser.lastName || 'User',
-            emailVerified: true,  // Must stay true — Keycloak blocks Direct Access Grant otherwise
+            emailVerified: false,
         });
 
         // 4. Set the user's new password
@@ -82,9 +87,36 @@ export async function POST(request: NextRequest) {
             console.warn('[GuestAuth] Profile display name update failed (non-fatal):', profileError);
         }
 
-        console.info('[GuestAuth] Account upgraded:', kcUser.email, '→', email);
+        // 6. Send verification email via NotificationService
+        try {
+            const token = createResetToken(email); // reuse token infra (15-min expiry)
+            const verifyUrl = `${authConfig.authUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+            const appEnv = process.env.APP_ENV || 'production';
+            const appName = appEnv === 'staging' ? 'Overflow Staging' : 'Overflow';
 
-        return NextResponse.json({ message: 'Account upgraded successfully' });
+            await fetch(`${apiConfig.baseUrl}/notifications/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': apiConfig.notificationApiKey,
+                },
+                body: JSON.stringify({
+                    channel: 'Email',
+                    recipient: email,
+                    template: 'VerifyEmail',
+                    parameters: { verifyUrl, appName },
+                }),
+            });
+        } catch (emailError) {
+            console.error('[GuestAuth] Failed to send verification email:', emailError);
+        }
+
+        console.info('[GuestAuth] Account upgraded (pending email verification):', kcUser.email, '→', email);
+
+        return NextResponse.json({
+            message: 'Account upgraded. Please check your email to verify your address.',
+            requiresVerification: true,
+        });
     } catch (error) {
         if (error instanceof KeycloakAdminError) {
             const status = error.statusCode === 409 ? 409 : error.statusCode >= 500 ? 500 : error.statusCode;

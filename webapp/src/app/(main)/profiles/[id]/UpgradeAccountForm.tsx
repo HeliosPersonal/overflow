@@ -5,7 +5,7 @@ import {Input} from "@heroui/input";
 import {Button} from "@heroui/button";
 import {Divider} from "@heroui/divider";
 import {addToast} from "@heroui/react";
-import {signIn, signOut} from "next-auth/react";
+import {signOut} from "next-auth/react";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 type Props = {
@@ -20,6 +20,7 @@ export default function UpgradeAccountForm({userId}: Props) {
     const [lastName, setLastName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [verificationSent, setVerificationSent] = useState(false);
 
     async function handleUpgrade() {
         setError(null);
@@ -57,35 +58,45 @@ export default function UpgradeAccountForm({userId}: Props) {
                 return;
             }
 
-            // Sign in with the new credentials so the session refreshes
-            // with the real email and isAnonymous becomes false.
-            const signInResult = await signIn('credentials', {
-                email: email.trim(),
-                password,
-                redirect: false,
+            // Show verification message
+            setVerificationSent(true);
+
+            addToast({
+                title: 'Check your email!',
+                description: `We've sent a verification link to ${email.trim()}.`,
+                color: 'success',
             });
 
-            if (signInResult?.ok) {
-                addToast({
-                    title: 'Account registered!',
-                    description: 'Your account has been upgraded successfully.',
-                    color: 'success',
-                });
-                // Hard reload so the full layout re-renders with the updated session
-                window.location.reload();
-            } else {
-                // Fallback: sign out and redirect to login if auto-sign-in fails
-                addToast({
-                    title: 'Account registered!',
-                    description: 'Please sign in with your new email and password.',
-                    color: 'success',
-                });
-                await signOut({redirectTo: `/login?callbackUrl=/profiles/${userId}`});
-            }
+            // Sign out the guest session — user must verify email then sign in with new creds
+            setTimeout(async () => {
+                await signOut({redirectTo: '/login'});
+            }, 3000);
         } catch {
             setError('An unexpected error occurred');
             setLoading(false);
         }
+    }
+
+    if (verificationSent) {
+        return (
+            <div className="bg-content2 border border-content3 shadow-raise-sm rounded-2xl p-5 flex flex-col gap-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-100">
+                    <svg className="h-7 w-7 text-success" fill="none" strokeLinecap="round" strokeLinejoin="round"
+                         strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h2 className="text-xl font-semibold">Check your email</h2>
+                <p className="text-sm text-foreground-500">
+                    We&apos;ve sent a verification link to <strong>{email}</strong>.
+                    <br />
+                    Click the link to verify your email, then sign in with your new credentials.
+                </p>
+                <p className="text-xs text-foreground-400">
+                    Redirecting to login…
+                </p>
+            </div>
+        );
     }
 
     return (
