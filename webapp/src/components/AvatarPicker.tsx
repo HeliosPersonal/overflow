@@ -46,7 +46,7 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
     });
 
     const currentOptions = useMemo<AvatarOptions>(() => {
-        const opts: AvatarOptions = { seed };
+        const opts: AvatarOptions = { seed: seed || 'default' };
         for (const [k, v] of Object.entries(features)) {
             if (v !== undefined) opts[k] = [v];
         }

@@ -81,5 +81,5 @@ public class ProfileServiceClient(
 
     public record ProfileData(string DisplayName, string? AvatarUrl);
 
-    private record ProfileResponse(string Id, string DisplayName, int Reputation, string? AvatarUrl);
+    private record ProfileResponse(string UserId, string DisplayName, int Reputation, string? AvatarUrl);
 }

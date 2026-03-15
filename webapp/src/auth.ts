@@ -213,7 +213,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     })();
 
                     token.user = profileData
-                        ? { ...profileData, roles: kcRoles }
+                        ? { ...profileData, id: profileData.userId ?? profileData.id, roles: kcRoles }
                         : { id: '', displayName: '', reputation: 0, roles: kcRoles, email: '', emailVerified: null, avatarUrl: null };
                     token.accessToken = account.access_token
                     token.refreshToken = account.refresh_token;

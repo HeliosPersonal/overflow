@@ -13,7 +13,7 @@ namespace Overflow.ProfileService.Controllers;
 public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController> logger) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<UserProfile>>> GetProfiles(string? sortBy)
+    public async Task<ActionResult<List<ProfileDto>>> GetProfiles(string? sortBy)
     {
         logger.LogDebug("Fetching profiles with sort: {SortBy}", sortBy ?? "displayName");
 
@@ -22,14 +22,16 @@ public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController>
             ? query.OrderByDescending(x => x.Reputation)
             : query.OrderBy(x => x.DisplayName);
 
-        var profiles = await query.ToListAsync();
+        var profiles = await query
+            .Select(x => ToDto(x))
+            .ToListAsync();
         logger.LogDebug("Returned {Count} profiles", profiles.Count);
 
-        return profiles;
+        return Ok(profiles);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<List<UserProfile>>> GetProfile(string? id)
+    public async Task<ActionResult<ProfileDto>> GetProfile(string? id)
     {
         var profile = await db.UserProfiles.FindAsync(id);
 
@@ -39,12 +41,12 @@ public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController>
             return NotFound();
         }
 
-        return Ok(profile);
+        return Ok(ToDto(profile));
     }
 
     [HttpPut("edit")]
     [Authorize]
-    public async Task<ActionResult<List<UserProfile>>> EditProfile(EditProfileDto dto)
+    public async Task<IActionResult> EditProfile(EditProfileDto dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null)
@@ -73,7 +75,7 @@ public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController>
 
     [HttpGet("me")]
     [Authorize]
-    public async Task<ActionResult<UserProfile>> GetMe()
+    public async Task<ActionResult<ProfileDto>> GetMe()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null)
@@ -90,11 +92,11 @@ public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController>
             return NotFound();
         }
 
-        return Ok(profile);
+        return Ok(ToDto(profile));
     }
 
     [HttpGet("batch")]
-    public async Task<ActionResult<UserProfile>> GetBatch(string ids)
+    public async Task<ActionResult<List<ProfileSummaryDto>>> GetBatch(string ids)
     {
         var list = ids.Split(",", StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
         logger.LogDebug("Fetching batch of {Count} profiles", list.Count);
@@ -107,4 +109,7 @@ public class ProfilesController(ProfileDbContext db, ILogger<ProfilesController>
         logger.LogDebug("Batch fetch returned {Count} profiles", rows.Count);
         return Ok(rows);
     }
+
+    private static ProfileDto ToDto(UserProfile p) =>
+        new(p.Id, p.DisplayName, p.Description, p.AvatarUrl, p.Reputation, p.JoinedAt);
 }

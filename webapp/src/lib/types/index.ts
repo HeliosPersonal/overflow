@@ -61,6 +61,7 @@ export type Profile = {
     description?: string
     reputation: number
     avatarUrl?: string | null
+    joinedAt?: string
 }
 
 export type FetchResponse<T> = {
