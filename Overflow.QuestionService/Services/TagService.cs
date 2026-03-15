@@ -1,24 +1,20 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
+using Overflow.Common;
 using Overflow.QuestionService.Data;
 using Overflow.QuestionService.Models;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Overflow.QuestionService.Services;
 
-public class TagService(IMemoryCache cache, QuestionDbContext db)
+public class TagService(IFusionCache cache, QuestionDbContext db)
 {
-    private const string CacheKey = "tags";
-
     private async Task<List<Tag>> GetTags()
     {
-        return await cache.GetOrCreateAsync(CacheKey, async entry =>
+        return await cache.GetOrSetAsync(CacheKeys.TagValidation, async _ =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2);
-
             var tags = await db.Tags.AsNoTracking().ToListAsync();
-
             return tags;
-        }) ?? [];
+        }, new FusionCacheEntryOptions { Duration = TimeSpan.FromHours(2) });
     }
 
     public async Task<bool> AreTagsValidAsync(List<string> slugs)
@@ -28,5 +24,5 @@ public class TagService(IMemoryCache cache, QuestionDbContext db)
         return slugs.All(x => tagSet.Contains(x));
     }
 
-    public void InvalidateCache() => cache.Remove(CacheKey);
+    public void InvalidateCache() => cache.Remove(CacheKeys.TagValidation);
 }

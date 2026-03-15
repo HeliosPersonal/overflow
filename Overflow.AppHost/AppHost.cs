@@ -47,9 +47,11 @@ var questionService = builder.AddProject<Projects.Overflow_QuestionService>("que
     .WithReference(keycloak)
     .WithReference(questionDb)
     .WithReference(rabbitmq)
+    .WithReference(redis, "question-redis")
     .WaitFor(keycloak)
     .WaitFor(questionDb)
-    .WaitFor(rabbitmq);
+    .WaitFor(rabbitmq)
+    .WaitFor(redis);
 
 var searchService = builder.AddProject<Projects.Overflow_SearchService>("search-svc")
     .WithEnvironment("TYPESENSEOPTIONS__ConnectionUrl", typesenseReference)
@@ -71,8 +73,10 @@ var profileService = builder.AddProject<Projects.Overflow_ProfileService>("profi
 var statService = builder.AddProject<Projects.Overflow_StatsService>("stat-svc")
     .WithReference(statDb)
     .WithReference(rabbitmq)
+    .WithReference(redis, "stat-redis")
     .WaitFor(statDb)
-    .WaitFor(rabbitmq);
+    .WaitFor(rabbitmq)
+    .WaitFor(redis);
 
 var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
     .WithReference(voteDb)
@@ -84,7 +88,7 @@ var voteService = builder.AddProject<Projects.Overflow_VoteService>("vote-svc")
 var estimationService = builder.AddProject<Projects.Overflow_EstimationService>("estimation-svc")
     .WithReference(keycloak)
     .WithReference(estimationDb)
-    .WithReference(redis)
+    .WithReference(redis, "estimation-redis")
     .WithReference(profileService)
     .WaitFor(keycloak)
     .WaitFor(estimationDb)

@@ -1,30 +1,41 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Overflow.Common;
 using Overflow.QuestionService.Data;
 using Overflow.QuestionService.DTOs;
 using Overflow.QuestionService.Models;
 using Overflow.QuestionService.Services;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Overflow.QuestionService.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class TagsController(QuestionDbContext db, TagService tagService, ILogger<TagsController> logger) : ControllerBase
+public class TagsController(
+    QuestionDbContext db,
+    TagService tagService,
+    IFusionCache cache,
+    ILogger<TagsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Tag>>> GetTags(string? sort)
     {
-        var query = db.Tags.AsQueryable();
+        var cacheKey = CacheKeys.TagList(sort ?? "name");
 
-        query = sort == "popular"
-            ? query.OrderByDescending(x => x.UsageCount).ThenBy(x => x.Name)
-            : query.OrderBy(x => x.Name);
+        var tags = await cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            var query = db.Tags.AsNoTracking().AsQueryable();
 
-        var tags = await query.ToListAsync();
-        logger.LogDebug("Retrieved {Count} tags, sorted by {SortBy}", tags.Count, sort ?? "name");
+            query = sort == "popular"
+                ? query.OrderByDescending(x => x.UsageCount).ThenBy(x => x.Name)
+                : query.OrderBy(x => x.Name);
 
-        return tags;
+            return await query.ToListAsync();
+        }, tags: [CacheTags.TagList]);
+
+        logger.LogDebug("Retrieved {Count} tags, sorted by {SortBy}", tags!.Count, sort ?? "name");
+        return Ok(tags);
     }
 
     [Authorize(Roles = "admin")]
@@ -49,6 +60,7 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
         db.Tags.Add(tag);
         await db.SaveChangesAsync();
         tagService.InvalidateCache();
+        await cache.RemoveByTagAsync(CacheTags.TagList);
 
         logger.LogInformation("Tag created: {Slug}", slug);
         return CreatedAtAction(nameof(GetTag), new { id = tag.Id }, tag);
@@ -76,6 +88,7 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
 
         await db.SaveChangesAsync();
         tagService.InvalidateCache();
+        await cache.RemoveByTagAsync(CacheTags.TagList);
 
         logger.LogInformation("Tag updated: {Id}", id);
         return Ok(tag);
@@ -94,6 +107,7 @@ public class TagsController(QuestionDbContext db, TagService tagService, ILogger
         db.Tags.Remove(tag);
         await db.SaveChangesAsync();
         tagService.InvalidateCache();
+        await cache.RemoveByTagAsync(CacheTags.TagList);
 
         logger.LogInformation("Tag deleted: {Id}", id);
         return NoContent();

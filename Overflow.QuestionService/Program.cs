@@ -16,7 +16,6 @@ builder.ConfigureKeycloakFromSettings();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
-builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TagService>();
 builder.AddKeyCloakAuthentication();
 
@@ -26,10 +25,10 @@ builder.Services.AddHealthChecks()
     .AddDatabaseHealthCheck<QuestionDbContext>()
     .AddRabbitMqHealthCheck();
 
-builder.Services.AddDbContext<QuestionDbContext>(options =>
-{
-    options.UseNpgsql(connString);
-}, optionsLifetime: ServiceLifetime.Singleton);
+builder.Services.AddDbContext<QuestionDbContext>(options => { options.UseNpgsql(connString); },
+    optionsLifetime: ServiceLifetime.Singleton);
+
+builder.AddFusionCacheWithRedis();
 
 await builder.UseWolverineWithRabbitMqAsync(opts =>
 {
