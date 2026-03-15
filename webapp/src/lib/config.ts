@@ -35,5 +35,6 @@ export const authConfig = {
 
 export const apiConfig = {
     get baseUrl() { return getEnv('API_URL', 'https://placeholder.local'); },
+    get notificationApiKey() { return getEnv('NOTIFICATION_API_KEY', 'placeholder-key'); },
 };
 

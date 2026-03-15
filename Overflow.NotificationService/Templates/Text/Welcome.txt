@@ -1,0 +1,6 @@
+Welcome to {{appName}}, {{displayName}}!
+
+Your account has been created. Sign in to get started:
+
+{{loginUrl}}
+

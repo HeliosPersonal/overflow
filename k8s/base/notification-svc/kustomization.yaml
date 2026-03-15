@@ -1,0 +1,28 @@
+# ====================================================================================
+# NOTIFICATION SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Notification Service microservice
+#
+# This service provides:
+# - Templated notification dispatch (email, future: Telegram, etc.)
+# - Async processing via RabbitMQ (Wolverine)
+# - Email delivery via FluentEmail.Mailgun
+#
+# Dependencies:
+# - RabbitMQ for async message processing (SendNotification)
+# - Keycloak for JWT validation (authorized endpoints)
+# - Mailgun API key (from Infisical)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: notification-svc
+      app.kubernetes.io/part-of: overflow
+

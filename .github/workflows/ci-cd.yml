@@ -93,6 +93,10 @@ jobs:
             dockerfile: Overflow.EstimationService/Dockerfile
             image: overflow-estimation
             context: .
+          - service: NotificationService
+            dockerfile: Overflow.NotificationService/Dockerfile
+            image: overflow-notification
+            context: .
           - service: DataSeederService
             dockerfile: Overflow.DataSeederService/Dockerfile
             image: overflow-data-seeder
@@ -308,6 +312,7 @@ jobs:
           kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=10m
           kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=10m
           kubectl rollout status deployment/estimation-svc -n ${{ env.NAMESPACE }} --timeout=10m
+          kubectl rollout status deployment/notification-svc -n ${{ env.NAMESPACE }} --timeout=10m
           kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=10m
 
       - name: 📊 Deployment status
@@ -326,6 +331,8 @@ jobs:
           kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
           echo "=== Logs from estimation-svc ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=estimation-svc --tail=30 --prefix=true || true
+          echo "=== Logs from notification-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=notification-svc --tail=30 --prefix=true || true
           echo "=== Logs from overflow-webapp ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=overflow-webapp --tail=30 --prefix=true || true
 
@@ -407,6 +414,7 @@ jobs:
           kubectl rollout status deployment/stats-svc -n ${{ env.NAMESPACE }} --timeout=8m
           kubectl rollout status deployment/vote-svc -n ${{ env.NAMESPACE }} --timeout=8m
           kubectl rollout status deployment/estimation-svc -n ${{ env.NAMESPACE }} --timeout=8m
+          kubectl rollout status deployment/notification-svc -n ${{ env.NAMESPACE }} --timeout=8m
           kubectl rollout status deployment/overflow-webapp -n ${{ env.NAMESPACE }} --timeout=8m
 
       - name: 📊 Deployment status
@@ -425,6 +433,8 @@ jobs:
           kubectl logs -n ${{ env.NAMESPACE }} -l app=vote-svc --tail=30 --prefix=true || true
           echo "=== Logs from estimation-svc ==="
           kubectl logs -n ${{ env.NAMESPACE }} -l app=estimation-svc --tail=30 --prefix=true || true
+          echo "=== Logs from notification-svc ==="
+          kubectl logs -n ${{ env.NAMESPACE }} -l app=notification-svc --tail=30 --prefix=true || true
 
       - name: 🧪 Smoke tests
         run: |
@@ -441,6 +451,8 @@ jobs:
             curl -f -m 5 http://vote-svc:8080/health || echo "⚠️ Health check failed"
           kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
             curl -f -m 5 http://estimation-svc:8080/health || echo "⚠️ Health check failed"
+          kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
+            curl -f -m 5 http://notification-svc:8080/health || echo "⚠️ Health check failed"
           kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -n ${{ env.NAMESPACE }} -- \
             curl -f -m 5 http://overflow-webapp:3000/ || echo "⚠️ Health check failed"
 

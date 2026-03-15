@@ -977,7 +977,7 @@
     "from": "noreply@devoverflow.org",
     "fromDisplayName": "Overflow",
     "ssl": "false",
-    "user": "overflow@staging.devoverflow.org",
+    "user": "overflow@devoverflow.org",
     "password": "**********",
     "envelopeFrom": "noreply@devoverflow.org"
   },

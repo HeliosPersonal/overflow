@@ -291,6 +291,45 @@ spec:
                   number: 8080
 ---
 # ------------------------------------------------------------------------------
+# NOTIFICATION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notification-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /notifications$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
 # NEXTAUTH API ROUTES
 # NO REWRITE — NextAuth expects /api/auth/* as-is
 # Extended timeouts for OAuth callbacks

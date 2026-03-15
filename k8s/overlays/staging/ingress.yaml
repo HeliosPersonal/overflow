@@ -15,6 +15,7 @@
 #   /api/search/*     → search-svc:8080/search/*
 #   /api/stats/*      → stats-svc:8080/stats/*
 #   /api/votes/*      → vote-svc:8080/votes/*
+#   /api/notifications/* → notification-svc:8080/notifications/*
 #   /api/auth/*       → overflow-webapp:3000/api/auth/* (no rewrite)
 #   /*                → overflow-webapp:3000/*
 # ====================================================================================
@@ -220,6 +221,34 @@ spec:
             backend:
               service:
                 name: estimation-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# NOTIFICATION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notification-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /notifications$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
                 port:
                   number: 8080
 ---

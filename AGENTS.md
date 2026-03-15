@@ -7,13 +7,14 @@ Stack Overflow–inspired Q&A platform built as intentionally over-engineered mi
 ```
 webapp (Next.js 15)
   └─ API_URL ──► YARP gateway (port 8001 locally, NGINX in k8s)
-                   ├── /questions/*  → QuestionService  (EF Core + PostgreSQL + Wolverine)
-                   ├── /tags/*       → QuestionService
-                   ├── /search/*     → SearchService    (Wolverine + Typesense, minimal API)
-                   ├── /profiles/*   → ProfileService   (EF Core + PostgreSQL + Wolverine)
-                   ├── /stats/*      → StatsService     (Marten event-sourcing + PostgreSQL + Wolverine, minimal API)
-                   ├── /votes/*      → VoteService      (EF Core + PostgreSQL + Wolverine, minimal API)
-                   └── /estimation/* → EstimationService (EF Core + PostgreSQL + Redis + WebSockets)
+                   ├── /questions/*      → QuestionService      (EF Core + PostgreSQL + Wolverine)
+                   ├── /tags/*           → QuestionService
+                   ├── /search/*         → SearchService        (Wolverine + Typesense, minimal API)
+                   ├── /profiles/*       → ProfileService       (EF Core + PostgreSQL + Wolverine)
+                   ├── /stats/*          → StatsService         (Marten event-sourcing + PostgreSQL + Wolverine, minimal API)
+                   ├── /votes/*          → VoteService          (EF Core + PostgreSQL + Wolverine, minimal API)
+                   ├── /estimation/*     → EstimationService    (EF Core + PostgreSQL + Redis + WebSockets)
+                   └── /notifications/*  → NotificationService  (Wolverine + RabbitMQ + FluentEmail.Mailgun)
 ```
 
 **Inter-service messaging** uses RabbitMQ via Wolverine (durable outbox). Contracts are plain C# `record` types in `Overflow.Contracts`.  
@@ -42,15 +43,15 @@ cd webapp && npm install && npm run dev
 | Project | Purpose |
 |---|---|
 | `Overflow.Common` | Shared extensions: Infisical secrets, Keycloak auth, Wolverine+RabbitMQ setup, DB migrations, health checks |
-| `Overflow.Contracts` | RabbitMQ message contracts — all `record` types; also `ReputationHelper` for delta calculations |
+| `Overflow.Contracts` | RabbitMQ message contracts — `record` types and `enum` types; also `ReputationHelper` for delta calculations |
 | `Overflow.ServiceDefaults` | OpenTelemetry, health endpoints, service discovery, HTTP resilience defaults |
 
 Every service `Program.cs` begins with this pattern:
 ```csharp
 builder.AddEnvVariablesAndConfigureSecrets(); // Infisical in staging/prod; env vars only in dev
-builder.ConfigureKeycloakFromSettings();      // Only services that validate JWTs (Question, Profile, Estimation, DataSeeder)
+builder.ConfigureKeycloakFromSettings();      // Only services that validate JWTs (Question, Profile, Estimation, Notification, DataSeeder)
 builder.AddServiceDefaults();                 // OTel, health, service discovery
-builder.AddKeyCloakAuthentication();          // JWT bearer from Keycloak (Question, Profile, Vote, Estimation)
+builder.AddKeyCloakAuthentication();          // JWT bearer from Keycloak (Question, Profile, Vote, Estimation, Notification)
 ```
 > **Note:** `ConfigureKeycloakFromSettings()` and `AddKeyCloakAuthentication()` are only called by services that need auth.
 > SearchService and StatsService skip both (no authenticated endpoints). VoteService calls `AddKeyCloakAuthentication()` but not `ConfigureKeycloakFromSettings()`.
@@ -101,6 +102,7 @@ Handler classes live in `<Service>/MessageHandlers/`. No registration needed —
 | `AnswerAccepted` | QuestionService | SearchService (sets `HasAcceptedAnswer` in Typesense) |
 | `VoteCasted` | VoteService | QuestionService (updates vote count on question/answer) |
 | `UserReputationChanged` | VoteService (via `ReputationHelper.MakeEvent()`), QuestionService (on answer accepted) | ProfileService (updates user reputation), StatsService (top users projection) |
+| `SendNotification` | Webapp (via HTTP POST), any service | NotificationService (renders template, dispatches to email/Telegram/etc.) |
 
 ---
 
@@ -200,7 +202,7 @@ Guests get **real Keycloak accounts** with random credentials so they participat
 ## Project Conventions
 
 - **VoteService**, **SearchService**, and **StatsService** use minimal APIs (no controllers) — endpoints defined directly in `Program.cs` with `app.MapPost/Get`.
-- **QuestionService**, **ProfileService**, and **EstimationService** use `[ApiController]` + `[Route("[controller]")]` convention.
+- **QuestionService**, **ProfileService**, **EstimationService**, and **NotificationService** use `[ApiController]` + `[Route("[controller]")]` convention.
 - **Pagination** via `PaginationResult<T>` / `PaginationRequest` from `Overflow.Common` — max page size capped at 50.
 - **HTML sanitization**: user-generated content (question/answer bodies) is sanitized with `HtmlSanitizer` before persisting.
 - `OTEL_SERVICE_NAME` is set per-service in `appsettings.json` under `EnvironmentVariables:Values`.

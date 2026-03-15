@@ -38,40 +38,81 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
             ],
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "password" },
-                { "key": "client_id", "value": "{{client_id}}" },
-                { "key": "username", "value": "{{username}}" },
-                { "key": "password", "value": "{{password}}" },
-                { "key": "scope", "value": "openid profile email offline_access" }
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{username}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email offline_access"
+                }
               ]
             },
             "url": {
               "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token",
-              "host": ["{{keycloak_url}}"],
-              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+              "host": [
+                "{{keycloak_url}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
             }
           }
         },
         {
           "name": "Inspect Token (Decode JWT)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/userinfo",
-              "host": ["{{keycloak_url}}"],
-              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "userinfo"]
+              "host": [
+                "{{keycloak_url}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "userinfo"
+              ]
             },
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ]
           }
         }
@@ -84,17 +125,38 @@
         {
           "name": "List Questions",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/questions?page=1&pageSize=10&sort=newest",
-              "host": ["{{base_url}}"],
-              "path": ["questions"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "pageSize", "value": "10" },
-                { "key": "sort", "value": "newest", "description": "newest | active | unanswered" },
-                { "key": "tag", "value": "", "disabled": true, "description": "Filter by tag slug" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "description": "newest | active | unanswered"
+                },
+                {
+                  "key": "tag",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by tag slug"
+                }
               ]
             }
           }
@@ -102,12 +164,19 @@
         {
           "name": "Get Question by ID",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}"
+              ]
             }
           }
         },
@@ -131,7 +200,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -139,8 +211,12 @@
             },
             "url": {
               "raw": "{{base_url}}/questions",
-              "host": ["{{base_url}}"],
-              "path": ["questions"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions"
+              ]
             }
           }
         },
@@ -149,7 +225,10 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -157,8 +236,13 @@
             },
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}"
+              ]
             }
           }
         },
@@ -168,8 +252,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}"
+              ]
             }
           }
         },
@@ -193,7 +282,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -201,8 +293,14 @@
             },
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}/answers",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}", "answers"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}",
+                "answers"
+              ]
             }
           }
         },
@@ -211,7 +309,10 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -219,8 +320,15 @@
             },
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}",
+                "answers",
+                "{{answer_id}}"
+              ]
             }
           }
         },
@@ -230,8 +338,15 @@
             "method": "DELETE",
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}",
+                "answers",
+                "{{answer_id}}"
+              ]
             }
           }
         },
@@ -241,8 +356,16 @@
             "method": "POST",
             "url": {
               "raw": "{{base_url}}/questions/{{question_id}}/answers/{{answer_id}}/accept",
-              "host": ["{{base_url}}"],
-              "path": ["questions", "{{question_id}}", "answers", "{{answer_id}}", "accept"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "questions",
+                "{{question_id}}",
+                "answers",
+                "{{answer_id}}",
+                "accept"
+              ]
             }
           }
         }
@@ -255,14 +378,24 @@
         {
           "name": "List Tags",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/tags?sort=popular",
-              "host": ["{{base_url}}"],
-              "path": ["tags"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tags"
+              ],
               "query": [
-                { "key": "sort", "value": "popular", "description": "popular | name (default)" }
+                {
+                  "key": "sort",
+                  "value": "popular",
+                  "description": "popular | name (default)"
+                }
               ]
             }
           }
@@ -270,12 +403,19 @@
         {
           "name": "Get Tag by ID",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/tags/{{tag_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tags", "{{tag_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tags",
+                "{{tag_id}}"
+              ]
             }
           }
         },
@@ -299,7 +439,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -307,8 +450,12 @@
             },
             "url": {
               "raw": "{{base_url}}/tags",
-              "host": ["{{base_url}}"],
-              "path": ["tags"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tags"
+              ]
             }
           }
         },
@@ -317,7 +464,10 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -325,8 +475,13 @@
             },
             "url": {
               "raw": "{{base_url}}/tags/{{tag_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tags", "{{tag_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tags",
+                "{{tag_id}}"
+              ]
             }
           }
         },
@@ -336,8 +491,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{base_url}}/tags/{{tag_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tags", "{{tag_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tags",
+                "{{tag_id}}"
+              ]
             }
           }
         }
@@ -350,14 +510,24 @@
         {
           "name": "List Profiles",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/profiles?sortBy=reputation",
-              "host": ["{{base_url}}"],
-              "path": ["profiles"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles"
+              ],
               "query": [
-                { "key": "sortBy", "value": "reputation", "description": "reputation | displayName (default)" }
+                {
+                  "key": "sortBy",
+                  "value": "reputation",
+                  "description": "reputation | displayName (default)"
+                }
               ]
             }
           }
@@ -365,12 +535,19 @@
         {
           "name": "Get Profile by ID",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/profiles/{{user_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["profiles", "{{user_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "{{user_id}}"
+              ]
             }
           }
         },
@@ -380,8 +557,13 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/profiles/me",
-              "host": ["{{base_url}}"],
-              "path": ["profiles", "me"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "me"
+              ]
             }
           }
         },
@@ -390,7 +572,10 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -398,22 +583,38 @@
             },
             "url": {
               "raw": "{{base_url}}/profiles/edit",
-              "host": ["{{base_url}}"],
-              "path": ["profiles", "edit"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "edit"
+              ]
             }
           }
         },
         {
           "name": "Batch Get Profiles",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/profiles/batch?ids={{user_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["profiles", "batch"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "batch"
+              ],
               "query": [
-                { "key": "ids", "value": "{{user_id}}", "description": "Comma-separated user IDs" }
+                {
+                  "key": "ids",
+                  "value": "{{user_id}}",
+                  "description": "Comma-separated user IDs"
+                }
               ]
             }
           }
@@ -427,14 +628,24 @@
         {
           "name": "Search Questions",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/search?query=keycloak",
-              "host": ["{{base_url}}"],
-              "path": ["search"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search"
+              ],
               "query": [
-                { "key": "query", "value": "keycloak", "description": "Search text. Use [tag] for tag filter, e.g. 'jwt [aspire]'" }
+                {
+                  "key": "query",
+                  "value": "keycloak",
+                  "description": "Search text. Use [tag] for tag filter, e.g. 'jwt [aspire]'"
+                }
               ]
             }
           }
@@ -442,14 +653,24 @@
         {
           "name": "Similar Titles",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/search/similar-titles?query=how to configure",
-              "host": ["{{base_url}}"],
-              "path": ["search", "similar-titles"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search",
+                "similar-titles"
+              ],
               "query": [
-                { "key": "query", "value": "how to configure" }
+                {
+                  "key": "query",
+                  "value": "how to configure"
+                }
               ]
             }
           }
@@ -465,7 +686,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -473,8 +697,12 @@
             },
             "url": {
               "raw": "{{base_url}}/votes",
-              "host": ["{{base_url}}"],
-              "path": ["votes"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "votes"
+              ]
             }
           }
         },
@@ -484,8 +712,13 @@
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/votes/{{question_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["votes", "{{question_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "votes",
+                "{{question_id}}"
+              ]
             }
           }
         }
@@ -498,24 +731,38 @@
         {
           "name": "Trending Tags (7 days)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/stats/trending-tags",
-              "host": ["{{base_url}}"],
-              "path": ["stats", "trending-tags"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "stats",
+                "trending-tags"
+              ]
             }
           }
         },
         {
           "name": "Top Users (7 days)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/stats/top-users",
-              "host": ["{{base_url}}"],
-              "path": ["stats", "top-users"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "stats",
+                "top-users"
+              ]
             }
           }
         }
@@ -523,16 +770,42 @@
     },
     {
       "name": "Planning Poker",
-      "description": "Estimation rooms for Planning Poker. All endpoints are under /estimation.\n\nTypical flow:\n1. Create Room (authenticated) → saves {{room_code}}\n2. Join Room (any participant)\n3. Submit Vote\n4. Reveal Votes (moderator only)\n5. Reset Round (moderator only)\n6. Archive Room (moderator only)\n\nWebSocket: connect to {{estimation_ws_url}}/estimation/rooms/{{room_code}}/ws for real-time updates.",
+      "description": "Estimation rooms for Planning Poker. All endpoints are under /estimation.\n\nRooms use Guid IDs (no short codes). Join via link only.\n\nTypical flow:\n1. Create Room (authenticated) → saves {{room_id}}\n2. Join Room (any participant)\n3. Submit Vote\n4. Reveal Votes (moderator only)\n5. Reset Round (moderator only)\n6. Archive Room (moderator only)\n\nWebSocket: connect to {{estimation_ws_url}}/estimation/rooms/{{room_id}}/ws for real-time updates.",
       "item": [
+        {
+          "name": "Get Available Decks",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/estimation/decks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "decks"
+              ]
+            },
+            "description": "Returns all available card deck definitions (e.g. fibonacci, t-shirt sizes)."
+          }
+        },
         {
           "name": "Get My Rooms",
           "request": {
             "method": "GET",
             "url": {
               "raw": "{{base_url}}/estimation/rooms/my",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "my"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "my"
+              ]
             }
           }
         },
@@ -546,8 +819,8 @@
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "    var json = pm.response.json();",
-                  "    pm.environment.set('room_code', json.code);",
-                  "    console.log('Created room: ' + json.code);",
+                  "    pm.environment.set('room_id', json.roomId);",
+                  "    console.log('Created room: ' + json.roomId);",
                   "}"
                 ]
               }
@@ -556,7 +829,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -564,20 +840,33 @@
             },
             "url": {
               "raw": "{{base_url}}/estimation/rooms",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms"
+              ]
             }
           }
         },
         {
           "name": "Get Room",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}"
+              ]
             }
           }
         },
@@ -586,35 +875,75 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{}"
             },
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/join",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "join"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "join"
+              ]
             }
           }
         },
         {
-          "name": "Join Room (guest)",
+          "name": "Join Room (legacy guest cookie)",
+          "description": "Legacy guest flow using server-issued cookie. New guests get real Keycloak accounts instead (see Guest Auth in AGENTS.md).",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"displayName\": \"Guest Tester\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/join",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "join"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "join"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Claim Guest Participation",
+          "description": "Migrates legacy cookie-based guest participation to the authenticated user. Clears the overflow_guest_id cookie on success.",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/claim-guest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "claim-guest"
+              ]
             }
           }
         },
@@ -623,16 +952,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"value\": \"5\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/votes",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "votes"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/votes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "votes"
+              ]
             }
           }
         },
@@ -641,9 +980,17 @@
           "request": {
             "method": "DELETE",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/votes/me",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "votes", "me"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/votes/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "votes",
+                "me"
+              ]
             }
           }
         },
@@ -652,16 +999,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isSpectator\": true\n}"
             },
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/mode",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "mode"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/mode",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "mode"
+              ]
             }
           }
         },
@@ -670,9 +1027,16 @@
           "request": {
             "method": "POST",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/reveal",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "reveal"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/reveal",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "reveal"
+              ]
             }
           }
         },
@@ -681,9 +1045,16 @@
           "request": {
             "method": "POST",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/reset",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "reset"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "reset"
+              ]
             }
           }
         },
@@ -692,9 +1063,16 @@
           "request": {
             "method": "POST",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/leave",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "leave"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/leave",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "leave"
+              ]
             }
           }
         },
@@ -703,40 +1081,121 @@
           "request": {
             "method": "POST",
             "url": {
-              "raw": "{{base_url}}/estimation/rooms/{{room_code}}/archive",
-              "host": ["{{base_url}}"],
-              "path": ["estimation", "rooms", "{{room_code}}", "archive"]
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/archive",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "archive"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Debug (internal only)",
-      "description": "Test endpoints on question-svc. Only accessible via kubectl port-forward (no ingress route). Run: kubectl port-forward -n apps-staging svc/question-svc 8080:8080, then use http://localhost:8080 as base URL for these.",
+      "name": "Notifications",
+      "description": "Send notifications via NotificationService.\n\nAuth: accepts **either** `X-Api-Key` header (for server-to-server / Postman) **or** Keycloak JWT Bearer token.\n\nSet `{{notification_api_key}}` in your environment, or switch auth to Bearer + `{{access_token}}`.",
       "item": [
         {
-          "name": "Test Auth",
+          "name": "Send Notification (Password Reset)",
           "request": {
-            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{notification_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"Email\",\n  \"recipient\": \"test@example.com\",\n  \"template\": \"PasswordReset\",\n  \"parameters\": {\n    \"resetUrl\": \"https://staging.devoverflow.org/reset-password?token=test123\",\n    \"appName\": \"Overflow Staging\"\n  }\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/test/auth",
-              "host": ["{{base_url}}"],
-              "path": ["test", "auth"]
+              "raw": "{{base_url}}/notifications/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "send"
+              ]
+            },
+            "description": "Send a notification via NotificationService. Authenticated with X-Api-Key header. The service resolves the template server-side and dispatches via the appropriate channel (e.g. Mailgun for email)."
+          }
+        },
+        {
+          "name": "Send Notification (Welcome)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{notification_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"Email\",\n  \"recipient\": \"test@example.com\",\n  \"template\": \"Welcome\",\n  \"parameters\": {\n    \"displayName\": \"John\",\n    \"appName\": \"Overflow\",\n    \"loginUrl\": \"https://staging.devoverflow.org/login\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "send"
+              ]
             }
           }
         },
         {
-          "name": "Test Error Responses",
+          "name": "Send Notification (Verify Email)",
           "request": {
-            "auth": { "type": "noauth" },
-            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{notification_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"Email\",\n  \"recipient\": \"test@example.com\",\n  \"template\": \"VerifyEmail\",\n  \"parameters\": {\n    \"verifyUrl\": \"https://staging.devoverflow.org/verify?token=abc123\",\n    \"appName\": \"Overflow\"\n  }\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/test/errors?code=400",
-              "host": ["{{base_url}}"],
-              "path": ["test", "errors"],
-              "query": [
-                { "key": "code", "value": "400", "description": "400 | 401 | 403 | 404 | 500 | 0 (validation)" }
+              "raw": "{{base_url}}/notifications/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "send"
               ]
             }
           }
@@ -745,4 +1204,3 @@
     }
   ]
 }
-

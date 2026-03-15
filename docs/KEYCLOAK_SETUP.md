@@ -5,6 +5,7 @@
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Infisical Secret Management](./INFISICAL_SETUP.md) — All secrets, how they flow, GitHub Actions sync
 - [Google Authentication Setup](./GOOGLE_AUTH_SETUP.md) — Google OAuth via Keycloak Identity Brokering
+- [Password Reset & Email Customization](./PASSWORD_RESET_AND_EMAILS.md) — Custom password reset flow, SMTP setup, Keycloak email templates
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
 - [Terraform README](../terraform/README.md) — ConfigMap / connection string wiring
 
@@ -140,8 +141,12 @@ These are already configured in both realm import files:
 
 ## Email / SMTP (Mailgun)
 
-Both realms are configured to send transactional emails (password reset, email verification)
+Both realms are configured to send transactional emails (email verification)
 via **Mailgun** over SMTP. The configuration is included in the realm import JSONs.
+
+> **Password reset emails are NOT sent by Keycloak.** The webapp has its own
+> branded password reset flow that sends emails directly via nodemailer + Mailgun.
+> See [Password Reset & Email Customization](./PASSWORD_RESET_AND_EMAILS.md) for details.
 
 | Setting | Staging | Production |
 |---|---|---|
@@ -149,7 +154,7 @@ via **Mailgun** over SMTP. The configuration is included in the realm import JSO
 | Port | `587` | `587` |
 | Encryption | STARTTLS | STARTTLS |
 | Auth | `ON` | `ON` |
-| SMTP User | `overflow@staging.devoverflow.org` | `overflow@staging.devoverflow.org` |
+| SMTP User | `overflow@devoverflow.org` | `overflow@devoverflow.org` |
 | SMTP Password | Mailgun SMTP password | Same credential |
 | From | `noreply@staging.devoverflow.org` | `noreply@devoverflow.org` |
 | From Display Name | `Overflow Staging` | `Overflow` |

@@ -1,4 +1,4 @@
-import { authConfig } from '@/lib/config';
+import {authConfig} from '@/lib/config';
 
 /**
  * Domain used for anonymous (guest) user placeholder emails in Keycloak.
@@ -51,7 +51,7 @@ export class KeycloakAdminClient {
     private readonly realmName: string;
 
     constructor() {
-        const { baseUrl, realmName } = parseKeycloakIssuer();
+        const {baseUrl, realmName} = parseKeycloakIssuer();
         this.baseUrl = baseUrl;
         this.realmName = realmName;
     }
@@ -65,7 +65,7 @@ export class KeycloakAdminClient {
 
         const response = await fetch(tokenUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: new URLSearchParams({
                 grant_type: 'client_credentials',
                 client_id: authConfig.kcAdminClientId,
@@ -91,9 +91,9 @@ export class KeycloakAdminClient {
     /** Authorization header using the cached admin token. */
     private get authHeader(): Record<string, string> {
         if (!this.adminToken) throw new Error('KeycloakAdminClient: call authenticate() first');
-        return { Authorization: `Bearer ${this.adminToken}` };
+        return {Authorization: `Bearer ${this.adminToken}`};
     }
-
+    
     // ── User operations ───────────────────────────────────────────────
 
     /**
@@ -103,7 +103,7 @@ export class KeycloakAdminClient {
     async createUser(user: KeycloakCreateUserPayload): Promise<string> {
         const response = await fetch(this.adminUrl('/users'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...this.authHeader },
+            headers: {'Content-Type': 'application/json', ...this.authHeader},
             body: JSON.stringify(user),
         });
 
@@ -137,7 +137,7 @@ export class KeycloakAdminClient {
     async findUsersByEmail(email: string): Promise<KeycloakUser[]> {
         const response = await fetch(
             this.adminUrl(`/users?email=${encodeURIComponent(email)}&exact=true`),
-            { headers: this.authHeader },
+            {headers: this.authHeader},
         );
 
         if (!response.ok) return [];
@@ -148,7 +148,7 @@ export class KeycloakAdminClient {
     async updateUser(userId: string, user: Partial<KeycloakUser>): Promise<void> {
         const response = await fetch(this.adminUrl(`/users/${userId}`), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...this.authHeader },
+            headers: {'Content-Type': 'application/json', ...this.authHeader},
             body: JSON.stringify(user),
         });
 
@@ -166,8 +166,8 @@ export class KeycloakAdminClient {
     async resetPassword(userId: string, newPassword: string): Promise<void> {
         const response = await fetch(this.adminUrl(`/users/${userId}/reset-password`), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...this.authHeader },
-            body: JSON.stringify({ type: 'password', value: newPassword, temporary: false }),
+            headers: {'Content-Type': 'application/json', ...this.authHeader},
+            body: JSON.stringify({type: 'password', value: newPassword, temporary: false}),
         });
 
         if (!response.ok) {
@@ -181,7 +181,7 @@ export class KeycloakAdminClient {
     async executeActions(userId: string, actions: string[]): Promise<void> {
         const response = await fetch(this.adminUrl(`/users/${userId}/execute-actions-email`), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...this.authHeader },
+            headers: {'Content-Type': 'application/json', ...this.authHeader},
             body: JSON.stringify(actions),
         });
 

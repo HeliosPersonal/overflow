@@ -25,6 +25,7 @@ resources:
   - ../../base/stats-svc
   - ../../base/vote-svc
   - ../../base/estimation-svc
+  - ../../base/notification-svc
   - ../../base/overflow-webapp
   - ingress.yaml
 
@@ -47,6 +48,9 @@ images:
     newTag: latest
   - name: ghcr.io/placeholder/overflow-estimation
     newName: ghcr.io/GITHUB_USERNAME/overflow-estimation
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-notification
+    newName: ghcr.io/GITHUB_USERNAME/overflow-notification
     newTag: latest
   - name: ghcr.io/placeholder/overflow-webapp
     newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
@@ -75,6 +79,8 @@ replicas:
   - name: vote-svc
     count: 1
   - name: estimation-svc
+    count: 1
+  - name: notification-svc
     count: 1
   - name: overflow-webapp
     count: 1

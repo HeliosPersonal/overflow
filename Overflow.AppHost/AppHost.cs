@@ -90,6 +90,12 @@ var estimationService = builder.AddProject<Projects.Overflow_EstimationService>(
     .WaitFor(estimationDb)
     .WaitFor(redis);
 
+var notificationService = builder.AddProject<Projects.Overflow_NotificationService>("notification-svc")
+    .WithReference(keycloak)
+    .WithReference(rabbitmq)
+    .WaitFor(keycloak)
+    .WaitFor(rabbitmq);
+
 var yarp = builder
     .AddYarp("gateway")
     .WithHostPort(8001)
@@ -103,6 +109,7 @@ var yarp = builder
         yarpBuilder.AddRoute("/stats/{**catch-all}", statService);
         yarpBuilder.AddRoute("/votes/{**catch-all}", voteService);
         yarpBuilder.AddRoute("/estimation/{**catch-all}", estimationService);
+        yarpBuilder.AddRoute("/notifications/{**catch-all}", notificationService);
     });
 
 var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")
