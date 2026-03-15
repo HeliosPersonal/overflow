@@ -33,10 +33,7 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
 }
 
 export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>> {
-    const {data: users, error} = await fetchClient<TopUser[]>('/stats/top-users', 'GET', {
-        cache: 'force-cache',
-        next: {revalidate: 3600}
-    });
+    const {data: users, error} = await fetchClient<TopUser[]>('/stats/top-users', 'GET');
     if (error) return {data: null, error: 
             {message: 'Problem getting users', status: 500}}
     

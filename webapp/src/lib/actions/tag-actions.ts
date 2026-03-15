@@ -8,13 +8,11 @@ export async function getTags(sort?: string) {
     let url = '/tags';
     if (sort) url += '?sort=' + sort;
     
-    return fetchClient<Tag[]>(url, 'GET', 
-        {cache: 'force-cache', next: {revalidate: 3600}})
+    return fetchClient<Tag[]>(url, 'GET')
 }
 
 export async function getTrendingTags() {
-    return fetchClient<TrendingTag[]>('/stats/trending-tags', 'GET', 
-        {cache: 'force-cache', next: {revalidate: 3600}})
+    return fetchClient<TrendingTag[]>('/stats/trending-tags', 'GET')
 }
 
 export async function createTag(data: {name: string; slug: string; description: string}) {
