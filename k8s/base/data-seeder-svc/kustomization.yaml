@@ -13,9 +13,10 @@
 # It runs as a one-time job or scheduled task to populate test data
 #
 # Dependencies:
-# - Ollama LLM service (ollama:11434 in apps-staging)
-# - PostgreSQL for inserting generated data
-# - RabbitMQ for publishing creation events
+# - Ollama LLM service (configured in appsettings.Staging.json)
+# - Keycloak for user management (URL/realm from overflow-infra-config ConfigMap)
+# - Keycloak admin secrets from Infisical (/app/auth)
+# - Question, Profile, Vote services (URLs in appsettings.Staging.json)
 # ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1

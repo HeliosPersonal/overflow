@@ -21,32 +21,18 @@ spec:
           image: ghcr.io/placeholder/overflow-data-seeder:latest
           imagePullPolicy: IfNotPresent
           envFrom:
-            # Provides SEEDER_OPTIONS__OLLAMA_URL, CONNECTION_STRINGS__MESSAGING, etc.
+            # Keycloak URL/realm/audience + OTEL config from Terraform ConfigMap
             - configMapRef:
                 name: overflow-infra-config
           env:
+            # .NET environment (maps to DOTNET_ENVIRONMENT for Host-based apps)
             - name: DOTNET_ENVIRONMENT
               valueFrom:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            - name: SEEDER_OPTIONS__QUESTION_SERVICE_URL
-              value: "http://question-svc:8080"
-            - name: SEEDER_OPTIONS__PROFILE_SERVICE_URL
-              value: "http://profile-svc:8080"
-            - name: SEEDER_OPTIONS__VOTE_SERVICE_URL
-              value: "http://vote-svc:8080"
-            - name: SEEDER_OPTIONS__LLM_API_URL
-              value: "$(SEEDER_OPTIONS__OLLAMA_URL)"
-            - name: SEEDER_OPTIONS__LLM_MODEL
-              value: "qwen2.5:3b"
-            - name: SEEDER_OPTIONS__MAX_GENERATION_RETRIES
-              value: "2"
-            - name: SEEDER_OPTIONS__ENABLE_CRITIC_PASS
-              value: "true"
-            - name: SEEDER_OPTIONS__ENABLE_REPAIR_PASS
-              value: "true"
-            # Infisical credentials
+
+            # Infisical credentials for centralized secrets management
             - name: INFISICAL_PROJECT_ID
               valueFrom:
                 secretKeyRef:
@@ -65,6 +51,8 @@ spec:
                   name: infisical-credentials
                   key: INFISICAL_CLIENT_SECRET
                   optional: true
+
+            # Disable file watching to avoid inotify limits
             - name: DOTNET_USE_POLLING_FILE_WATCHER
               value: "true"
           resources:

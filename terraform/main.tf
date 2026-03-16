@@ -197,9 +197,6 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
     # --- OpenTelemetry ---
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT" = local.otlp_http_endpoint
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_PROTOCOL" = "http/protobuf"
-
-    # --- Ollama (staging only — data-seeder reads SEEDER_OPTIONS__OLLAMA_URL) ---
-    "SEEDER_OPTIONS__OLLAMA_URL" = local.ollama_staging_url
   }
 
   depends_on = [
