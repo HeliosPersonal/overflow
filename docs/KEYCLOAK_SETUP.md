@@ -464,7 +464,7 @@ After importing a realm and generating client secrets, store them in Infisical:
 | Infisical Key | Folder | Environments | Value | Consumer |
 |---|---|---|---|---|
 | `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
-| `NEXTAUTH__SESSION_SECRET` | `/app/auth` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
+| `AUTH__SECRET` | `/app/auth` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
 | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `/app/auth` | staging + production | `overflow-admin` | Webapp user management + DataSeederService |
 | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-admin` client secret | Webapp user management + DataSeederService |
 | `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `/app/auth` | staging only | `overflow-web` | DataSeederService |

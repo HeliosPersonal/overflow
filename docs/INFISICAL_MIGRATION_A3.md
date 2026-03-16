@@ -73,7 +73,7 @@ select which environments it should exist in (staging, production, or both).
 | New Secret Name | Old Secret Name | Notes |
 |---|---|---|
 | `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `Auth__KeycloakSecret` | Renamed for clarity |
-| `NEXTAUTH__SESSION_SECRET` | `Auth__Secret` | Renamed for clarity |
+| `AUTH__SECRET` | `Auth__Secret` | NextAuth.js expects `AUTH_SECRET` env var (standard name) |
 | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `KeycloakOptions__AdminClientId` | |
 | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `KeycloakOptions__AdminClientSecret` | |
 | `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `KeycloakOptions__NextJsClientId` | Staging only (placeholder OK in production) |
@@ -203,7 +203,7 @@ The `/infra` secrets need to be synced to GitHub Actions. Update the Infisical G
 | `ConnectionStrings__Messaging` | `CONNECTION_STRINGS__MESSAGING` | `/app/connections` |
 | `ConnectionStrings__Redis` | `CONNECTION_STRINGS__REDIS` | `/app/connections` |
 | `Auth__KeycloakSecret` | `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `/app/auth` |
-| `Auth__Secret` | `NEXTAUTH__SESSION_SECRET` | `/app/auth` |
+| `Auth__Secret` | `AUTH__SECRET` | `/app/auth` |
 | `KeycloakOptions__AdminClientId` | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `/app/auth` |
 | `KeycloakOptions__AdminClientSecret` | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `/app/auth` |
 | `KeycloakOptions__NextJsClientId` | `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `/app/auth` |

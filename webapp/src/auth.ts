@@ -143,6 +143,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
         }),
         Keycloak({
+            clientId: authConfig.kcClientId,
+            clientSecret: authConfig.kcSecret,
             authorization: {
                 params: {scope: 'openid profile email offline_access'},
                 url: `${authConfig.kcIssuer}/protocol/openid-connect/auth`
