@@ -25,10 +25,15 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<ITemplateRenderer, TemplateRenderer>();
 
 // FluentEmail + Mailgun sender
-var mailgun = builder.Configuration.GetSection(MailgunOptions.SectionName).Get<MailgunOptions>()
-              ?? throw new InvalidOperationException("Mailgun configuration is missing");
+builder.Services
+    .AddOptions<MailgunOptions>()
+    .BindConfiguration(MailgunOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
-var mailgunRegion = mailgun.Region.Equals("US", StringComparison.OrdinalIgnoreCase)
+var mailgun = builder.Configuration.GetSection(MailgunOptions.SectionName).Get<MailgunOptions>();
+
+var mailgunRegion = mailgun!.Region.Equals("US", StringComparison.OrdinalIgnoreCase)
     ? MailGunRegion.USA
     : MailGunRegion.EU;
 

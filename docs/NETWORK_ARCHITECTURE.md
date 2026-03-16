@@ -214,22 +214,22 @@ all namespaces ────────────▶ keycloak.infra-production
 
 ```bash
 # PostgreSQL (injected via overflow-infra-config ConfigMap)
-ConnectionStrings__questionDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_questions;Username=postgres;Password=xxx
-ConnectionStrings__profileDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_profiles;Username=postgres;Password=xxx
-ConnectionStrings__voteDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_votes;Username=postgres;Password=xxx
-ConnectionStrings__statDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_stats;Username=postgres;Password=xxx
-ConnectionStrings__estimationDb=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_estimations;Username=postgres;Password=xxx
+CONNECTION_STRINGS__QUESTION_DB=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_questions;Username=postgres;Password=xxx
+CONNECTION_STRINGS__PROFILE_DB=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_profiles;Username=postgres;Password=xxx
+CONNECTION_STRINGS__VOTE_DB=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_votes;Username=postgres;Password=xxx
+CONNECTION_STRINGS__STAT_DB=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_stats;Username=postgres;Password=xxx
+CONNECTION_STRINGS__ESTIMATION_DB=Host=postgres.infra-production.svc.cluster.local;Port=5432;Database=staging_estimations;Username=postgres;Password=xxx
 
 # RabbitMQ (injected via overflow-infra-config ConfigMap)
-ConnectionStrings__messaging=amqp://admin:xxx@rabbitmq.infra-production.svc.cluster.local:5672/overflow-staging
+CONNECTION_STRINGS__MESSAGING=amqp://admin:xxx@rabbitmq.infra-production.svc.cluster.local:5672/overflow-staging
 
 # Typesense (injected via overflow-infra-config ConfigMap)
-TypesenseOptions__ConnectionUrl=http://typesense.infra-production.svc.cluster.local:8108
-TypesenseOptions__ApiKey=xxx
+TYPESENSE_OPTIONS__CONNECTION_URL=http://typesense.infra-production.svc.cluster.local:8108
+TYPESENSE_OPTIONS__API_KEY=xxx
 
 # Keycloak (injected via overflow-infra-config ConfigMap)
-KeycloakOptions__Url=http://keycloak.infra-production.svc.cluster.local:8080
-KeycloakOptions__Realm=overflow-staging
+KEYCLOAK_OPTIONS__URL=http://keycloak.infra-production.svc.cluster.local:8080
+KEYCLOAK_OPTIONS__REALM=overflow-staging
 # Browser-facing (used by NextAuth / frontend):
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 

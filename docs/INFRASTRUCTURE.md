@@ -5,7 +5,7 @@
 - [Network Architecture](./NETWORK_ARCHITECTURE.md) — Detailed network diagrams and connection flows
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
-- [Infisical Secret Management](./INFISICAL_SETUP.md) — All 28 secrets, how they flow, GitHub Actions sync
+- [Infisical Secret Management](./INFISICAL_SETUP.md) — All 33 secrets, how they flow, GitHub Actions sync
 - [Data Seeder Service](../Overflow.DataSeederService/README.md) — LLM-powered content generation, user pool, variability system
 - [Estimation Service](../Overflow.EstimationService/README.md) — Planning Poker rooms, WebSocket protocol
 - [Terraform README](../terraform/README.md) — Project-specific Terraform

@@ -185,6 +185,8 @@ jobs:
       )) ||
       github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
+    # Environment is needed to access environment-scoped secrets (ARM_*, PG_PASSWORD, etc.)
+    environment: ${{ (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'staging' }}
     defaults:
       run:
         working-directory: terraform

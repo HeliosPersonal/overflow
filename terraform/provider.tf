@@ -17,6 +17,7 @@ terraform {
     container_name       = "tfstate"
     key                  = "overflow.tfstate"
     use_azuread_auth     = true
+    use_cli              = false
   }
 
   required_providers {

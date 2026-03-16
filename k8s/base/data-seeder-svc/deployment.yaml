@@ -21,7 +21,7 @@ spec:
           image: ghcr.io/placeholder/overflow-data-seeder:latest
           imagePullPolicy: IfNotPresent
           envFrom:
-            # Provides SeederOptions__OllamaUrl, ConnectionStrings__messaging, etc.
+            # Provides SEEDER_OPTIONS__OLLAMA_URL, CONNECTION_STRINGS__MESSAGING, etc.
             - configMapRef:
                 name: overflow-infra-config
           env:
@@ -30,21 +30,21 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: aspnetcore-environment
-            - name: SeederOptions__QuestionServiceUrl
+            - name: SEEDER_OPTIONS__QUESTION_SERVICE_URL
               value: "http://question-svc:8080"
-            - name: SeederOptions__ProfileServiceUrl
+            - name: SEEDER_OPTIONS__PROFILE_SERVICE_URL
               value: "http://profile-svc:8080"
-            - name: SeederOptions__VoteServiceUrl
+            - name: SEEDER_OPTIONS__VOTE_SERVICE_URL
               value: "http://vote-svc:8080"
-            - name: SeederOptions__LlmApiUrl
-              value: "$(SeederOptions__OllamaUrl)"
-            - name: SeederOptions__LlmModel
+            - name: SEEDER_OPTIONS__LLM_API_URL
+              value: "$(SEEDER_OPTIONS__OLLAMA_URL)"
+            - name: SEEDER_OPTIONS__LLM_MODEL
               value: "qwen2.5:3b"
-            - name: SeederOptions__MaxGenerationRetries
+            - name: SEEDER_OPTIONS__MAX_GENERATION_RETRIES
               value: "2"
-            - name: SeederOptions__EnableCriticPass
+            - name: SEEDER_OPTIONS__ENABLE_CRITIC_PASS
               value: "true"
-            - name: SeederOptions__EnableRepairPass
+            - name: SEEDER_OPTIONS__ENABLE_REPAIR_PASS
               value: "true"
             # Infisical credentials
             - name: INFISICAL_PROJECT_ID

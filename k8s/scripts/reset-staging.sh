@@ -50,6 +50,8 @@ DEPLOYMENTS=(
     "estimation-svc"
     "data-seeder-svc"
     "overflow-webapp"
+    "notification-svc"
+    "ollama"
 )
 
 DRY_RUN=false

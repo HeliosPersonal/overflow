@@ -84,7 +84,7 @@ Two Keycloak realms: `overflow` (production), `overflow-staging` (staging + loca
 
 ### Slide 9 — Secret Management
 Flow diagram:
-- **Infisical** = single source of truth (28 secrets per environment)
+- **Infisical** = single source of truth (33 secrets per environment)
 - Syncs 10 secrets → GitHub Actions (bootstrap, Azure, Terraform vars)
 - .NET pods: Infisical SDK loads secrets at startup → IConfiguration
 - Next.js: Infisical SDK loads at build time + runtime → process.env

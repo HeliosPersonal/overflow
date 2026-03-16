@@ -15,7 +15,7 @@ public static class AuthExtensions
     {
         builder.Services
             .AddOptions<KeycloakOptions>()
-            .BindConfiguration(nameof(KeycloakOptions))
+            .BindConfiguration(KeycloakOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -29,8 +29,9 @@ public static class AuthExtensions
 
         using var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
         var logger = loggerFactory.CreateLogger("KeycloakConfiguration");
-        
-        logger.LogInformation("Configuring Keycloak authentication: Authority={Authority}, Audience={Audience}, RequireHttps={RequireHttps}", 
+
+        logger.LogInformation(
+            "Configuring Keycloak authentication: Authority={Authority}, Audience={Audience}, RequireHttps={RequireHttps}",
             authority, keycloakOptions.Audience, requireHttpsMetadata);
         logger.LogDebug("Valid issuers: {ValidIssuers}", string.Join(", ", keycloakOptions.ValidIssuers));
 

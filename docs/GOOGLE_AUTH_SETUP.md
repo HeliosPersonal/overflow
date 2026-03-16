@@ -185,14 +185,14 @@ Add these secrets to Infisical:
 
 | Infisical Key | Environments | Value | Purpose |
 |---|---|---|---|
-| `Google__ClientId` | staging + production | Google OAuth Client ID | Reference / backup — primary config is in Keycloak Admin |
-| `Google__ClientSecret` | staging + production | Google OAuth Client Secret | Reference / backup — primary config is in Keycloak Admin |
+| `GOOGLE__CLIENT_ID` | staging + production | Google OAuth Client ID | Reference / backup — primary config is in Keycloak Admin |
+| `GOOGLE__CLIENT_SECRET` | staging + production | Google OAuth Client Secret | Reference / backup — primary config is in Keycloak Admin |
 
 ### How to Add
 
 1. Go to [Infisical](https://eu.infisical.com) → **Project: Overflow → Secrets**
-2. Select **staging** environment → add `Google__ClientId` and `Google__ClientSecret`
-3. Select **production** environment → add `Google__ClientId` and `Google__ClientSecret`
+2. Select **staging** environment → navigate to `/app/google/` → add `GOOGLE__CLIENT_ID` and `GOOGLE__CLIENT_SECRET`
+3. Select **production** environment → navigate to `/app/google/` → add `GOOGLE__CLIENT_ID` and `GOOGLE__CLIENT_SECRET`
 
 > **Note:** These secrets are NOT consumed by the application at runtime. They are stored
 > in Infisical purely as a secure reference. The actual Google credentials are configured

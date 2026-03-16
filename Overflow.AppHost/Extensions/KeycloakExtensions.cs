@@ -19,15 +19,15 @@ public static class KeycloakExtensions
         }
 
         builder
-            .WithEnvironment("KeycloakOptions__Url", options.Url)
-            .WithEnvironment("KeycloakOptions__ServiceName", options.ServiceName)
-            .WithEnvironment("KeycloakOptions__Realm", options.Realm)
-            .WithEnvironment("KeycloakOptions__Audience", options.Audience);
+            .WithEnvironment("KEYCLOAK_OPTIONS__URL", options.Url)
+            .WithEnvironment("KEYCLOAK_OPTIONS__SERVICE_NAME", options.ServiceName)
+            .WithEnvironment("KEYCLOAK_OPTIONS__REALM", options.Realm)
+            .WithEnvironment("KEYCLOAK_OPTIONS__AUDIENCE", options.Audience);
 
         // Add valid issuers with indexed keys for proper array binding
         for (var i = 0; i < options.ValidIssuers.Count; i++)
         {
-            builder.WithEnvironment($"KeycloakOptions__ValidIssuers__{i}", options.ValidIssuers[i]);
+            builder.WithEnvironment($"KEYCLOAK_OPTIONS__VALID_ISSUERS__{i}", options.ValidIssuers[i]);
         }
 
         return builder;

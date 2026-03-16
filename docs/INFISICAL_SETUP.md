@@ -9,6 +9,7 @@
 - [Google Authentication Setup](./GOOGLE_AUTH_SETUP.md) — Google OAuth via Keycloak Identity Brokering
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Terraform README](../terraform/README.md) — ConfigMap / connection string wiring
+- [Migration Guide](./INFISICAL_MIGRATION_A3.md) — How secrets were migrated from flat root to folders
 
 ---
 
@@ -34,13 +35,23 @@
 │                    Infisical (eu.infisical.com)                  │
 │                                                                  │
 │   Project: Overflow                                              │
-│   ├── Environment: staging      (28 secrets)                     │
-│   └── Environment: production   (28 secrets)                     │
+│   ├── Environment: staging      (33 secrets)                     │
+│   └── Environment: production   (33 secrets)                     │
+│                                                                  │
+│   Folder Structure:                                              │
+│   ├── /infisical/          (3 secrets)  Bootstrap credentials    │
+│   ├── /app/connections/    (7 secrets)  DB + messaging           │
+│   ├── /app/auth/           (6 secrets)  Keycloak + NextAuth      │
+│   ├── /app/services/       (5 secrets)  Mailgun, Typesense, etc. │
+│   ├── /app/google/         (3 secrets)  Backup reference only    │
+│   └── /infra/              (9 secrets)  Terraform, Azure, misc   │
+│                                                                  │
+│   Naming: SCREAMING_SNAKE_CASE with __ as section separator      │
 │                                                                  │
 │   Syncs to GitHub Actions:                                       │
-│   └── INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET,              │
-│       INFISICAL_PROJECT_ID, ARM_*, PG_PASSWORD,                  │
-│       RABBIT_PASSWORD, TYPESENSE_API_KEY                         │
+│   ├── /infisical/ → INFISICAL_CLIENT_ID, _SECRET, _PROJECT_ID   │
+│   └── /infra/     → ARM_*, PG_PASSWORD, RABBIT_PASSWORD,        │
+│                     TYPESENSE_API_KEY                            │
 └──────────────────────────┬───────────────────────────────────────┘
                            │
             ┌──────────────┼──────────────┐
@@ -57,8 +68,8 @@ There are **three paths** secrets take from Infisical to consumers:
 
 ### Path 1: GitHub Actions Sync → CI/CD Pipeline
 
-Infisical's GitHub integration automatically syncs selected secrets to GitHub Actions
-repository secrets. These are consumed by:
+Infisical's GitHub integration automatically syncs selected secrets from the `/infisical`
+and `/infra` folders to GitHub Actions repository secrets. These are consumed by:
 
 - **Terraform** — `ARM_*` for Azure state backend, `PG_PASSWORD` / `RABBIT_PASSWORD` /
   `TYPESENSE_API_KEY` as `TF_VAR_*` inputs
@@ -74,29 +85,34 @@ Every .NET service pod has three env vars from the `infisical-credentials` K8s S
 - `INFISICAL_PROJECT_ID`
 
 At startup, [`WebApplicationBuilderExtensions.cs`](../Overflow.Common/CommonExtensions/WebApplicationBuilderExtensions.cs)
-uses the Infisical .NET SDK to fetch **all secrets** from the project for the current
-environment (`staging` or `production`). Secrets are injected into `IConfiguration` with
-`__` converted to `:` (ASP.NET Core convention):
+uses the Infisical .NET SDK to fetch secrets from multiple `/app/*` subfolders
+(`/app/connections`, `/app/auth`, `/app/services`) for the current environment
+(`staging` or `production`). Secrets are injected into `IConfiguration` with `__`
+converted to `:` (ASP.NET Core convention). .NET config is **case-insensitive**, so
+SCREAMING_SNAKE keys map correctly:
 
 ```
-Infisical key:     ConnectionStrings__QuestionDb
-IConfiguration:    ConnectionStrings:QuestionDb
+Infisical key:     CONNECTION_STRINGS__QUESTION_DB   (in /app/connections)
+IConfiguration:    CONNECTION_STRINGS:QUESTION_DB
+C# access:         config.GetConnectionString("questionDb")  ← case-insensitive match
 ```
 
 ### Path 3: Infisical SDK → Next.js Webapp (Build + Runtime)
 
 **At Docker build time:** Infisical credentials are passed as build args
 (`--build-arg INFISICAL_CLIENT_ID=...`). During `next build`, the
-[`infisical.ts`](../webapp/src/infisical.ts) module fetches secrets and injects them into
-`process.env` so Next.js can use them for SSR page prerendering.
+[`infisical.ts`](../webapp/src/infisical.ts) module fetches secrets from `/app/*`
+subfolders and injects them into `process.env` so Next.js can use them for SSR page
+prerendering.
 
 **At runtime:** The webapp pod has `INFISICAL_*` env vars from the same K8s Secret.
 On server startup, `infisical.ts` runs again and fetches fresh secrets.
 
-The webapp transforms secret keys differently from .NET:
+Since secrets are already SCREAMING_SNAKE_CASE, the transform is effectively a no-op
+(the `__` → `_` replacement and `.toUpperCase()` produce the expected env var names):
 ```
-Infisical key:     Auth__KeycloakSecret
-Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, uppercase)
+Infisical key:     NEXTAUTH__KEYCLOAK_CLIENT_SECRET   (in /app/auth)
+Transformed to:    NEXTAUTH_KEYCLOAK_CLIENT_SECRET    (replace __ → _, already uppercase)
 ```
 
 ---
@@ -107,9 +123,20 @@ Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, u
 |---|---|
 | Infisical Instance | `https://eu.infisical.com` |
 | Project Name | Overflow |
-| Secret Path | `/` (root) |
-| Environment Slugs | `staging`, `production` |
+| Naming Convention | `SCREAMING_SNAKE_CASE` with `__` as section separator |
 | Auth Method | Universal Auth (machine identity) |
+
+### Folder Layout
+
+```
+/infisical/        ← Infisical bootstrap credentials (already exists, synced to GitHub Actions)
+/app/
+  /connections/    ← Database & messaging connection strings
+  /auth/           ← Keycloak & NextAuth secrets
+  /services/       ← Service-specific secrets (Mailgun, Typesense, OTEL, etc.)
+  /google/         ← Google OAuth backup reference (not consumed at runtime)
+/infra/            ← Terraform, Azure, infrastructure passwords
+```
 
 ### Environment Mapping
 
@@ -122,91 +149,106 @@ Transformed to:    AUTH_KEYCLOAK_SECRET  (split on __, camelCase→SNAKE_CASE, u
 
 ## Complete Secret Inventory
 
-All 28 secrets that should exist in Infisical, grouped by purpose.
+All 33 secrets that should exist in Infisical, grouped by folder.
 
-### 🔐 Infisical Bootstrap (synced to GitHub Actions)
+### `/infisical/` — Bootstrap Credentials (already exists, synced to GitHub Actions)
 
-These three secrets are used to authenticate with Infisical itself. They are synced to
-GitHub Actions via the Infisical GitHub integration.
+These three secrets authenticate with Infisical itself. They are synced to
+GitHub Actions via the Infisical GitHub integration. They also get injected into
+the `infisical-credentials` K8s Secret and passed as Docker build args for the webapp.
 
-| Infisical Key | GitHub Actions Secret | Used by |
-|---|---|---|
-| `INFISICAL_CLIENT_ID` | `INFISICAL_CLIENT_ID` | CI/CD → K8s Secret, Docker build args |
-| `INFISICAL_CLIENT_SECRET` | `INFISICAL_CLIENT_SECRET` | CI/CD → K8s Secret, Docker build args |
-| `INFISICAL_PROJECT_ID` | `INFISICAL_PROJECT_ID` | CI/CD → K8s Secret, Docker build args |
+> **Note:** This folder already exists in Infisical — do not move or rename these secrets.
 
-### ☁️ Azure / Terraform (synced to GitHub Actions)
+| Infisical Key | Folder | GitHub Actions Secret | Used by |
+|---|---|---|---|
+| `INFISICAL_CLIENT_ID` | `/infisical` | `INFISICAL_CLIENT_ID` | CI/CD → K8s Secret, Docker build args |
+| `INFISICAL_CLIENT_SECRET` | `/infisical` | `INFISICAL_CLIENT_SECRET` | CI/CD → K8s Secret, Docker build args |
+| `INFISICAL_PROJECT_ID` | `/infisical` | `INFISICAL_PROJECT_ID` | CI/CD → K8s Secret, Docker build args |
+
+### `/infra/` — Terraform & Infrastructure (synced to GitHub Actions)
+
+#### Azure / Terraform
 
 Used by the Terraform job in CI/CD for Azure state backend authentication.
 
-| Infisical Key | GitHub Actions Secret | Terraform Variable |
-|---|---|---|
-| `ARM_CLIENT_ID` | `ARM_CLIENT_ID` | `ARM_CLIENT_ID` env var |
-| `ARM_CLIENT_SECRET` | `ARM_CLIENT_SECRET` | `ARM_CLIENT_SECRET` env var |
-| `ARM_SUBSCRIPTION_ID` | `ARM_SUBSCRIPTION_ID` | `ARM_SUBSCRIPTION_ID` env var |
-| `ARM_TENANT_ID` | `ARM_TENANT_ID` | `ARM_TENANT_ID` env var |
+| Infisical Key | Folder | GitHub Actions Secret | Terraform Variable |
+|---|---|---|---|
+| `ARM_CLIENT_ID` | `/infra` | `ARM_CLIENT_ID` | `ARM_CLIENT_ID` env var |
+| `ARM_CLIENT_SECRET` | `/infra` | `ARM_CLIENT_SECRET` | `ARM_CLIENT_SECRET` env var |
+| `ARM_SUBSCRIPTION_ID` | `/infra` | `ARM_SUBSCRIPTION_ID` | `ARM_SUBSCRIPTION_ID` env var |
+| `ARM_TENANT_ID` | `/infra` | `ARM_TENANT_ID` | `ARM_TENANT_ID` env var |
 
-### 🏗️ Infrastructure Passwords (synced to GitHub Actions)
+#### Infrastructure Passwords
 
-Used by Terraform to construct connection strings in the ConfigMap. Also available to
-.NET services via Infisical SDK at runtime (but services read the assembled connection
-strings from the ConfigMap, not these raw passwords).
+Used by Terraform to construct connection strings in the ConfigMap.
 
-| Infisical Key | GitHub Actions Secret | Terraform Variable |
-|---|---|---|
-| `PG_PASSWORD` | `PG_PASSWORD` | `TF_VAR_pg_password` |
-| `RABBIT_PASSWORD` | `RABBIT_PASSWORD` | `TF_VAR_rabbit_password` |
-| `TYPESENSE_API_KEY` | `TYPESENSE_API_KEY` | `TF_VAR_typesense_api_key` |
+| Infisical Key | Folder | GitHub Actions Secret | Terraform Variable |
+|---|---|---|---|
+| `PG_PASSWORD` | `/infra` | `PG_PASSWORD` | `TF_VAR_pg_password` |
+| `RABBIT_PASSWORD` | `/infra` | `RABBIT_PASSWORD` | `TF_VAR_rabbit_password` |
+| `TYPESENSE_API_KEY` | `/infra` | `TYPESENSE_API_KEY` | `TF_VAR_typesense_api_key` |
 
-### 🗄️ Connection Strings (consumed by .NET services via Infisical SDK)
+#### External Services & Scripts
 
-Pre-assembled connection strings. These overlap with what Terraform puts in the ConfigMap —
-Infisical values take precedence at runtime since they're loaded after the ConfigMap.
+| Infisical Key | Folder | Consumer | Notes |
+|---|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | `/infra` | DDNS / infra scripts | May be used by `infrastructure-helios` DDNS updater |
+| `KUBECONFIG` | `/infra` | Scripts / emergency access | Kubeconfig for cluster access from external tooling |
+
+### `/app/connections/` — Database & Messaging
+
+Pre-assembled connection strings consumed by .NET services via Infisical SDK.
 
 | Infisical Key | .NET Config Key | Consumer |
 |---|---|---|
-| `ConnectionStrings__Messaging` | `ConnectionStrings:Messaging` | All services (RabbitMQ) |
-| `ConnectionStrings__ProfileDb` | `ConnectionStrings:ProfileDb` | profile-svc |
-| `ConnectionStrings__QuestionDb` | `ConnectionStrings:QuestionDb` | question-svc |
-| `ConnectionStrings__StatDb` | `ConnectionStrings:StatDb` | stats-svc |
-| `ConnectionStrings__VoteDb` | `ConnectionStrings:VoteDb` | vote-svc |
-| `ConnectionStrings__EstimationDb` | `ConnectionStrings:EstimationDb` | estimation-svc |
+| `CONNECTION_STRINGS__MESSAGING` | `ConnectionStrings:Messaging` | All services (RabbitMQ) |
+| `CONNECTION_STRINGS__PROFILE_DB` | `ConnectionStrings:ProfileDb` | profile-svc |
+| `CONNECTION_STRINGS__QUESTION_DB` | `ConnectionStrings:QuestionDb` | question-svc |
+| `CONNECTION_STRINGS__STAT_DB` | `ConnectionStrings:StatDb` | stats-svc |
+| `CONNECTION_STRINGS__VOTE_DB` | `ConnectionStrings:VoteDb` | vote-svc |
+| `CONNECTION_STRINGS__ESTIMATION_DB` | `ConnectionStrings:EstimationDb` | estimation-svc |
+| `CONNECTION_STRINGS__REDIS` | `ConnectionStrings:Redis` | estimation-svc |
 
 > **Note:** These duplicate what Terraform puts in the `overflow-infra-config` ConfigMap.
 > Having them in Infisical provides a safety net — if the ConfigMap is missing or stale,
 > services still get valid connection strings. Infisical values (loaded later) override
 > ConfigMap values.
 
-### 🔍 Typesense (consumed by .NET services via Infisical SDK)
+### `/app/services/` — Service-Specific Secrets
 
 | Infisical Key | .NET Config Key | Consumer |
 |---|---|---|
-| `TypesenseOptions__ApiKey` | `TypesenseOptions:ApiKey` | search-svc |
-| `TypesenseOptions__ConnectionUrl` | `TypesenseOptions:ConnectionUrl` | search-svc |
+| `TYPESENSE_OPTIONS__API_KEY` | `TypesenseOptions:ApiKey` | search-svc |
+| `TYPESENSE_OPTIONS__CONNECTION_URL` | `TypesenseOptions:ConnectionUrl` | search-svc |
+| `MAILGUN__API_KEY` | `Mailgun:ApiKey` | notification-svc |
+| `NOTIFICATION__INTERNAL_API_KEY` | `Notification:InternalApiKey` | notification-svc + webapp |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` (flat) | All .NET services |
 
-### 🔑 Keycloak — Webapp Auth (consumed by webapp via Infisical SDK)
+### `/app/auth/` — Keycloak & NextAuth
+
+#### Webapp Auth
 
 | Infisical Key | Webapp env var (after transform) | Consumer |
 |---|---|---|
-| `Auth__KeycloakSecret` | `AUTH_KEYCLOAK_SECRET` | Webapp — NextAuth.js Keycloak provider |
-| `Auth__Secret` | `AUTH_SECRET` | Webapp — NextAuth.js session encryption |
+| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `NEXTAUTH_KEYCLOAK_CLIENT_SECRET` | Webapp — NextAuth.js Keycloak provider |
+| `AUTH__SECRET` | `AUTH_SECRET` | Webapp — NextAuth.js session encryption |
 
-### 🔑 Keycloak — Admin API (consumed by webapp + data-seeder-svc via Infisical SDK)
+#### Keycloak Admin API
 
 | Infisical Key | .NET Config Key / Webapp env var | Consumer |
 |---|---|---|
-| `KeycloakOptions__AdminClientId` | `KeycloakOptions:AdminClientId` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | Webapp signup route + DataSeederService — Admin API client ID (`overflow-admin`) |
-| `KeycloakOptions__AdminClientSecret` | `KeycloakOptions:AdminClientSecret` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | Webapp signup route + DataSeederService — Admin API client secret |
-| `KeycloakOptions__NextJsClientId` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID (`overflow-web`) |
-| `KeycloakOptions__NextJsClientSecret` | `KeycloakOptions:NextJsClientSecret` | DataSeederService — user token client secret |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `KeycloakOptions:AdminClientId` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | Webapp signup route + DataSeederService — Admin API client ID (`overflow-admin`) |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `KeycloakOptions:AdminClientSecret` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | Webapp signup route + DataSeederService — Admin API client secret |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID (`overflow-web`) |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `KeycloakOptions:NextJsClientSecret` | DataSeederService — user token client secret |
 
-> **Note:** `KeycloakOptions__AdminClientId` and `AdminClientSecret` are needed in **both**
+> **Note:** `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` and `ADMIN_CLIENT_SECRET` are needed in **both**
 > staging and production (webapp signup uses them in both environments).
-> `KeycloakOptions__NextJsClientId` and `NextJsClientSecret` are only meaningful in staging
+> `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` and `NEXT_JS_CLIENT_SECRET` are only meaningful in staging
 > (DataSeederService doesn't run in production). They should still exist in the
 > production environment to avoid breaking the SDK fetch, but can have placeholder values.
 
-### 🔵 Google OAuth (backup reference — configured in Keycloak Admin)
+### `/app/google/` — Google OAuth (backup reference only)
 
 Google authentication is handled via Keycloak Identity Brokering. The Google OAuth credentials
 are configured directly in Keycloak's Admin Console. These Infisical entries serve as a secure
@@ -214,35 +256,22 @@ backup reference for documentation and disaster recovery only.
 
 | Infisical Key | Environments | Purpose |
 |---|---|---|
-| `Google__ClientId` | staging + production | Google OAuth Client ID (from Google Cloud Console) |
-| `Google__ClientSecret` | staging + production | Google OAuth Client Secret (from Google Cloud Console) |
+| `GOOGLE__CLIENT_ID` | staging + production | Google OAuth Client ID (from Google Cloud Console) |
+| `GOOGLE__CLIENT_SECRET` | staging + production | Google OAuth Client Secret (from Google Cloud Console) |
+| `GOOGLE__SERVICE_ACCOUNT_JSON` | staging + production | Google OAuth service account JSON (backup reference) |
 
 > **Note:** These secrets are NOT consumed by any application at runtime. They are stored
 > in Infisical purely as a secure reference. See [GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md)
 > for the full setup guide.
 
-### 📊 Observability
-
-| Infisical Key | Consumer |
-|---|---|
-| `OTEL_EXPORTER_OTLP_HEADERS` | .NET services — auth headers for OTLP exporter (e.g., Grafana Cloud) |
-
-### 🌐 External Services
-
-| Infisical Key | Consumer | Notes |
-|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | DDNS / infra scripts | May be used by `infrastructure-helios` DDNS updater |
-| `KUBECONFIG` | Scripts / emergency access | Kubeconfig for cluster access from external tooling |
-
 ---
 
 ## GitHub Actions Integration
 
-Infisical syncs 10 secrets to GitHub Actions via **Infisical → Project → Integrations → GitHub**:
+Infisical syncs 10 secrets from two folders to GitHub Actions via **Infisical → Project → Integrations → GitHub**:
 
-- **Bootstrap:** `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`
-- **Azure:** `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID`
-- **Terraform vars:** `PG_PASSWORD`, `RABBIT_PASSWORD`, `TYPESENSE_API_KEY`
+- **From `/infisical`:** `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`
+- **From `/infra`:** `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID`, `PG_PASSWORD`, `RABBIT_PASSWORD`, `TYPESENSE_API_KEY`
 
 These are the only secrets that exist in GitHub — everything else stays in Infisical.
 
@@ -281,7 +310,7 @@ sed -i "s|PLACEHOLDER|${{ secrets.INFISICAL_PROJECT_ID }}|g" secret.yaml
 Pod starts
   │
   ├── 1. ConfigMap (overflow-infra-config) loaded as env vars
-  │      └── ConnectionStrings__*, TypesenseOptions__*, KeycloakOptions__Url/Realm/Audience
+  │      └── CONNECTION_STRINGS__*, TYPESENSE_OPTIONS__*, KEYCLOAK_OPTIONS__*
   │
   ├── 2. INFISICAL_* env vars from K8s Secret (infisical-credentials)
   │
@@ -291,10 +320,14 @@ Pod starts
          │
          ├── if (Development) → return  (no Infisical in local dev)
          │
-         └── Infisical SDK fetches ALL secrets from path "/"
+         └── Infisical SDK fetches secrets from /app/* subfolders:
+              │  /app/connections  → CONNECTION_STRINGS__*, etc.
+              │  /app/auth         → AUTH__*, KEYCLOAK_OPTIONS__*, etc.
+              │  /app/services     → MAILGUN__*, TYPESENSE_OPTIONS__*, etc.
               │
               └── secrets added to IConfiguration
-                   (keys: Auth__KeycloakSecret → Auth:KeycloakSecret)
+                   (keys: CONNECTION_STRINGS__QUESTION_DB → CONNECTION_STRINGS:QUESTION_DB)
+                   ← .NET config is case-insensitive, matches GetConnectionString("questionDb")
                    ← Infisical values OVERRIDE ConfigMap values if same key exists
 ```
 
@@ -302,9 +335,9 @@ Pod starts
 
 | Infisical key | `IConfiguration` key | C# access |
 |---|---|---|
-| `ConnectionStrings__QuestionDb` | `ConnectionStrings:QuestionDb` | `config.GetConnectionString("QuestionDb")` |
-| `KeycloakOptions__AdminClientId` | `KeycloakOptions:AdminClientId` | `options.AdminClientId` |
-| `Auth__KeycloakSecret` | `Auth:KeycloakSecret` | `config["Auth:KeycloakSecret"]` |
+| `CONNECTION_STRINGS__QUESTION_DB` | `CONNECTION_STRINGS:QUESTION_DB` | `config.GetConnectionString("questionDb")` |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `KEYCLOAK_OPTIONS:ADMIN_CLIENT_ID` | `options.AdminClientId` (case-insensitive binding) |
+| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `Nextauth:KeycloakClientSecret` | `config["Nextauth:KeycloakClientSecret"]` (case-insensitive) |
 
 ---
 
@@ -321,7 +354,7 @@ Docker build
   │
   └── npm run build
        └── infisical.ts runs during build
-            └── fetches secrets → injects into process.env
+            └── fetches secrets from /app/* → injects into process.env
                  └── Next.js prerendering uses them
 ```
 
@@ -338,21 +371,21 @@ Pod starts (node server.js)
        ├── loads .env.staging or .env.production (baked into image)
        │    └── non-secret config: AUTH_KEYCLOAK_ID, AUTH_KEYCLOAK_ISSUER, API_URL...
        │
-       └── fetches Infisical secrets
-            └── transformed: Auth__KeycloakSecret → AUTH_KEYCLOAK_SECRET
+       └── fetches Infisical secrets from /app/* subfolders
+            └── transformed: NEXTAUTH__KEYCLOAK_CLIENT_SECRET → NEXTAUTH_KEYCLOAK_CLIENT_SECRET
                  └── merged into process.env (Infisical overrides .env values)
 ```
 
 ### Key Transformation
 
-The webapp transformation is different from .NET — it converts to `UPPER_SNAKE_CASE`:
+Since secrets are already SCREAMING_SNAKE_CASE, the transform is a near no-op:
 
 | Infisical key | `process.env` key | Config access |
 |---|---|---|
-| `Auth__KeycloakSecret` | `AUTH_KEYCLOAK_SECRET` | `authConfig.kcSecret` |
-| `Auth__Secret` | `AUTH_SECRET` | `authConfig.secret` |
-| `KeycloakOptions__AdminClientId` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | `authConfig.kcAdminClientId` |
-| `KeycloakOptions__AdminClientSecret` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | `authConfig.kcAdminClientSecret` |
+| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `NEXTAUTH_KEYCLOAK_CLIENT_SECRET` | `authConfig.kcSecret` |
+| `AUTH__SECRET` | `AUTH_SECRET` | `authConfig.secret` |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | `authConfig.kcAdminClientId` |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | `authConfig.kcAdminClientSecret` |
 
 ---
 
@@ -363,18 +396,21 @@ Terraform does **not** use the Infisical SDK. It consumes secrets indirectly:
 ```
 Infisical
   │
-  ├── syncs to GitHub Actions secrets
+  ├── /infisical → syncs INFISICAL_* to GitHub Actions
+  │                  └── CI/CD injects into K8s Secret + Docker build args
   │
-  └── CI/CD pipeline
+  └── /infra → syncs to GitHub Actions
        │
-       ├── ARM_CLIENT_ID       → env var ARM_CLIENT_ID (Azure auth)
-       ├── ARM_CLIENT_SECRET   → env var ARM_CLIENT_SECRET
-       ├── ARM_TENANT_ID       → env var ARM_TENANT_ID
-       ├── ARM_SUBSCRIPTION_ID → env var ARM_SUBSCRIPTION_ID
-       │
-       ├── PG_PASSWORD         → env var TF_VAR_pg_password
-       ├── RABBIT_PASSWORD     → env var TF_VAR_rabbit_password
-       └── TYPESENSE_API_KEY   → env var TF_VAR_typesense_api_key
+       └── CI/CD pipeline
+            │
+            ├── ARM_CLIENT_ID       → env var ARM_CLIENT_ID (Azure auth)
+            ├── ARM_CLIENT_SECRET   → env var ARM_CLIENT_SECRET
+            ├── ARM_TENANT_ID       → env var ARM_TENANT_ID
+            ├── ARM_SUBSCRIPTION_ID → env var ARM_SUBSCRIPTION_ID
+            │
+            ├── PG_PASSWORD         → env var TF_VAR_pg_password
+            ├── RABBIT_PASSWORD     → env var TF_VAR_rabbit_password
+            └── TYPESENSE_API_KEY   → env var TF_VAR_typesense_api_key
 ```
 
 Terraform uses these to:
@@ -389,24 +425,29 @@ Terraform uses these to:
 
 1. Go to **Infisical → Project → Secrets**
 2. Select the environment (`staging` and/or `production`)
-3. Add the secret with the key following the naming convention:
-   - For .NET `IConfiguration`: use `__` separator, PascalCase
-     (e.g., `MyService__ApiKey`)
-   - For webapp `process.env`: use `__` separator, PascalCase — it will be
-     auto-transformed to `MY_SERVICE_API_KEY`
-   - For CI/CD only: use `UPPER_SNAKE_CASE` (e.g., `NEW_CI_SECRET`)
+3. Navigate to the appropriate folder:
+   - `/app/connections` — database or messaging connection strings
+   - `/app/auth` — authentication secrets
+   - `/app/services` — service-specific API keys / config
+   - `/infra` — CI/CD or infrastructure credentials
+4. Add the secret using `SCREAMING_SNAKE_CASE` naming:
+   - For .NET `IConfiguration` sections: use `__` separator
+     (e.g., `MY_SERVICE__API_KEY` → `MyService:ApiKey` in .NET, case-insensitive)
+   - For flat env vars (no section): use `_` only
+     (e.g., `MY_API_KEY`)
 
 ### Step 2: If CI/CD Needs It
 
 If the secret must be available in the GitHub Actions workflow (not just at pod runtime):
-1. Go to **Infisical → Integrations → GitHub**
-2. Add the new secret to the sync configuration
-3. Reference it in `ci-cd.yml` as `${{ secrets.NEW_CI_SECRET }}`
+1. Place it in the `/infra` folder
+2. Go to **Infisical → Integrations → GitHub**
+3. Ensure the sync includes the `/infra` path
+4. Reference it in `ci-cd.yml` as `${{ secrets.MY_NEW_SECRET }}`
 
 ### Step 3: If .NET Code Needs It
 
-No code change needed — `AddEnvVariablesAndConfigureSecrets()` fetches all secrets
-automatically. Just bind to the config key:
+No code change needed — `AddEnvVariablesAndConfigureSecrets()` fetches all secrets from
+`/app/*` subfolders automatically. Just bind to the config key:
 
 ```csharp
 var value = builder.Configuration["MyService:ApiKey"];
@@ -414,13 +455,20 @@ var value = builder.Configuration["MyService:ApiKey"];
 builder.Services.Configure<MyServiceOptions>(builder.Configuration.GetSection("MyService"));
 ```
 
+> If you add a new `/app/*` subfolder, add it to the `AppSecretPaths` array in
+> `WebApplicationBuilderExtensions.cs`.
+
 ### Step 4: If Webapp Code Needs It
 
-No infra change needed — `infisical.ts` fetches all secrets. Access via `process.env`:
+No infra change needed — `infisical.ts` fetches all secrets from `/app/*`. Access via
+`process.env`:
 
 ```typescript
 const value = process.env.MY_SERVICE_API_KEY;
 ```
+
+> If you add a new `/app/*` subfolder, add it to the `APP_SECRET_PATHS` array in
+> `infisical.ts`.
 
 ---
 
@@ -443,11 +491,10 @@ Secrets come from `webapp/.env.development`:
 
 ```dotenv
 AUTH_KEYCLOAK_ID=overflow-web-local
-AUTH_KEYCLOAK_SECRET=<from overflow-web-local client in overflow-staging realm>
+NEXTAUTH_KEYCLOAK_CLIENT_SECRET=<from overflow-web-local client in overflow-staging realm>
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 # ... etc
 ```
 
 See [KEYCLOAK_SETUP.md → Local Development](./KEYCLOAK_SETUP.md#local-development-setup).
-
 

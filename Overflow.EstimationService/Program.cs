@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Overflow.Common;
 using Overflow.Common.CommonExtensions;
 using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.Clients;
@@ -41,7 +42,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<CrossPodBroadcastS
 // ── Profile Service (display name resolution) ───────────────────────────
 builder.Services.AddHttpClient<ProfileServiceClient>(client =>
 {
-    var profileUrl = builder.Configuration["PROFILE_SERVICE_URL"]
+    var profileUrl = builder.Configuration[ConfigurationKeys.ProfileServiceUrl]
                      ?? builder.Configuration["services:profile-svc:https:0"]
                      ?? builder.Configuration["services:profile-svc:http:0"]
                      ?? "http://localhost:8001";
@@ -51,8 +52,11 @@ builder.Services.AddHttpClient<ProfileServiceClient>(client =>
 builder.Services.AddScoped<IdentityResolver>();
 
 // ── Archived room cleanup ────────────────────────────────────────────────
-builder.Services.Configure<RoomCleanupOptions>(
-    builder.Configuration.GetSection(RoomCleanupOptions.SectionName));
+builder.Services
+    .AddOptions<RoomCleanupOptions>()
+    .BindConfiguration(RoomCleanupOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddHostedService<ArchivedRoomCleanupService>();
 
 builder.Services.AddHealthChecks()

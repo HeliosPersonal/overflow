@@ -114,9 +114,9 @@ kubectl exec -n infra-production <keycloak-pod> -- \
 1. **Generate client secrets** — the import creates confidential clients without secrets. Go to
    **Clients → overflow-web → Credentials** → **Regenerate** → copy the secret.
 2. **Store the secret** in Infisical (see [§ Keycloak Secrets](#keycloak-secrets-in-infisical)).
-3. For `overflow-web-local`, copy the generated secret to `webapp/.env.development` as `AUTH_KEYCLOAK_SECRET`.
+3. For `overflow-web-local`, copy the generated secret to `webapp/.env.development` as `NEXTAUTH_KEYCLOAK_CLIENT_SECRET`.
 4. For `overflow-admin` (both realms):
-   - Copy the generated secret → store in Infisical as `KeycloakOptions__AdminClientSecret`.
+   - Copy the generated secret → store in Infisical as `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` (in `/app/auth`).
    - **Verify Admin API roles** were auto-assigned: Clients → `overflow-admin` →
      **Service account roles** tab → confirm `manage-users` and `view-users` from
      `realm-management` are present. (These are included in the import JSON via the
@@ -267,10 +267,10 @@ Exists in **both realms**. Used for Keycloak Admin API operations:
 
 | Config key | Infisical key | Value |
 |---|---|---|
-| `KeycloakOptions:AdminClientId` | `KeycloakOptions__AdminClientId` | `overflow-admin` |
-| `KeycloakOptions:AdminClientSecret` | `KeycloakOptions__AdminClientSecret` | Client secret from Keycloak |
-| `KeycloakOptions:NextJsClientId` | `KeycloakOptions__NextJsClientId` | `overflow-web` |
-| `KeycloakOptions:NextJsClientSecret` | `KeycloakOptions__NextJsClientSecret` | `overflow-web` client secret |
+| `KeycloakOptions:AdminClientId` | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `overflow-admin` |
+| `KeycloakOptions:AdminClientSecret` | `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | Client secret from Keycloak |
+| `KeycloakOptions:NextJsClientId` | `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `overflow-web` |
+| `KeycloakOptions:NextJsClientSecret` | `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `overflow-web` client secret |
 
 ---
 
@@ -447,7 +447,7 @@ after 5 minutes — see [Token Settings](#token-settings)).
 
 ---
 
-> For the complete Infisical setup, all 28 secrets, and how they flow through the system,
+> For the complete Infisical setup, all 33 secrets, and how they flow through the system,
 > see [**INFISICAL_SETUP.md**](./INFISICAL_SETUP.md).
 
 ### Environment Slug Mapping
@@ -461,14 +461,14 @@ after 5 minutes — see [Token Settings](#token-settings)).
 
 After importing a realm and generating client secrets, store them in Infisical:
 
-| Infisical Key | Environments | Value | Consumer |
-|---|---|---|---|
-| `Auth__KeycloakSecret` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
-| `Auth__Secret` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
-| `KeycloakOptions__AdminClientId` | staging + production | `overflow-admin` | Webapp user management + DataSeederService |
-| `KeycloakOptions__AdminClientSecret` | staging + production | `overflow-admin` client secret | Webapp user management + DataSeederService |
-| `KeycloakOptions__NextJsClientId` | staging only | `overflow-web` | DataSeederService |
-| `KeycloakOptions__NextJsClientSecret` | staging only | `overflow-web` client secret | DataSeederService |
+| Infisical Key | Folder | Environments | Value | Consumer |
+|---|---|---|---|---|
+| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
+| `NEXTAUTH__SESSION_SECRET` | `/app/auth` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `/app/auth` | staging + production | `overflow-admin` | Webapp user management + DataSeederService |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-admin` client secret | Webapp user management + DataSeederService |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `/app/auth` | staging only | `overflow-web` | DataSeederService |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `/app/auth` | staging only | `overflow-web` client secret | DataSeederService |
 
 ---
 
@@ -492,9 +492,9 @@ These are non-secret configuration values already injected — **no Infisical en
 **Layer 2 — `overflow-infra-config` ConfigMap** (Terraform, overrides appsettings):
 
 ```
-KeycloakOptions__Url       = http://keycloak.infra-production.svc.cluster.local:8080
-KeycloakOptions__Realm     = overflow-staging / overflow
-KeycloakOptions__Audience  = overflow-staging / overflow
+KEYCLOAK_OPTIONS__URL       = http://keycloak.infra-production.svc.cluster.local:8080
+KEYCLOAK_OPTIONS__REALM     = overflow-staging / overflow
+KEYCLOAK_OPTIONS__AUDIENCE  = overflow-staging / overflow
 ```
 
 ### Frontend Next.js Webapp
@@ -545,7 +545,7 @@ Update `webapp/.env.development` to use the local Keycloak:
 APP_ENV=development
 API_URL=http://localhost:8001
 AUTH_KEYCLOAK_ID=overflow-web
-AUTH_KEYCLOAK_SECRET=local-overflow-web-secret
+NEXTAUTH_KEYCLOAK_CLIENT_SECRET=local-overflow-web-secret
 AUTH_KEYCLOAK_ISSUER=http://localhost:6001/realms/overflow
 AUTH_KEYCLOAK_ISSUER_INTERNAL=http://localhost:6001/realms/overflow
 AUTH_URL=http://localhost:3000
@@ -572,7 +572,7 @@ Update `webapp/.env.development`:
 APP_ENV=development
 API_URL=https://staging.devoverflow.org/api
 AUTH_KEYCLOAK_ID=overflow-web-local
-AUTH_KEYCLOAK_SECRET=<secret from overflow-web-local client in overflow-staging realm>
+NEXTAUTH_KEYCLOAK_CLIENT_SECRET=<secret from overflow-web-local client in overflow-staging realm>
 AUTH_KEYCLOAK_ISSUER=https://keycloak.devoverflow.org/realms/overflow-staging
 AUTH_KEYCLOAK_ISSUER_INTERNAL=https://keycloak.devoverflow.org/realms/overflow-staging
 AUTH_URL=http://localhost:3000
@@ -639,8 +639,8 @@ up with email/password and later adds Google sign-in.
 
 | Infisical Key | Environments | Purpose |
 |---|---|---|
-| `Google__ClientId` | staging + production | Google OAuth Client ID (primary config is in Keycloak Admin) |
-| `Google__ClientSecret` | staging + production | Google OAuth Client Secret (primary config is in Keycloak Admin) |
+| `GOOGLE__CLIENT_ID` | staging + production | Google OAuth Client ID (primary config is in Keycloak Admin) |
+| `GOOGLE__CLIENT_SECRET` | staging + production | Google OAuth Client Secret (primary config is in Keycloak Admin) |
 
 ---
 
@@ -698,7 +698,7 @@ kubectl logs -n apps-staging -l app=profile-svc --tail=50 | grep -i keycloak
 
 ### NextAuth error on login page
 
-- Check `AUTH_KEYCLOAK_SECRET` is set in Infisical (key: `Auth__KeycloakSecret`)
+- Check `NEXTAUTH_KEYCLOAK_CLIENT_SECRET` is set in Infisical (key: `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` in `/app/auth`)
 - Check webapp logs: `kubectl logs -n apps-staging -l app=overflow-webapp | grep "\[Auth\]"`
 
 ### Direct Access Grants disabled error

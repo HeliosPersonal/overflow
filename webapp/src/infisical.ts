@@ -20,10 +20,20 @@ interface EnvironmentVariables {
 }
 
 const INFISICAL_API_URL = 'https://eu.infisical.com';
-const SECRET_PATH_ROOT = '/';
 const APP_ENV_DEVELOPMENT = 'development';
 const APP_ENV_STAGING = 'staging';
 const APP_ENV_PRODUCTION = 'production';
+
+/**
+ * Infisical folder paths for application secrets.
+ * Secrets use SCREAMING_SNAKE_CASE naming with __ as section separator.
+ * Infrastructure secrets live in /infra (consumed by CI/CD only, not loaded here).
+ */
+const APP_SECRET_PATHS = [
+    '/app/connections',
+    '/app/auth',
+    '/app/services',
+];
 
 /**
  * Load all environment configuration
@@ -141,16 +151,23 @@ async function fetchInfisicalSecrets(environment: string): Promise<EnvironmentVa
             clientSecret: credentials.clientSecret,
         });
 
-        const response = await client.secrets().listSecrets({
-            environment: credentials.environment,
-            projectId: credentials.projectId,
-            secretPath: SECRET_PATH_ROOT,
-        });
+        let allSecrets: Array<{ secretKey: string; secretValue: string }> = [];
 
-        const secrets = response.secrets || [];
-        const transformed = transformSecretsToEnvFormat(secrets);
+        for (const secretPath of APP_SECRET_PATHS) {
+            const response = await client.secrets().listSecrets({
+                environment: credentials.environment,
+                projectId: credentials.projectId,
+                secretPath,
+            });
 
-        console.log(`✅ [Config] Loaded ${secrets.length} secrets from Infisical`);
+            const secrets = response.secrets || [];
+            console.log(`📂 [Config] Loaded ${secrets.length} secrets from ${secretPath}`);
+            allSecrets = allSecrets.concat(secrets);
+        }
+
+        const transformed = transformSecretsToEnvFormat(allSecrets);
+
+        console.log(`✅ [Config] Loaded ${allSecrets.length} total secrets from Infisical`);
         return transformed;
 
     } catch (error) {
@@ -189,9 +206,15 @@ function getInfisicalCredentials(appEnvironment: string): InfisicalCredentials |
 }
 
 /**
- * Transform Infisical secrets to environment variable format
+ * Transform Infisical secrets to environment variable format.
  *
- * Converts: Auth__Secret → AUTH_SECRET
+ * Secrets are stored as SCREAMING_SNAKE_CASE in Infisical (e.g. NEXTAUTH__KEYCLOAK_CLIENT_SECRET).
+ * The transform replaces __ with _ and uppercases (both are no-ops for SCREAMING_SNAKE input).
+ *
+ * Examples:
+ *   NEXTAUTH__KEYCLOAK_CLIENT_SECRET   → NEXTAUTH_KEYCLOAK_CLIENT_SECRET
+ *   KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID  → KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID
+ *   NOTIFICATION__INTERNAL_API_KEY     → NOTIFICATION_INTERNAL_API_KEY
  */
 function transformSecretsToEnvFormat(secrets: Array<{ secretKey: string; secretValue: string }>): EnvironmentVariables {
     const transformedSecrets: EnvironmentVariables = {};

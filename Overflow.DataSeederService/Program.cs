@@ -15,13 +15,23 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.AddEnvVariablesAndConfigureSecrets();
 builder.ConfigureKeycloakFromSettings();
 
-var seederOptions = builder.Configuration.GetSection("SeederOptions").Get<SeederOptions>()
-    ?? throw new InvalidOperationException("SeederOptions section is missing");
-var keycloakOptions = builder.Configuration.GetSection("KeycloakOptions").Get<KeycloakOptions>()
-    ?? throw new InvalidOperationException("KeycloakOptions section is missing");
+// ── Options with validation ──────────────────────────────────────────────
+builder.Services
+    .AddOptions<SeederOptions>()
+    .BindConfiguration(SeederOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
-builder.Services.Configure<SeederOptions>(builder.Configuration.GetSection("SeederOptions"));
-builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection("KeycloakOptions"));
+builder.Services
+    .AddOptions<KeycloakOptions>()
+    .BindConfiguration(KeycloakOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Eagerly resolve validated options for client registration
+var sp = builder.Services.BuildServiceProvider();
+var seederOptions = sp.GetRequiredService<IOptions<SeederOptions>>().Value;
+var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
 
 // OllamaSharp client — long timeout for slow LLM responses
 builder.Services.AddSingleton<IOllamaApiClient>(_ =>

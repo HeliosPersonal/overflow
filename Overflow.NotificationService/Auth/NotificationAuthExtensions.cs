@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Overflow.Common;
 
 namespace Overflow.NotificationService.Auth;
 
@@ -6,7 +7,7 @@ namespace Overflow.NotificationService.Auth;
 /// Registers API key authentication for server-to-server calls to NotificationService.
 ///
 /// The webapp's forgot-password route has no user session, so it cannot send a Keycloak JWT.
-/// Instead it sends an <c>X-Api-Key</c> header with a shared secret (<c>NOTIFICATION_API_KEY</c>
+/// Instead it sends an <c>X-Api-Key</c> header with a shared secret (<c>NOTIFICATION_INTERNAL_API_KEY</c>
 /// in config / Infisical).
 ///
 /// After calling this method, the default <c>[Authorize]</c> policy accepts
@@ -24,7 +25,7 @@ public static class NotificationAuthExtensions
             .AddAuthentication()
             .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
                 ApiKeyAuthenticationHandler.SchemeName,
-                options => { options.ApiKey = builder.Configuration["NOTIFICATION_API_KEY"]; });
+                options => { options.ApiKey = builder.Configuration[ConfigurationKeys.NotificationInternalApiKey]; });
 
         builder.Services.AddAuthorization(options =>
         {

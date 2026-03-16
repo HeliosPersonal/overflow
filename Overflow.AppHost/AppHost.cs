@@ -1,3 +1,5 @@
+using Overflow.Common;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder
@@ -14,13 +16,13 @@ var postgres = builder
     .WithDataVolume("postgres-data")
     .WithPgWeb();
 
-var typesenseApiKey = builder.Configuration["TypesenseOptions:ApiKey"]
+var typesenseApiKey = builder.Configuration[ConfigurationKeys.TypesenseApiKey]
                       ?? throw new InvalidOperationException("Could not get typesense api key");
 
 var typesense = builder.AddContainer("typesense", "typesense/typesense", "29.0")
     .WithArgs("--data-dir", "/data", "--api-key", typesenseApiKey, "--enable-cors")
     .WithVolume("typesense-data", "/data")
-    .WithEnvironment("TYPESENSEOPTIONS__APIKEY", typesenseApiKey)
+    .WithEnvironment("TYPESENSE_OPTIONS__API_KEY", typesenseApiKey)
     .WithHttpEndpoint(8108, 8108, name: "typesense");
 
 var typesenseReference = typesense.GetEndpoint("typesense");
@@ -54,9 +56,9 @@ var questionService = builder.AddProject<Projects.Overflow_QuestionService>("que
     .WaitFor(redis);
 
 var searchService = builder.AddProject<Projects.Overflow_SearchService>("search-svc")
-    .WithEnvironment("TYPESENSEOPTIONS__ConnectionUrl", typesenseReference)
-    .WithEnvironment("TYPESENSEOPTIONS__APIKEY", typesenseApiKey)
-    .WithEnvironment("TYPESENSEOPTIONS__CollectionName", "local_questions")
+    .WithEnvironment("TypesenseOptions__ConnectionUrl", typesenseReference)
+    .WithEnvironment("TypesenseOptions__ApiKey", typesenseApiKey)
+    .WithEnvironment("TypesenseOptions__CollectionName", "local_questions")
     .WithReference(typesenseReference)
     .WithReference(rabbitmq)
     .WaitFor(typesense)

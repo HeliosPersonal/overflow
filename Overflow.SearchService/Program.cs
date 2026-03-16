@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using Overflow.Common.CommonExtensions;
 using Overflow.SearchService.Data;
 using Overflow.SearchService.Extensions;
@@ -29,7 +30,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 
-var typesenseOptions = app.Services.GetRequiredService<TypesenseOptions>();
+var typesenseOptions = app.Services.GetRequiredService<IOptions<TypesenseOptions>>().Value;
 
 app.MapGet("/search", async (string query, ITypesenseClient client, ILogger<Program> logger) =>
 {

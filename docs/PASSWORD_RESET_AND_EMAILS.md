@@ -194,8 +194,8 @@ Authorization: Basic api:{ApiKey}
 | Environment | Config | Notes |
 |---|---|---|
 | **Development** | `appsettings.Development.json` | API key in dotnet user-secrets |
-| **Staging** | Infisical secret `Mailgun__ApiKey` | FromName overridden to "Overflow Staging" in `appsettings.Staging.json` |
-| **Production** | Infisical secret `Mailgun__ApiKey` | Uses defaults from `appsettings.json` |
+| **Staging** | Infisical secret `MAILGUN__API_KEY` (in `/app/services`) | FromName overridden to "Overflow Staging" in `appsettings.Staging.json` |
+| **Production** | Infisical secret `MAILGUN__API_KEY` (in `/app/services`) | Uses defaults from `appsettings.json` |
 
 > All environments use the same verified Mailgun domain (`devoverflow.org`) and send
 > from `noreply@devoverflow.org`. Staging is distinguished by `FromName: "Overflow Staging"`.
@@ -204,17 +204,17 @@ Authorization: Basic api:{ApiKey}
 
 Two secrets are needed per environment:
 
-| Secret Key (Infisical) | Used By | Value | Where to find |
-|---|---|---|---|
-| `Mailgun__ApiKey` | NotificationService | Mailgun private API key | Mailgun dashboard → Sending → Domain settings → API Keys |
-| `NOTIFICATION_API_KEY` | NotificationService + webapp | Shared API key for server-to-server calls | Generate with `openssl rand -hex 32` |
+| Secret Key (Infisical) | Folder | Used By | Value | Where to find |
+|---|---|---|---|---|
+| `MAILGUN__API_KEY` | `/app/services` | NotificationService | Mailgun private API key | Mailgun dashboard → Sending → Domain settings → API Keys |
+| `NOTIFICATION__INTERNAL_API_KEY` | `/app/services` | NotificationService + webapp | Shared API key for server-to-server calls | Generate with `openssl rand -hex 32` |
 
-> **`NOTIFICATION_API_KEY`** secures `POST /notifications/send` for server-to-server calls (e.g. forgot-password).
+> **`NOTIFICATION__INTERNAL_API_KEY`** secures `POST /notifications/send` for server-to-server calls (e.g. forgot-password).
 > The webapp sends it via `X-Api-Key` header. The NotificationService also accepts Keycloak JWT (`Authorization: Bearer`)
 > for user-authenticated calls — both mechanisms work side by side.
 > Same key name is used in both services and in Infisical — no mapping needed.
 
-The `__` separator in Infisical maps to `:` in .NET configuration (e.g. `Mailgun__ApiKey` → `Mailgun:ApiKey`).
+The `__` separator in Infisical maps to `:` in .NET configuration (e.g. `MAILGUN__API_KEY` → `Mailgun:ApiKey`, case-insensitive).
 
 ---
 

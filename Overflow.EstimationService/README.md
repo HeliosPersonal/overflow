@@ -48,7 +48,7 @@ Archived rooms are **automatically deleted after 30 days** (configurable) to kee
 
 Implemented via `ArchivedRoomCleanupService` (`BackgroundService`). On each run it bulk-deletes expired rooms
 along with all related votes, round history, and participants. Override via `appsettings.json`, environment
-variables, or Infisical (`RoomCleanup__RetentionDays`, `RoomCleanup__IntervalHours`).
+variables, or Infisical (`ROOM_CLEANUP__RETENTION_DAYS`, `ROOM_CLEANUP__INTERVAL_HOURS`).
 
 ---
 
@@ -637,20 +637,21 @@ Overflow.EstimationService/
 
 ## Configuration
 
-| Key                                  | Source                   | Description                                                                     |
-|--------------------------------------|--------------------------|---------------------------------------------------------------------------------|
-| `ConnectionStrings:estimationDb`     | ConfigMap / Infisical    | PostgreSQL connection string                                                    |
-| `ConnectionStrings:estimation-redis` | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                          |
-| `ConnectionStrings:Redis`            | Infisical (staging/prod) | Redis — `ConnectionStrings__Redis` from Infisical (includes password + options) |
-| `KeycloakOptions:*`                  | appsettings + ConfigMap  | JWT validation settings                                                         |
-| `APP_BASE_URL`                       | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                        |
-| `PROFILE_SERVICE_URL`                | Aspire / ConfigMap       | ProfileService base URL for name resolution                                     |
-| `RoomCleanup:RetentionDays`          | appsettings / Infisical  | Days before archived rooms are deleted (default: 30)                            |
-| `RoomCleanup:IntervalHours`          | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                 |
+| Key                                  | Source                   | Description                                                                                         |
+|--------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------|
+| `ConnectionStrings:estimationDb`     | ConfigMap / Infisical    | PostgreSQL connection string                                                                        |
+| `ConnectionStrings:estimation-redis` | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                                              |
+| `ConnectionStrings:Redis`            | Infisical (staging/prod) | Redis — `CONNECTION_STRINGS__REDIS` from Infisical `/app/connections` (includes password + options) |
+| `KeycloakOptions:*`                  | appsettings + ConfigMap  | JWT validation settings                                                                             |
+| `APP_BASE_URL`                       | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                                            |
+| `PROFILE_SERVICE_URL`                | Aspire / ConfigMap       | ProfileService base URL for name resolution                                                         |
+| `RoomCleanup:RetentionDays`          | appsettings / Infisical  | Days before archived rooms are deleted (default: 30)                                                |
+| `RoomCleanup:IntervalHours`          | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                                     |
 
 > **Redis connection string format** (staging/prod):
 `redis.infra-production.svc.cluster.local:6379,password=...,abortConnect=false`  
-> In Infisical, stored as `ConnectionStrings__Redis` (maps to `ConnectionStrings:Redis` in .NET config).
+> In Infisical, stored as `CONNECTION_STRINGS__REDIS` in `/app/connections` (maps to `ConnectionStrings:Redis` in .NET
+> config, case-insensitive).
 
 ---
 

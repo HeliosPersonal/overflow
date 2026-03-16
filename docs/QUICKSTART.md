@@ -112,7 +112,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 ### Step 3 — Configure secrets in Infisical
 
 Add all secrets to Infisical under the `staging` and `production` environments.  
-See [INFISICAL_SETUP.md → Complete Secret Inventory](./INFISICAL_SETUP.md#complete-secret-inventory) for the full list of 28 secrets.
+See [INFISICAL_SETUP.md → Complete Secret Inventory](./INFISICAL_SETUP.md#complete-secret-inventory) for the full list of 33 secrets.
 
 Infisical will **automatically sync** these 10 secrets to GitHub Actions:
 
@@ -220,7 +220,7 @@ terraform apply -var-file="terraform.secret.tfvars"
 | [Network Architecture](./NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
 | [Keycloak Setup](./KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO |
 | [Google Auth Setup](./GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
-| [Infisical Setup](./INFISICAL_SETUP.md) | All 28 secrets, how they flow from Infisical to services |
+| [Infisical Setup](./INFISICAL_SETUP.md) | All 33 secrets, how they flow from Infisical to services |
 | [Data Seeder](../Overflow.DataSeederService/README.md) | LLM-powered staging content generation |
 | [Kubernetes Manifests](../k8s/README.md) | Kustomize structure and manifest reference |
 | [Terraform](../terraform/README.md) | Project-specific Terraform reference |

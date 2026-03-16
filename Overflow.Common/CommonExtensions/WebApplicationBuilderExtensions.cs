@@ -9,7 +9,18 @@ namespace Overflow.Common.CommonExtensions;
 public static class WebApplicationBuilderExtensions
 {
     private const string InfisicalHost = "https://eu.infisical.com";
-    private const string SecretPath = "/";
+
+    /// <summary>
+    /// Infisical folder paths to fetch application secrets from.
+    /// Secrets are stored under /app/* using SCREAMING_SNAKE_CASE naming with __ separators.
+    /// Infrastructure secrets live in /infra (consumed by CI/CD only, not loaded here).
+    /// </summary>
+    private static readonly string[] AppSecretPaths =
+    [
+        "/app/connections",
+        "/app/auth",
+        "/app/services",
+    ];
 
     public static IHostApplicationBuilder AddEnvVariablesAndConfigureSecrets(this IHostApplicationBuilder builder)
     {
@@ -19,43 +30,50 @@ public static class WebApplicationBuilderExtensions
         {
             return builder;
         }
-        
-        var clientId = builder.Configuration["INFISICAL_CLIENT_ID"]
+
+        var clientId = builder.Configuration[ConfigurationKeys.InfisicalClientId]
                        ?? throw new InvalidOperationException(
-                           "INFISICAL_CLIENT_ID not found in configuration");
+                           $"{ConfigurationKeys.InfisicalClientId} not found in configuration");
 
-        var clientSecret = builder.Configuration["INFISICAL_CLIENT_SECRET"]
+        var clientSecret = builder.Configuration[ConfigurationKeys.InfisicalClientSecret]
                            ?? throw new InvalidOperationException(
-                               "INFISICAL_CLIENT_SECRET not found in configuration");
+                               $"{ConfigurationKeys.InfisicalClientSecret} not found in configuration");
 
-        var projectId = builder.Configuration["INFISICAL_PROJECT_ID"]
+        var projectId = builder.Configuration[ConfigurationKeys.InfisicalProjectId]
                         ?? throw new InvalidOperationException(
-                            "INFISICAL_PROJECT_ID not found in configuration");
+                            $"{ConfigurationKeys.InfisicalProjectId} not found in configuration");
 
         var environmentSlug = builder.Environment.EnvironmentName.ToLowerInvariant();
-        
+
         using var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
         var logger = loggerFactory.CreateLogger("InfisicalConfiguration");
-        
+
         logger.LogInformation("Loading secrets from Infisical for environment: {Environment}", environmentSlug);
 
         try
         {
-            var secrets = LoadSecretsFromInfisical(environmentSlug, clientId, clientSecret, projectId);
+            var allSecrets = new List<Secret>();
 
-            if (secrets.Length > 0)
+            foreach (var path in AppSecretPaths)
             {
-                var secretsDict = secrets.ToDictionary(
-                    s => s.SecretKey.Replace("__", ":"),
+                var secrets = LoadSecretsFromInfisical(environmentSlug, clientId, clientSecret, projectId, path);
+                logger.LogInformation("Loaded {Count} secrets from Infisical path: {Path}", secrets.Length, path);
+                allSecrets.AddRange(secrets);
+            }
+
+            if (allSecrets.Count > 0)
+            {
+                var secretsDict = allSecrets.ToDictionary(
+                    s => ToConfigurationKey(s.SecretKey),
                     s => s.SecretValue
                 );
 
                 builder.Configuration.AddInMemoryCollection(secretsDict!);
-                logger.LogInformation("Loaded {Count} secrets from Infisical", secrets.Length);
+                logger.LogInformation("Loaded {Count} total secrets from Infisical", allSecrets.Count);
 
                 if (!builder.Environment.IsProduction())
                 {
-                    logger.LogDebug("Loaded configuration keys: {Keys}", 
+                    logger.LogDebug("Loaded configuration keys: {Keys}",
                         string.Join(", ", secretsDict.Keys.OrderBy(k => k)));
                 }
             }
@@ -77,8 +95,31 @@ public static class WebApplicationBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Converts an Infisical SCREAMING_SNAKE_CASE secret key to a .NET <see cref="IConfiguration"/> key.
+    /// <list type="bullet">
+    ///   <item>Keys containing <c>__</c> are split into segments, each segment is PascalCased, then joined with <c>:</c>.<br/>
+    ///     e.g. <c>CONNECTION_STRINGS__ESTIMATION_DB</c> → <c>ConnectionStrings:EstimationDb</c></item>
+    ///   <item>Keys without <c>__</c> are returned unchanged (flat env-var style).<br/>
+    ///     e.g. <c>OTEL_EXPORTER_OTLP_HEADERS</c> → <c>OTEL_EXPORTER_OTLP_HEADERS</c></item>
+    /// </list>
+    /// </summary>
+    private static string ToConfigurationKey(string secretKey)
+    {
+        if (!secretKey.Contains("__"))
+            return secretKey;
+
+        return string.Join(":", secretKey
+            .Split(["__"], StringSplitOptions.None)
+            .Select(segment => string.Concat(
+                segment.Split('_')
+                       .Where(w => w.Length > 0)
+                       .Select(word => char.ToUpperInvariant(word[0]) + word[1..].ToLowerInvariant())
+            )));
+    }
+
     private static Secret[] LoadSecretsFromInfisical(string environmentSlug, string clientId, string clientSecret,
-        string projectId)
+        string projectId, string secretPath)
     {
         var settings = new InfisicalSdkSettingsBuilder()
             .WithHostUri(InfisicalHost)
@@ -97,7 +138,7 @@ public static class WebApplicationBuilderExtensions
         {
             SetSecretsAsEnvironmentVariables = true,
             EnvironmentSlug = environmentSlug,
-            SecretPath = SecretPath,
+            SecretPath = secretPath,
             ProjectId = projectId,
         };
 

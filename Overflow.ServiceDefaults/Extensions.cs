@@ -7,6 +7,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
+using Overflow.Common;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -24,7 +25,7 @@ public static class Extensions
     {
         // Project OTLP environment variables from config to top-level for OpenTelemetry SDK
         builder.ProjectOtlpEnvironmentVariables();
-        
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -48,20 +49,21 @@ public static class Extensions
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
         });
-        
+
         // Add TraceId, SpanId, and ParentId to all log entries for distributed tracing
         builder.Logging.Configure(options =>
         {
-            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId 
-                | ActivityTrackingOptions.SpanId 
-                | ActivityTrackingOptions.ParentId;
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                                              | ActivityTrackingOptions.SpanId
+                                              | ActivityTrackingOptions.ParentId;
         });
 
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource =>
             {
                 var serviceVersion = typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0";
-                var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] ?? builder.Environment.ApplicationName;
+                var serviceName = builder.Configuration[ConfigurationKeys.OtelServiceName] ??
+                                  builder.Environment.ApplicationName;
 
                 resource.AddService(
                     serviceName: serviceName,
@@ -218,7 +220,7 @@ public static class Extensions
 
         return app;
     }
-    
+
     /// <summary>
     /// Projects environment variables from appsettings EnvironmentVariables:Values section to top-level configuration.
     /// This is required for OpenTelemetry's UseOtlpExporter() which reads OTEL_EXPORTER_OTLP_* from top-level config.
@@ -259,5 +261,3 @@ public static class Extensions
         }
     }
 }
-
-

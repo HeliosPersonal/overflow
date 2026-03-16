@@ -54,7 +54,7 @@ public class ApiKeyAuthenticationHandler(
 public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
 {
     /// <summary>
-    /// The expected API key value. Set via configuration (<c>NOTIFICATION_API_KEY</c>).
+    /// The expected API key value. Set via configuration (<c>NOTIFICATION_INTERNAL_API_KEY</c>).
     /// </summary>
     public string? ApiKey { get; set; }
 }

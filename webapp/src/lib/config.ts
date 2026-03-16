@@ -24,7 +24,7 @@ function getEnv(name: keyof NodeJS.ProcessEnv, fallback: string = ''): string {
 
 export const authConfig = {
     get kcIssuer() { return getEnv('AUTH_KEYCLOAK_ISSUER', 'https://placeholder.local'); },
-    get kcSecret() { return getEnv('AUTH_KEYCLOAK_SECRET', 'placeholder-secret'); },
+    get kcSecret() { return getEnv('NEXTAUTH_KEYCLOAK_CLIENT_SECRET', 'placeholder-secret'); },
     get kcClientId() { return getEnv('AUTH_KEYCLOAK_ID', 'placeholder-client'); },
     get kcInternal() { return getEnv('AUTH_KEYCLOAK_ISSUER_INTERNAL', 'https://placeholder.local'); },
     get secret() { return getEnv('AUTH_SECRET', 'placeholder-secret'); },
@@ -35,6 +35,6 @@ export const authConfig = {
 
 export const apiConfig = {
     get baseUrl() { return getEnv('API_URL', 'https://placeholder.local'); },
-    get notificationApiKey() { return getEnv('NOTIFICATION_API_KEY', 'placeholder-key'); },
+    get notificationApiKey() { return getEnv('NOTIFICATION_INTERNAL_API_KEY', 'placeholder-key'); },
 };
 

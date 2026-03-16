@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using Overflow.Contracts;
 using Overflow.SearchService.Models;
 using Overflow.SearchService.Options;
@@ -6,7 +7,10 @@ using Typesense;
 
 namespace Overflow.SearchService.MessageHandlers;
 
-public class QuestionCreatedHandler(ITypesenseClient client, TypesenseOptions options, ILogger<QuestionCreatedHandler> logger)
+public class QuestionCreatedHandler(
+    ITypesenseClient client,
+    IOptions<TypesenseOptions> options,
+    ILogger<QuestionCreatedHandler> logger)
 {
     public async Task HandleAsync(QuestionCreated message)
     {
@@ -21,7 +25,7 @@ public class QuestionCreatedHandler(ITypesenseClient client, TypesenseOptions op
             Tags = message.Tags.ToArray(),
         };
 
-        await client.CreateDocument(options.CollectionName, doc);
+        await client.CreateDocument(options.Value.CollectionName, doc);
         logger.LogInformation("Indexed question in search: {QuestionId} with tags {Tags}",
             message.QuestionId, string.Join(", ", message.Tags));
     }

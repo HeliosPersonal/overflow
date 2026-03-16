@@ -155,9 +155,10 @@ resource "null_resource" "create_rabbitmq_vhosts" {
 # CONFIGMAP - STAGING (apps-staging)
 # ====================================================================================
 # Injects all infrastructure connection strings into the apps-staging namespace.
-# Keys use ASP.NET Core env-var hierarchy convention (__ = : separator), so:
-#   ConnectionStrings__questionDb  → IConfiguration["ConnectionStrings:questionDb"]
-#   TypesenseOptions__ConnectionUrl → IConfiguration["TypesenseOptions:ConnectionUrl"]
+# Keys use ASP.NET Core env-var hierarchy convention (__ = : separator).
+# All keys use SCREAMING_SNAKE_CASE to match Infisical naming convention, e.g.:
+#   CONNECTION_STRINGS__QUESTION_DB  → IConfiguration["CONNECTION_STRINGS:QUESTION_DB"]
+#   (.NET config is case-insensitive, so this maps to ConnectionStrings:QuestionDb)
 #
 # Pods mount this via envFrom so all keys become environment variables at startup.
 # Infisical secrets loaded later at runtime take precedence if they set the same key.
@@ -176,29 +177,29 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
 
   data = {
     # --- PostgreSQL connection strings (one per service database) ---
-    "ConnectionStrings__questionDb" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.question};Password=${var.pg_password}"
-    "ConnectionStrings__profileDb"  = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.profile};Password=${var.pg_password}"
-    "ConnectionStrings__voteDb"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.vote};Password=${var.pg_password}"
-    "ConnectionStrings__statDb"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.stats};Password=${var.pg_password}"
-    "ConnectionStrings__estimationDb" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.estimation};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__QUESTION_DB" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.question};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__PROFILE_DB"  = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.profile};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__VOTE_DB"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.vote};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__STAT_DB"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.stats};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__ESTIMATION_DB" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-staging vhost) ---
-    "ConnectionStrings__messaging" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_staging}"
+    "CONNECTION_STRINGS__MESSAGING" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_staging}"
 
     # --- Typesense ---
-    "TypesenseOptions__ConnectionUrl" = local.typesense_url
-    "TypesenseOptions__ApiKey"        = var.typesense_api_key
-    "TypesenseOptions__CollectionName" = "staging_questions"
-    "KeycloakOptions__Url"      = local.keycloak_internal_url
-    "KeycloakOptions__Realm"    = "overflow-staging"
-    "KeycloakOptions__Audience" = "overflow-staging"
+    "TYPESENSE_OPTIONS__CONNECTION_URL" = local.typesense_url
+    "TYPESENSE_OPTIONS__API_KEY"        = var.typesense_api_key
+    "TYPESENSE_OPTIONS__COLLECTION_NAME" = "staging_questions"
+    "KEYCLOAK_OPTIONS__URL"      = local.keycloak_internal_url
+    "KEYCLOAK_OPTIONS__REALM"    = "overflow-staging"
+    "KEYCLOAK_OPTIONS__AUDIENCE" = "overflow-staging"
 
     # --- OpenTelemetry ---
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT" = local.otlp_http_endpoint
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_PROTOCOL" = "http/protobuf"
 
-    # --- Ollama (staging only — data-seeder reads SeederOptions__OllamaUrl) ---
-    "SeederOptions__OllamaUrl" = local.ollama_staging_url
+    # --- Ollama (staging only — data-seeder reads SEEDER_OPTIONS__OLLAMA_URL) ---
+    "SEEDER_OPTIONS__OLLAMA_URL" = local.ollama_staging_url
   }
 
   depends_on = [
@@ -225,24 +226,24 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
 
   data = {
     # --- PostgreSQL ---
-    "ConnectionStrings__questionDb" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.question};Password=${var.pg_password}"
-    "ConnectionStrings__profileDb"  = "${local.postgres_connection_string};Database=${local.pg_production_dbs.profile};Password=${var.pg_password}"
-    "ConnectionStrings__voteDb"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.vote};Password=${var.pg_password}"
-    "ConnectionStrings__statDb"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.stats};Password=${var.pg_password}"
-    "ConnectionStrings__estimationDb" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.estimation};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__QUESTION_DB" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.question};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__PROFILE_DB"  = "${local.postgres_connection_string};Database=${local.pg_production_dbs.profile};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__VOTE_DB"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.vote};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__STAT_DB"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.stats};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__ESTIMATION_DB" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-production vhost) ---
-    "ConnectionStrings__messaging" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_production}"
+    "CONNECTION_STRINGS__MESSAGING" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_production}"
 
     # --- Typesense ---
-    "TypesenseOptions__ConnectionUrl"  = local.typesense_url
-    "TypesenseOptions__ApiKey"         = var.typesense_api_key
-    "TypesenseOptions__CollectionName" = "production_questions"
+    "TYPESENSE_OPTIONS__CONNECTION_URL"  = local.typesense_url
+    "TYPESENSE_OPTIONS__API_KEY"         = var.typesense_api_key
+    "TYPESENSE_OPTIONS__COLLECTION_NAME" = "production_questions"
 
     # --- Keycloak ---
-    "KeycloakOptions__Url"      = local.keycloak_internal_url
-    "KeycloakOptions__Realm"    = "overflow"
-    "KeycloakOptions__Audience" = "overflow"
+    "KEYCLOAK_OPTIONS__URL"      = local.keycloak_internal_url
+    "KEYCLOAK_OPTIONS__REALM"    = "overflow"
+    "KEYCLOAK_OPTIONS__AUDIENCE" = "overflow"
 
     # --- OpenTelemetry ---
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT" = local.otlp_http_endpoint

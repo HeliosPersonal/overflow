@@ -9,23 +9,21 @@ public static class TypesenseExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Load and validate Typesense options
+        // Register and validate Typesense options on startup
+        services
+            .AddOptions<TypesenseOptions>()
+            .BindConfiguration(TypesenseOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Eagerly resolve options from configuration for Typesense client registration
         var typesenseOptions = configuration
-            .GetSection(nameof(TypesenseOptions))
-            .Get<TypesenseOptions>() ?? throw new InvalidOperationException("Typesense configuration not found");
-
-        if (string.IsNullOrWhiteSpace(typesenseOptions.ConnectionUrl))
-        {
-            throw new InvalidOperationException("Typesense ConnectionUrl not configured");
-        }
-
-        if (string.IsNullOrEmpty(typesenseOptions.ApiKey))
-        {
-            throw new InvalidOperationException("Typesense API key not found in config");
-        }
-
-        // Register options as singleton
-        services.AddSingleton(typesenseOptions);
+                                   .GetSection(TypesenseOptions.SectionName)
+                                   .Get<TypesenseOptions>()
+                               ?? throw new InvalidOperationException(
+                                   $"'{TypesenseOptions.SectionName}' configuration section is missing or empty. " +
+                                   "Ensure TypesenseOptions__ConnectionUrl, TypesenseOptions__ApiKey, and " +
+                                   "TypesenseOptions__CollectionName are set.");
 
         // Configure Typesense client
         var uri = new Uri(typesenseOptions.ConnectionUrl);
@@ -41,4 +39,3 @@ public static class TypesenseExtensions
         return services;
     }
 }
-

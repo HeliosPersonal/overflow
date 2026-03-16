@@ -13,7 +13,7 @@
 # - DATABASE_URL (PostgreSQL connection string)
 # - RABBITMQ_URL (RabbitMQ connection string)
 # - TYPESENSE_API_KEY (Typesense authentication)
-# - AUTH_KEYCLOAK_SECRET (Keycloak client secret)
+# - NEXTAUTH_KEYCLOAK_CLIENT_SECRET (Keycloak client secret)
 # - And more environment-specific secrets...
 #
 # SECURITY NOTE:

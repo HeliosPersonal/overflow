@@ -1,15 +1,19 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using Overflow.Contracts;
 using Overflow.SearchService.Options;
 using Typesense;
 
 namespace Overflow.SearchService.MessageHandlers;
 
-public class QuestionUpdatedHandler(ITypesenseClient client, TypesenseOptions options, ILogger<QuestionUpdatedHandler> logger)
+public class QuestionUpdatedHandler(
+    ITypesenseClient client,
+    IOptions<TypesenseOptions> options,
+    ILogger<QuestionUpdatedHandler> logger)
 {
     public async Task HandleAsync(QuestionUpdated message)
     {
-        await client.UpdateDocument(options.CollectionName, message.QuestionId, new
+        await client.UpdateDocument(options.Value.CollectionName, message.QuestionId, new
         {
             message.Title,
             Content = StripHtml(message.Content),
