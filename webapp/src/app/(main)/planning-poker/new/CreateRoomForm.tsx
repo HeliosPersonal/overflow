@@ -11,6 +11,7 @@ import {AVATAR_EYES, AVATAR_MOUTH} from "@/lib/avatar";
 
 export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boolean }) {
     const router = useRouter();
+    const MAX_TITLE_LENGTH = 80;
     const [title, setTitle] = useState('');
     const [deckType, setDeckType] = useState('fibonacci');
     const [guestName, setGuestName] = useState('');
@@ -27,6 +28,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
 
     async function handleCreate() {
         if (!title.trim()) return;
+        if (title.trim().length > MAX_TITLE_LENGTH) return;
         if (!isAuthenticated && !guestName.trim()) return;
         setCreating(true);
         try {
@@ -136,10 +138,17 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                         label="Room name"
                         placeholder="e.g. Sprint 42 estimation"
                         value={title}
-                        onValueChange={setTitle}
+                        onValueChange={v => setTitle(v.slice(0, MAX_TITLE_LENGTH))}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                         autoFocus={isAuthenticated}
-                        description="No ideas? Hit 🎲 to generate a funny name."
+                        maxLength={MAX_TITLE_LENGTH}
+                        isInvalid={title.trim().length > MAX_TITLE_LENGTH}
+                        errorMessage={`Room name must be ${MAX_TITLE_LENGTH} characters or fewer`}
+                        description={
+                            <span className={title.length >= MAX_TITLE_LENGTH ? 'text-danger' : ''}>
+                                {title.length}/{MAX_TITLE_LENGTH}{title.length < MAX_TITLE_LENGTH && ' · No ideas? Hit 🎲 to generate a funny name.'}
+                            </span>
+                        }
                         endContent={
                             <Tooltip content="Generate a funny name" placement="top">
                                 <button
@@ -184,7 +193,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                         size="lg"
                         isLoading={creating}
                         onPress={handleCreate}
-                        isDisabled={!title.trim() || (!isAuthenticated && !guestName.trim())}
+                        isDisabled={!title.trim() || title.trim().length > MAX_TITLE_LENGTH || (!isAuthenticated && !guestName.trim())}
                         className="w-full font-semibold text-base mt-2"
                     >
                         Create Room

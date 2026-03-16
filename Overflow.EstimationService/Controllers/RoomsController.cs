@@ -121,6 +121,9 @@ public class RoomsController(
         if (string.IsNullOrWhiteSpace(req.Title))
             return BadRequest("Room title is required");
 
+        if (req.Title.Trim().Length > 80)
+            return BadRequest("Room title must be 80 characters or fewer");
+
         var identity = await identityResolver.ResolveAsync(HttpContext, req.DisplayName);
 
         if (identity.IsGuest && string.IsNullOrWhiteSpace(req.DisplayName))
