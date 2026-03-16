@@ -51,7 +51,6 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
 
             {/* ── Page header ───────────────────────────────────────── */}
             <div className="flex items-center gap-3">
-                <SparklesIcon className="h-8 w-8 text-primary shrink-0"/>
                 <div>
                     <h1 className="text-3xl font-bold text-foreground-600">Dashboard</h1>
                     <p className="text-foreground-500 text-sm">

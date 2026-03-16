@@ -194,13 +194,13 @@ if ($DryRun) {
 
     Write-Host "  ▶ Dropping collection $TYPESENSE_COLLECTION..."
     $result = kubectl exec $POD_NAME --namespace=infra-production -- `
-        curl -sf -X DELETE `
+        curl -s -o /dev/null -w "%{http_code}" -X DELETE `
         "$TYPESENSE_URL/collections/$TYPESENSE_COLLECTION" `
         -H "X-TYPESENSE-API-KEY: $env:TYPESENSE_API_KEY" 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    if ($result -eq "200") {
         Write-Host "  ✅ collection dropped"
     } else {
-        Write-Host "  ⚠️  collection not found or already deleted — continuing"
+        Write-Host "  ⚠️  collection not found or already deleted (HTTP $result) — continuing"
     }
 
     Write-Host "  ▶ Cleaning up temporary pod..."

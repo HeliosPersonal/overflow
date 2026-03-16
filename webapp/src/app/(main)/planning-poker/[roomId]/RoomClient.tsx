@@ -155,12 +155,17 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
             });
 
             if (joinRes.ok) {
-                // Hard reload so the entire page (including TopNav layout)
-                // re-renders with the new authenticated session
-                window.location.reload();
+                const data = await joinRes.json();
+                updateRoom(data);
+                setJoinedOnce(true);
+                setNeedsGuestName(false);
+                // Soft-refresh so TopNav re-renders with the new authenticated session
+                router.refresh();
             } else {
-                // Fallback: reload anyway
-                window.location.reload();
+                const errBody = await joinRes.json().catch(() => null);
+                const errMsg = typeof errBody === 'string' ? errBody
+                    : errBody?.message ?? errBody?.error ?? 'Failed to join room';
+                addToast({title: errMsg, color: 'danger'});
             }
         } catch {
             addToast({title: 'Network error', color: 'danger'});

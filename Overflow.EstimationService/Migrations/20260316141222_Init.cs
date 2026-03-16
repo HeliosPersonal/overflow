@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Overflow.EstimationService.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -40,9 +40,11 @@ namespace Overflow.EstimationService.Migrations
                     UserId = table.Column<string>(type: "text", nullable: true),
                     GuestId = table.Column<string>(type: "text", nullable: true),
                     DisplayName = table.Column<string>(type: "text", nullable: false),
+                    AvatarUrl = table.Column<string>(type: "text", nullable: true),
                     IsGuest = table.Column<bool>(type: "boolean", nullable: false),
                     IsModerator = table.Column<bool>(type: "boolean", nullable: false),
                     IsSpectator = table.Column<bool>(type: "boolean", nullable: false),
+                    IsPresent = table.Column<bool>(type: "boolean", nullable: false),
                     JoinedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>

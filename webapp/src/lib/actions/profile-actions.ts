@@ -29,6 +29,15 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
     revalidatePath('/questions');
     revalidatePath('/', 'layout');
 
+    // Push updated profile (name + avatar) to all estimation rooms the user is in.
+    // Done server-side so it's guaranteed to run — client-side fire-and-forget is unreliable.
+    // Best-effort: failures here must not block the profile edit response.
+    try {
+        await fetchClient('/estimation/refresh-profile', 'POST');
+    } catch {
+        // EstimationService may be down — rooms will pick up changes on next join.
+    }
+
     return result;
 }
 

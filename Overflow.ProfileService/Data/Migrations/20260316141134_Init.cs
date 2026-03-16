@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ProfileService.Data.Migrations
+namespace Overflow.ProfileService.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -18,6 +18,7 @@ namespace ProfileService.Data.Migrations
                     Id = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
                     DisplayName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    AvatarUrl = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
                     JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Reputation = table.Column<int>(type: "integer", nullable: false)
                 },

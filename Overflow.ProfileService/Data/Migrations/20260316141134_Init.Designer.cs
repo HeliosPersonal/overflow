@@ -9,11 +9,11 @@ using Overflow.ProfileService.Data;
 
 #nullable disable
 
-namespace ProfileService.Data.Migrations
+namespace Overflow.ProfileService.Data.Migrations
 {
     [DbContext(typeof(ProfileDbContext))]
-    [Migration("20260313120234_AddAvatarUrl")]
-    partial class AddAvatarUrl
+    [Migration("20260316141134_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

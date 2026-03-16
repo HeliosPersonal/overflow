@@ -12,8 +12,8 @@ using Overflow.EstimationService.Data;
 namespace Overflow.EstimationService.Migrations
 {
     [DbContext(typeof(EstimationDbContext))]
-    [Migration("20260313194540_AddParticipantIsPresent")]
-    partial class AddParticipantIsPresent
+    [Migration("20260316141222_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

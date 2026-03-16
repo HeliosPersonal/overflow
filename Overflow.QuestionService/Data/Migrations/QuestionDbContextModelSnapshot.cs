@@ -6,11 +6,10 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Overflow.QuestionService.Data;
-using QuestionService.Data;
 
 #nullable disable
 
-namespace QuestionService.Data.Migrations
+namespace Overflow.QuestionService.Data.Migrations
 {
     [DbContext(typeof(QuestionDbContext))]
     partial class QuestionDbContextModelSnapshot : ModelSnapshot
@@ -19,12 +18,12 @@ namespace QuestionService.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.7")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("QuestionService.Models.Answer", b =>
+            modelBuilder.Entity("Overflow.QuestionService.Models.Answer", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(36)
@@ -64,7 +63,7 @@ namespace QuestionService.Data.Migrations
                     b.ToTable("Answers");
                 });
 
-            modelBuilder.Entity("QuestionService.Models.Question", b =>
+            modelBuilder.Entity("Overflow.QuestionService.Models.Question", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(36)
@@ -112,7 +111,7 @@ namespace QuestionService.Data.Migrations
                     b.ToTable("Questions");
                 });
 
-            modelBuilder.Entity("QuestionService.Models.Tag", b =>
+            modelBuilder.Entity("Overflow.QuestionService.Models.Tag", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(36)
@@ -141,9 +140,9 @@ namespace QuestionService.Data.Migrations
                     b.ToTable("Tags");
                 });
 
-            modelBuilder.Entity("QuestionService.Models.Answer", b =>
+            modelBuilder.Entity("Overflow.QuestionService.Models.Answer", b =>
                 {
-                    b.HasOne("QuestionService.Models.Question", "Question")
+                    b.HasOne("Overflow.QuestionService.Models.Question", "Question")
                         .WithMany("Answers")
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -152,7 +151,7 @@ namespace QuestionService.Data.Migrations
                     b.Navigation("Question");
                 });
 
-            modelBuilder.Entity("QuestionService.Models.Question", b =>
+            modelBuilder.Entity("Overflow.QuestionService.Models.Question", b =>
                 {
                     b.Navigation("Answers");
                 });

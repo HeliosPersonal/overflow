@@ -5,11 +5,10 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Overflow.VoteService.Data;
-using VoteService.Data;
 
 #nullable disable
 
-namespace VoteService.Data.Migrations
+namespace Overflow.VoteService.Data.Migrations
 {
     [DbContext(typeof(VoteDbContext))]
     partial class VoteDbContextModelSnapshot : ModelSnapshot
@@ -18,12 +17,12 @@ namespace VoteService.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("VoteService.Models.Vote", b =>
+            modelBuilder.Entity("Overflow.VoteService.Models.Vote", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(36)

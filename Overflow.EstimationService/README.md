@@ -423,7 +423,46 @@ sequenceDiagram
     EC-->>User: 204 No Content
 ```
 
-### 9. Full Session Lifecycle (End-to-End)
+### 9. Refresh Profile (Instant Avatar/Name Push)
+
+After editing their profile or avatar, a user calls this endpoint to push changes to all open rooms instantly.
+
+```mermaid
+sequenceDiagram
+    actor User as Authenticated User
+    participant GW as YARP Gateway
+    participant EC as RoomsController
+    participant PC as ProfileServiceClient
+    participant IR as IdentityResolver
+    participant PS as ProfileService
+    participant SVC as EstimationRoomService
+    participant DB as PostgreSQL
+    participant FC as FusionCache + Redis
+    participant WS as WebSocketBroadcaster
+    actor Others as Other Participants
+
+    User->>GW: POST /estimation/refresh-profile<br/>(JWT Bearer)
+    GW->>EC: Route (requires [Authorize])
+    EC->>PC: InvalidateAsync(userId)<br/>evict stale profile from FusionCache
+    PC->>FC: Remove cache key "profile:{userId}"
+    FC-->>PC: Evicted (backplane → all pods)
+
+    EC->>IR: ResolveAsync(httpContext)
+    IR->>PS: GET /profiles/{userId}<br/>(fresh fetch, cache was just cleared)
+    PS-->>IR: { displayName, avatarUrl }
+    IR-->>EC: ParticipantIdentity (fresh)
+
+    EC->>SVC: RefreshParticipantProfileAsync(userId, displayName, avatarUrl)
+    SVC->>DB: UPDATE all participants WHERE userId<br/>SET displayName, avatarUrl
+    SVC->>FC: Invalidate room caches for affected rooms
+    SVC->>FC: Publish cross-pod broadcast (Redis pub/sub)
+    WS-->>Others: Updated snapshots (new name/avatar, all pods)
+    SVC-->>EC: updated count
+    EC-->>GW: 200 OK { updated: N }
+    GW-->>User: { updated: N }
+```
+
+### 10. Full Session Lifecycle (End-to-End)
 
 A complete planning poker session from room creation through multiple rounds to archival.
 
@@ -555,6 +594,7 @@ stateDiagram-v2
 | `POST`   | `/estimation/rooms/{id}/mode`     | Required* | Toggle spectator/voter                           |
 | `POST`   | `/estimation/rooms/{id}/leave`    | Required* | Leave the room                                   |
 | `POST`   | `/estimation/claim-guest`         | Required  | Migrate guest history to authenticated user      |
+| `POST`   | `/estimation/refresh-profile`     | Required  | Push latest profile (name + avatar) to all rooms |
 | `GET`    | `/estimation/decks`               | None      | List available card decks                        |
 | `WS`     | `/estimation/rooms/{id}/ws`       | Optional  | Real-time room state push                        |
 

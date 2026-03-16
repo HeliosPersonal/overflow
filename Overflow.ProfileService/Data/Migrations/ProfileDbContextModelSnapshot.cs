@@ -8,7 +8,7 @@ using Overflow.ProfileService.Data;
 
 #nullable disable
 
-namespace ProfileService.Data.Migrations
+namespace Overflow.ProfileService.Data.Migrations
 {
     [DbContext(typeof(ProfileDbContext))]
     partial class ProfileDbContextModelSnapshot : ModelSnapshot

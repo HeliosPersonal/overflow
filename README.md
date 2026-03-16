@@ -94,6 +94,7 @@ Each service has its own README with endpoints, configuration, and project struc
 | [StatsService](Overflow.StatsService/) | Trending tags, top users — Marten event-sourced projections | [README](Overflow.StatsService/README.md) |
 | [VoteService](Overflow.VoteService/) | Upvote / downvote — publishes vote and reputation events | [README](Overflow.VoteService/README.md) |
 | [EstimationService](Overflow.EstimationService/) | Planning Poker rooms — real-time WebSocket, guest access | [README](Overflow.EstimationService/README.md) |
+| [NotificationService](Overflow.NotificationService/) | Email notifications via Wolverine/RabbitMQ + FluentEmail/Mailgun | — |
 | [DataSeederService](Overflow.DataSeederService/) | LLM-powered staging content generator | [README](Overflow.DataSeederService/README.md) |
 
 ### Shared Libraries

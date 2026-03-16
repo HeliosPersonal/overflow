@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 import {Button, Divider, Input, Tooltip, addToast} from "@heroui/react";
-import {SparklesIcon, ArrowLeftIcon} from "@heroicons/react/24/outline";
+import {ArrowLeftIcon} from "@heroicons/react/24/outline";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import {useRouter} from "next/navigation";
 import {generateRoomName} from "@/lib/room-name-generator";
@@ -53,8 +53,14 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
             }
 
             const room = await res.json();
-            // Hard navigate so TopNav re-renders with the updated session
-            window.location.href = `/planning-poker/${room.roomId}`;
+            if (!isAuthenticated) {
+                // Guest just signed in — hard navigate so server components
+                // (TopNav layout) re-render with the new authenticated session
+                window.location.href = `/planning-poker/${room.roomId}`;
+            } else {
+                // Already authenticated — smooth SPA navigation
+                router.push(`/planning-poker/${room.roomId}`);
+            }
         } catch {
             addToast({title: 'Failed to create room', color: 'danger'});
         } finally {
@@ -180,7 +186,6 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                         onPress={handleCreate}
                         isDisabled={!title.trim() || (!isAuthenticated && !guestName.trim())}
                         className="w-full font-semibold text-base mt-2"
-                        startContent={!creating && <SparklesIcon className="h-5 w-5"/>}
                     >
                         Create Room
                     </Button>

@@ -579,7 +579,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"displayName\": \"Updated Name\",\n  \"description\": \"Software developer\"\n}"
+              "raw": "{\n  \"displayName\": \"Updated Name\",\n  \"description\": \"Software developer\",\n  \"avatarUrl\": \"https://api.dicebear.com/9.x/open-peeps/svg?seed=example\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/profiles/edit",
@@ -943,6 +943,23 @@
               "path": [
                 "estimation",
                 "claim-guest"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Profile in Rooms",
+          "description": "Invalidates the cached profile for the current user and pushes their latest display name + avatar to every room they participate in. Call this after a profile or avatar edit so changes appear instantly in open rooms.",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/estimation/refresh-profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "refresh-profile"
               ]
             }
           }
