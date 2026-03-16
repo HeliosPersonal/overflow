@@ -2,23 +2,31 @@
 
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
-import {Button, Chip, Spinner, Tooltip} from "@heroui/react";
-import {SparklesIcon, UserGroupIcon, HashtagIcon, ClockIcon} from "@heroicons/react/24/outline";
-import {FlagIcon} from "@heroicons/react/24/solid";
+import {
+    AvatarGroup,
+    Button,
+    Chip,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownTrigger,
+    Spinner,
+    Tooltip,
+} from "@heroui/react";
+import {SparklesIcon} from "@heroicons/react/24/outline";
+import {EllipsisVerticalIcon, ArchiveBoxIcon, TrashIcon} from "@heroicons/react/24/solid";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 import {timeAgo} from "@/lib/util";
 import {differenceInDays} from "date-fns";
+import DiceBearAvatar from "@/components/DiceBearAvatar";
 
-function roomAge(r: PlanningPokerRoomSummary): string {
-    const created = `Created ${timeAgo(r.createdAtUtc)}`;
-
+function retentionLabel(r: PlanningPokerRoomSummary): string {
     if (r.status === 'Archived' && r.archivedAtUtc) {
         const daysLeft = r.retentionDays - differenceInDays(new Date(), new Date(r.archivedAtUtc));
-        if (daysLeft <= 0) return `${created} · expires soon`;
-        return `${created} · auto-deletes in ${daysLeft}d`;
+        if (daysLeft <= 0) return 'expires soon';
+        return `deletes in ${daysLeft}d`;
     }
-
-    return created;
+    return '';
 }
 
 export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated: boolean}) {
@@ -46,9 +54,21 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
         void loadRooms();
     }, [isAuthenticated]);
 
+    async function handleArchive(roomId: string) {
+        await fetch(`/api/estimation/rooms/${roomId}/archive`, {method: 'POST'});
+        setRecentSessions(prev =>
+            prev.map(r => r.roomId === roomId ? {...r, status: 'Archived', archivedAtUtc: new Date().toISOString()} : r)
+        );
+    }
+
+    async function handleDelete(roomId: string) {
+        await fetch(`/api/estimation/rooms/${roomId}`, {method: 'DELETE'});
+        setRecentSessions(prev => prev.filter(r => r.roomId !== roomId));
+    }
+
     return (
         <div className="min-h-full bg-content1">
-        <div className="px-6 py-8 max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="px-6 py-8 max-w-5xl mx-auto flex flex-col gap-6">
 
             {/* ── Page header ───────────────────────────────────────── */}
             <div className="flex items-center gap-3">
@@ -99,45 +119,102 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                         No sessions yet. Create your first room above!
                     </p>
                 ) : (
-                    <div className="flex flex-col gap-3">
-                        {recentSessions.map(r => (
-                            <div
-                                key={r.roomId}
-                                className="flex items-center gap-4 p-4 rounded-xl bg-content3 border border-content4 hover:bg-content4 transition-colors duration-150 cursor-pointer"
-                                onClick={() => router.push(`/planning-poker/${r.roomId}`)}
-                            >
-                                {/* Title + status */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-semibold text-2xl text-foreground-700 truncate">{r.title}</span>
-                                        {r.isModerator && (
-                                            <Tooltip content="You are the moderator">
-                                                <FlagIcon className="h-4 w-4 text-warning flex-shrink-0"/>
-                                            </Tooltip>
-                                        )}
-                                    </div>
-                                    <RoomStatusChip status={r.status}/>
-                                    <span className="text-xs text-foreground-400 flex items-center gap-1 mt-1">
-                                        <ClockIcon className="h-3.5 w-3.5"/>
-                                        {roomAge(r)}
-                                    </span>
-                                </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-content3 text-left text-xs text-foreground-400 uppercase tracking-wide">
+                                    <th className="pb-2 pr-4 font-medium whitespace-nowrap">Created</th>
+                                    <th className="pb-2 pr-4 font-medium">Creator</th>
+                                    <th className="pb-2 pr-4 font-medium">Title</th>
+                                    <th className="pb-2 pr-4 font-medium">Participants</th>
+                                    <th className="pb-2 font-medium text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recentSessions.map(r => {
+                                    const label = retentionLabel(r);
+                                    return (
+                                        <tr
+                                            key={r.roomId}
+                                            className="border-b border-content3 last:border-0 hover:bg-content3 transition-colors cursor-pointer"
+                                            onClick={() => router.push(`/planning-poker/${r.roomId}`)}
+                                        >
+                                            {/* Created */}
+                                            <td className="py-3 pr-4 whitespace-nowrap text-foreground-500">
+                                                <div>{timeAgo(r.createdAtUtc)}</div>
+                                                {label && (
+                                                    <div className="text-xs text-warning-500">{label}</div>
+                                                )}
+                                            </td>
 
-                                {/* Stat blocks */}
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <div className="flex flex-col items-center justify-center w-18 h-18 rounded-lg bg-content2 border border-content4">
-                                        <UserGroupIcon className="h-5 w-5 text-foreground-400 mb-0.5"/>
-                                        <span className="text-xl font-bold text-foreground-700">{r.participantCount}</span>
-                                        <span className="text-x text-foreground-400 leading-none">players</span>
-                                    </div>
-                                    <div className="flex flex-col items-center justify-center w-18 h-18 rounded-lg bg-content2 border border-content4">
-                                        <HashtagIcon className="h-5 w-5 text-foreground-400 mb-0.5"/>
-                                        <span className="text-xl font-bold text-foreground-700">{r.completedRounds}</span>
-                                        <span className="text-xs text-foreground-400 leading-none">rounds</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                            {/* Creator */}
+                                            <td className="py-3 pr-4">
+                                                <Tooltip content={r.creatorDisplayName} placement="top">
+                                                    <DiceBearAvatar
+                                                        avatarJson={r.creatorAvatarUrl}
+                                                        name={r.creatorDisplayName}
+                                                        size="sm"
+                                                    />
+                                                </Tooltip>
+                                            </td>
+
+                                            {/* Title + status */}
+                                            <td className="py-3 pr-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-foreground-700 truncate max-w-[220px]">{r.title}</span>
+                                                    <RoomStatusChip status={r.status}/>
+                                                </div>
+                                            </td>
+
+                                            {/* Participants */}
+                                            <td className="py-3 pr-4">
+                                                <AvatarGroup max={5} size="sm" isBordered>
+                                                    {r.participants.map((p, i) => (
+                                                        <Tooltip key={i} content={p.displayName} placement="top">
+                                                            <DiceBearAvatar
+                                                                avatarJson={p.avatarUrl}
+                                                                name={p.displayName}
+                                                                size="sm"
+                                                            />
+                                                        </Tooltip>
+                                                    ))}
+                                                </AvatarGroup>
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td className="py-3 text-right" onClick={e => e.stopPropagation()}>
+                                                <Dropdown placement="bottom-end">
+                                                    <DropdownTrigger>
+                                                        <Button isIconOnly size="sm" variant="light" aria-label="Room actions">
+                                                            <EllipsisVerticalIcon className="h-4 w-4 text-foreground-400"/>
+                                                        </Button>
+                                                    </DropdownTrigger>
+                                                    <DropdownMenu aria-label="Room actions">
+                                                        <DropdownItem
+                                                            key="archive"
+                                                            startContent={<ArchiveBoxIcon className="h-4 w-4"/>}
+                                                            isDisabled={r.status === 'Archived'}
+                                                            onPress={() => handleArchive(r.roomId)}
+                                                        >
+                                                            Archive
+                                                        </DropdownItem>
+                                                        <DropdownItem
+                                                            key="delete"
+                                                            startContent={<TrashIcon className="h-4 w-4"/>}
+                                                            className="text-danger"
+                                                            color="danger"
+                                                            onPress={() => handleDelete(r.roomId)}
+                                                        >
+                                                            Delete
+                                                        </DropdownItem>
+                                                    </DropdownMenu>
+                                                </Dropdown>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>

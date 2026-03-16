@@ -87,18 +87,28 @@ public class RoomsController(
         var summaries = rooms
             .OrderBy(r => r.Status)
             .ThenByDescending(r => r.CreatedAtUtc)
-            .Select(r => new RoomSummaryResponse(
-                r.Id,
-                r.Title,
-                r.Status,
-                r.RoundNumber,
-                r.Participants.Count,
-                r.RoundHistory.Count,
-                r.CreatedAtUtc,
-                r.ArchivedAtUtc,
-                r.ModeratorUserId == userId,
-                RetentionDays
-            )).ToList();
+            .Select(r =>
+            {
+                var creator = r.Participants.FirstOrDefault(p => p.IsModerator)
+                              ?? r.Participants.FirstOrDefault();
+                return new RoomSummaryResponse(
+                    r.Id,
+                    r.Title,
+                    r.Status,
+                    r.RoundNumber,
+                    r.Participants.Count,
+                    r.RoundHistory.Count,
+                    r.CreatedAtUtc,
+                    r.ArchivedAtUtc,
+                    r.ModeratorUserId == userId,
+                    RetentionDays,
+                    creator?.DisplayName ?? "Unknown",
+                    creator?.AvatarUrl,
+                    r.Participants
+                        .Select(p => new ParticipantSummaryResponse(p.DisplayName, p.AvatarUrl))
+                        .ToList()
+                );
+            }).ToList();
 
         return Ok(summaries);
     }
@@ -257,6 +267,21 @@ public class RoomsController(
         var result = await svc.ArchiveRoomAsync(roomId, userId);
         return result.IsSuccess
             ? Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl))
+            : result.Error.ToActionResult();
+    }
+
+    // ─── DELETE /estimation/rooms/{roomId} ─────────────────────────────────
+
+    [Authorize]
+    [HttpDelete("rooms/{roomId:guid}")]
+    public async Task<IActionResult> DeleteRoom(Guid roomId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await svc.DeleteRoomAsync(roomId, userId);
+        return result.IsSuccess
+            ? NoContent()
             : result.Error.ToActionResult();
     }
 }

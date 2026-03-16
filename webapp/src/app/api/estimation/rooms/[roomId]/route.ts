@@ -6,3 +6,8 @@ export async function GET(req: NextRequest, {params}: {params: Promise<{roomId: 
     return proxyEstimation(req, `/estimation/rooms/${roomId}`, "GET");
 }
 
+export async function DELETE(req: NextRequest, {params}: {params: Promise<{roomId: string}>}) {
+    const {roomId} = await params;
+    return proxyEstimation(req, `/estimation/rooms/${roomId}`, "DELETE");
+}
+

@@ -37,6 +37,10 @@ export async function archiveRoom(roomId: string): Promise<FetchResponse<Plannin
     return fetchClient<PlanningPokerRoom>(`/estimation/rooms/${roomId}/archive`, 'POST');
 }
 
+export async function deleteRoom(roomId: string): Promise<FetchResponse<void>> {
+    return fetchClient<void>(`/estimation/rooms/${roomId}`, 'DELETE');
+}
+
 export async function changeMode(roomId: string, isSpectator: boolean): Promise<FetchResponse<PlanningPokerRoom>> {
     return fetchClient<PlanningPokerRoom>(`/estimation/rooms/${roomId}/mode`, 'POST', {body: {isSpectator}});
 }

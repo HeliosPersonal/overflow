@@ -431,6 +431,27 @@ public class EstimationRoomService(
         return await ReloadRoom(roomId);
     }
 
+    // ─── Delete ───────────────────────────────────────────────────────────
+
+    public async Task<UnitResult<RoomError>> DeleteRoomAsync(Guid roomId, string moderatorId)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
+
+        var userIds = room.Participants.Select(p => p.UserId).Where(u => u is not null);
+
+        await db.Rooms.Where(r => r.Id == roomId).ExecuteDeleteAsync();
+
+        await roomCache.InvalidateRoomAndUsersAsync(roomId, userIds);
+        logger.LogInformation("Room {RoomId} deleted by {ModeratorId}", roomId, moderatorId);
+        return UnitResult.Success<RoomError>();
+    }
+
     // ─── Claim Guest ─────────────────────────────────────────────────────
 
     public async Task<int> ClaimGuestAsync(string guestId, string userId, string displayName)

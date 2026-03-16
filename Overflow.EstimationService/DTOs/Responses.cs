@@ -64,6 +64,11 @@ public record RoundHistoryResponse(
     string? NumericAverageDisplay
 );
 
+public record ParticipantSummaryResponse(
+    string DisplayName,
+    string? AvatarUrl
+);
+
 public record RoomSummaryResponse(
     Guid RoomId,
     string Title,
@@ -74,5 +79,8 @@ public record RoomSummaryResponse(
     DateTime CreatedAtUtc,
     DateTime? ArchivedAtUtc,
     bool IsModerator,
-    int RetentionDays
+    int RetentionDays,
+    string CreatorDisplayName,
+    string? CreatorAvatarUrl,
+    List<ParticipantSummaryResponse> Participants
 );

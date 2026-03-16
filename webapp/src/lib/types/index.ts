@@ -143,6 +143,11 @@ export type PlanningPokerRoundHistory = {
     numericAverageDisplay?: string | null
 }
 
+export type PlanningPokerParticipantSummary = {
+    displayName: string
+    avatarUrl?: string | null
+}
+
 export type PlanningPokerRoomSummary = {
     roomId: string
     title: string
@@ -154,6 +159,9 @@ export type PlanningPokerRoomSummary = {
     archivedAtUtc?: string | null
     isModerator?: boolean
     retentionDays: number
+    creatorDisplayName: string
+    creatorAvatarUrl?: string | null
+    participants: PlanningPokerParticipantSummary[]
 }
 
 export type PlanningPokerRoom = {
