@@ -13,6 +13,7 @@ import AvatarPicker from "@/components/AvatarPicker";
 import { editProfile } from "@/lib/actions/profile-actions";
 import { handleError, successToast } from "@/lib/util";
 import { useRouter } from "next/navigation";
+import { refreshEstimationProfile } from "@/lib/estimation/refresh-profile";
 
 type Props = {
   profile: Profile;
@@ -42,6 +43,8 @@ export default function ProfileDetailed({
         return;
       }
       successToast("Avatar updated!");
+      // Push new avatar to all estimation rooms the user is in (fire-and-forget)
+      await refreshEstimationProfile();
       // Hard reload so the session (TopNav/UserMenu) picks up the new avatar immediately
       window.location.reload();
     });

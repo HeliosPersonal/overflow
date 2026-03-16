@@ -75,14 +75,11 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                 </button>
 
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-10">
-                    <SparklesIcon className="h-10 w-10 text-primary shrink-0"/>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground-700">New Planning Poker Session</h1>
-                        <p className="text-base text-foreground-400 mt-1">
-                            Set up your room and share the link with your team.
-                        </p>
-                    </div>
+                <div className="mb-10">
+                    <h1 className="text-3xl font-bold text-foreground-700">New Planning Poker Session</h1>
+                    <p className="text-base text-foreground-400 mt-1">
+                        Set up your room and share the link with your team.
+                    </p>
                 </div>
 
                 {/* Form card */}

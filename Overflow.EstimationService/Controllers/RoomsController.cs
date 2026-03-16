@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Overflow.EstimationService.Auth;
+using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Exceptions;
 using Overflow.EstimationService.Mapping;
@@ -16,6 +17,7 @@ namespace Overflow.EstimationService.Controllers;
 public class RoomsController(
     EstimationRoomService svc,
     IdentityResolver identityResolver,
+    ProfileServiceClient profileClient,
     IOptions<RoomCleanupOptions> cleanupOptions,
     IConfiguration configuration) : ControllerBase
 {
@@ -42,6 +44,33 @@ public class RoomsController(
         HttpContext.Response.Cookies.Delete(GuestIdentity.CookieName);
 
         return Ok(new { claimed });
+    }
+
+    // ─── POST /estimation/refresh-profile ────────────────────────────────
+
+    /// <summary>
+    /// Invalidates the cached profile for the current user and pushes their latest
+    /// display name + avatar to every room they participate in. Call this after a
+    /// profile or avatar edit so changes appear instantly in open rooms.
+    /// </summary>
+    [Authorize]
+    [HttpPost("refresh-profile")]
+    public async Task<IActionResult> RefreshProfile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        // Evict stale profile from FusionCache so we fetch fresh data
+        await profileClient.InvalidateAsync(userId);
+
+        // Resolve fresh identity (will call ProfileService since cache was just cleared)
+        var identity = await identityResolver.ResolveAsync(HttpContext);
+
+        // Push updated profile across all rooms
+        var updated = await svc.RefreshParticipantProfileAsync(
+            userId, identity.DisplayName, identity.AvatarUrl);
+
+        return Ok(new { updated });
     }
 
     // ─── GET /estimation/rooms/my ────────────────────────────────────────

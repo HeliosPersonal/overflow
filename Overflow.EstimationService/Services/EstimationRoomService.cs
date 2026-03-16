@@ -500,6 +500,27 @@ public class EstimationRoomService(
         return claimed;
     }
 
+    // ─── Refresh Profile ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Updates a participant's display name and avatar URL across ALL their rooms.
+    /// Called after a profile edit so every room reflects the latest profile immediately.
+    /// </summary>
+    public async Task<int> RefreshParticipantProfileAsync(string userId, string displayName, string? avatarUrl)
+    {
+        var affectedRoomIds = await UpdateProfileAcrossRoomsAsync(userId, displayName, avatarUrl);
+
+        foreach (var roomId in affectedRoomIds)
+            await InvalidateAndBroadcastAsync(roomId);
+
+        if (affectedRoomIds.Count > 0)
+            logger.LogInformation(
+                "Refreshed profile for user {UserId} across {Count} room(s): name={DisplayName}",
+                userId, affectedRoomIds.Count, displayName);
+
+        return affectedRoomIds.Count;
+    }
+
     // ─── Queries ──────────────────────────────────────────────────────────
 
     public async Task<EstimationRoom?> GetRoomByIdAsync(Guid roomId)

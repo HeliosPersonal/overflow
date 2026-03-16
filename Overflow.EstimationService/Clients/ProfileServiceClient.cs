@@ -79,6 +79,17 @@ public class ProfileServiceClient(
         return data?.DisplayName;
     }
 
+    /// <summary>
+    /// Evicts the cached profile for the given user so the next call
+    /// to <see cref="GetProfileDataAsync"/> fetches fresh data from ProfileService.
+    /// The FusionCache backplane propagates this eviction to all pods.
+    /// </summary>
+    public async Task InvalidateAsync(string userId)
+    {
+        await cache.RemoveAsync(CacheKey(userId));
+        logger.LogDebug("Invalidated profile cache for {UserId}", userId);
+    }
+
     public record ProfileData(string DisplayName, string? AvatarUrl);
 
     private record ProfileResponse(string UserId, string DisplayName, int Reputation, string? AvatarUrl);

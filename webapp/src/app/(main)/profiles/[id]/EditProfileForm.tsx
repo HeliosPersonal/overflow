@@ -8,6 +8,7 @@ import {useRouter} from "next/navigation";
 import {editProfile} from "@/lib/actions/profile-actions";
 import {handleError, successToast} from "@/lib/util";
 import {editProfileSchema, EditProfileSchema} from "@/lib/schemas/editProfileSchema";
+import {refreshEstimationProfile} from "@/lib/estimation/refresh-profile";
 
 type Props = {
     profile: Profile;
@@ -34,6 +35,8 @@ export default function EditProfileForm({profile, setEditMode}: Props) {
                 return;
             }
             successToast('Profile successfully updated');
+            // Push updated name/avatar to all estimation rooms (fire-and-forget)
+            refreshEstimationProfile().catch(() => {});
             setEditMode(false);
             router.refresh();
         })
