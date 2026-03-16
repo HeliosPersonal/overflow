@@ -3,7 +3,8 @@
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {Button, Chip, Spinner, Tooltip} from "@heroui/react";
-import {SparklesIcon, UserGroupIcon, HashtagIcon, FlagIcon, ClockIcon} from "@heroicons/react/24/outline";
+import {SparklesIcon, UserGroupIcon, HashtagIcon, ClockIcon} from "@heroicons/react/24/outline";
+import {FlagIcon} from "@heroicons/react/24/solid";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 import {timeAgo} from "@/lib/util";
 import {differenceInDays} from "date-fns";
@@ -60,7 +61,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             </div>
 
             {/* ── Start Planning Poker CTA ──────────────────────────── */}
-            <div className="p-6 rounded-2xl bg-content2 border border-content3 shadow-raise-md flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="p-6 rounded-2xl bg-content2 border border-content3 shadow-raise-sm flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
                     <h2 className="text-xl font-semibold text-foreground-700 mb-1">Ready to estimate?</h2>
                     <p className="text-sm text-foreground-500">
@@ -81,7 +82,9 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             {/* ── Recent Sessions ───────────────────────────────────── */}
             <div className="p-6 rounded-2xl bg-content2 border border-content3 shadow-raise-sm">
                 <h2 className="text-xl font-semibold text-foreground-600 mb-1">Recent Sessions</h2>
-                <p className="text-xs text-foreground-400 mb-4">Archived rooms are automatically deleted after 30 days.</p>
+                <p className="text-xs text-foreground-400 mb-4">
+                    Archived rooms are automatically deleted after {recentSessions[0]?.retentionDays ?? 30} days.
+                </p>
 
                 {!isAuthenticated ? (
                     <p className="text-foreground-400 text-sm">

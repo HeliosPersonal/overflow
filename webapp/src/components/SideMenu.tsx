@@ -1,6 +1,6 @@
 'use client';
 
-import {HomeIcon, TagIcon, TrophyIcon, Squares2X2Icon} from "@heroicons/react/24/outline";
+import {AcademicCapIcon, TagIcon, TrophyIcon, Squares2X2Icon} from "@heroicons/react/24/outline";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {usePathname} from "next/navigation";
 
@@ -9,7 +9,7 @@ export default function SideMenu({ isAdmin = false }: { isAdmin?: boolean }) {
 
     const navLinks = [
         {key: 'poker', icon: Squares2X2Icon, text: 'Dashboard', href: '/'},
-        {key: 'home', icon: HomeIcon, text: 'Questions', href: '/questions'},
+        {key: 'home', icon: AcademicCapIcon, text: 'Questions', href: '/questions'},
         ...(isAdmin ? [{key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'}] : []),
         {key: 'leaderboard', icon: TrophyIcon, text: 'Leaderboard', href: '/profiles'},
     ]

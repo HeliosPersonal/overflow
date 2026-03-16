@@ -7,9 +7,9 @@ import {
 } from "@heroui/react";
 import {
     ClipboardDocumentIcon, ArrowLeftOnRectangleIcon, EyeIcon, EyeSlashIcon,
-    FlagIcon, ArchiveBoxIcon, ArrowPathIcon,
+    ArchiveBoxIcon, ArrowPathIcon,
 } from "@heroicons/react/24/outline";
-import {CheckCircleIcon} from "@heroicons/react/24/solid";
+import {CheckCircleIcon, FlagIcon} from "@heroicons/react/24/solid";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import AvatarPicker from "@/components/AvatarPicker";
@@ -569,13 +569,13 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                     const isSelected = effectiveVote === v;
                                     return (
                                         <button key={v}
-                                            onClick={() => isVoting && handleVote(v)}
+                                            onClick={() => isVoting && (isSelected ? handleClearVote() : handleVote(v))}
                                             disabled={!isVoting}
                                             className={`
                                                 w-14 h-20 rounded-lg border-2 text-lg font-bold
                                                 flex items-center justify-center transition-all duration-100
                                                 ${isSelected
-                                                    ? 'border-primary bg-primary/10 text-primary scale-105 shadow-md'
+                                                    ? 'border-primary bg-primary/30 text-primary scale-105 shadow-md shadow-primary/30'
                                                     : 'border-content3 hover:border-primary/50 text-foreground-600'}
                                                 ${!isVoting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}
                                             `}>
@@ -584,14 +584,6 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                     );
                                 })}
                             </div>
-                            {isVoting && effectiveVote && (
-                                <div className="flex justify-center mt-3">
-                                <Button size="sm" variant="light" color="danger"
-                                    onPress={handleClearVote}>
-                                    Clear my vote
-                                </Button>
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -679,7 +671,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                     {[...room.roundHistory].reverse().map(h => (
                                         <div key={h.roundNumber}
                                              className="bg-content3 border border-content4 rounded-lg p-3">
-                                            <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center justify-between mb-1">
                                                 <span className="text-sm font-bold text-foreground-700">Round {h.roundNumber}</span>
                                                 {h.numericAverageDisplay && (
                                                     <span className="text-3xl font-extrabold text-warning tabular-nums">
@@ -687,7 +679,7 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-1 mb-1.5">
+                                            <div className="flex justify-start mb-2">
                                                 <Chip size="sm" variant="flat" className="text-xs">
                                                     {h.voterCount} vote{h.voterCount !== 1 ? 's' : ''}
                                                 </Chip>
