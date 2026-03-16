@@ -149,12 +149,14 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
 
                                             {/* Creator */}
                                             <td className="py-3 pr-4">
-                                                <Tooltip content={r.creatorDisplayName} placement="top">
-                                                    <DiceBearAvatar
-                                                        avatarJson={r.creatorAvatarUrl}
-                                                        name={r.creatorDisplayName}
-                                                        size="sm"
-                                                    />
+                                                <Tooltip content={r.isModerator ? 'You' : r.creatorDisplayName} placement="top">
+                                                    <span className="inline-flex">
+                                                        <DiceBearAvatar
+                                                            avatarJson={r.creatorAvatarUrl}
+                                                            name={r.creatorDisplayName}
+                                                            size="sm"
+                                                        />
+                                                    </span>
                                                 </Tooltip>
                                             </td>
 
@@ -171,11 +173,13 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                                 <AvatarGroup max={5} size="sm" isBordered>
                                                     {r.participants.map((p, i) => (
                                                         <Tooltip key={i} content={p.displayName} placement="top">
-                                                            <DiceBearAvatar
-                                                                avatarJson={p.avatarUrl}
-                                                                name={p.displayName}
-                                                                size="sm"
-                                                            />
+                                                            <span className="inline-flex">
+                                                                <DiceBearAvatar
+                                                                    avatarJson={p.avatarUrl}
+                                                                    name={p.displayName}
+                                                                    size="sm"
+                                                                />
+                                                            </span>
                                                         </Tooltip>
                                                     ))}
                                                 </AvatarGroup>
