@@ -228,7 +228,7 @@ Guests get **real Keycloak accounts** with random credentials so they participat
 
 - `auth.ts` JWT callback has a `PROFILE_REFRESH_INTERVAL` (60s). While the access token is valid, it periodically calls `GET /profiles/me` to update `displayName` and `reputation` in the session.
 - `editProfile` server action calls `revalidatePath('/', 'layout')` to bust all Next.js caches broadly.
-- `editProfile` server action also calls `POST /estimation/refresh-profile` server-side (via `fetchClient`) to push updates to estimation rooms immediately. This is best-effort — failures don't block the profile edit.
+- `editProfile` server action also calls `POST /estimation/refresh-profile` server-side (via raw `fetch` with `auth()` token — avoids `fetchClient`'s `notFound()` throw in server-action context). This is best-effort — failures are logged but don't block the profile edit.
 - Questions/answers store only `askerId`/`userId` (not names) — display names are resolved at render time via `GET /profiles/batch`.
 - SearchService (Typesense) does not store author names.
 - EstimationService's `ProfileServiceClient` caches profiles for 60s. After a profile/avatar edit, the `editProfile` server action calls `POST /estimation/refresh-profile` which evicts the stale cache, fetches fresh data from ProfileService, and bulk-updates the participant's name + avatar across all their rooms, broadcasting WebSocket updates to each. As a fallback, `JoinRoomAsync` also detects mismatches and updates lazily on next room open.

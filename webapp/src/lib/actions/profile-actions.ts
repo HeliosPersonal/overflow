@@ -5,6 +5,7 @@ import {FetchResponse, Profile, TopUser, TopUserWithProfile} from "@/lib/types";
 import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 import {cookies} from "next/headers";
+import {auth} from "@/auth";
 
 export async function getUserProfiles(sortBy?: string) {
     const effectiveSort = sortBy ?? 'reputation';
@@ -30,12 +31,25 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
     revalidatePath('/', 'layout');
 
     // Push updated profile (name + avatar) to all estimation rooms the user is in.
-    // Done server-side so it's guaranteed to run — client-side fire-and-forget is unreliable.
+    // Uses raw fetch instead of fetchClient to avoid notFound() throwing in server-action context.
     // Best-effort: failures here must not block the profile edit response.
     try {
-        await fetchClient('/estimation/refresh-profile', 'POST');
-    } catch {
-        // EstimationService may be down — rooms will pick up changes on next join.
+        const apiUrl = process.env.API_URL;
+        const session = await auth();
+        if (apiUrl && session?.accessToken) {
+            const refreshRes = await fetch(`${apiUrl}/estimation/refresh-profile`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!refreshRes.ok) {
+                console.warn('[editProfile] refresh-profile failed:', refreshRes.status, await refreshRes.text().catch(() => ''));
+            }
+        }
+    } catch (e) {
+        console.warn('[editProfile] refresh-profile threw:', e instanceof Error ? e.message : e);
     }
 
     return result;
