@@ -12,6 +12,7 @@ import {
 import {CheckCircleIcon, FlagIcon} from "@heroicons/react/24/solid";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
+import {setActiveRoom} from "@/lib/hooks/useActiveRoom";
 import AvatarPicker from "@/components/AvatarPicker";
 import DiceBearAvatar from "@/components/DiceBearAvatar";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
@@ -39,6 +40,14 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
     const hasLeftRef = useRef(false);
 
     const {room, status: wsStatus, updateRoom} = useRoomWebSocket(joinedOnce ? roomId : null);
+
+    // ── Track active room globally so sign-out can leave before session dies
+    useEffect(() => {
+        if (joinedOnce) {
+            setActiveRoom(roomId);
+            return () => setActiveRoom(null);
+        }
+    }, [joinedOnce, roomId]);
 
     // ── Leave on tab close / external navigation ─────────────────────────
     // Uses sendBeacon so the request survives page teardown.

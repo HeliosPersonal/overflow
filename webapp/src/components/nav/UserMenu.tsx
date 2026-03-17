@@ -13,6 +13,7 @@ import { Chip } from "@heroui/react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useCookieConsentStore } from "@/lib/hooks/useCookieConsentStore";
+import { getActiveRoom } from "@/lib/hooks/useActiveRoom";
 
 type Props = {
   user: User;
@@ -26,6 +27,17 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
   const router = useRouter();
   const openPreferences = useCookieConsentStore((s) => s.openPreferences);
   const isAnonymous = user.isAnonymous;
+
+  async function handleSignOut() {
+    // If the user is in a planning-poker room, leave it *before* the session
+    // is destroyed — otherwise the proxy can't attach the Bearer token and the
+    // backend resolves the wrong participant identity.
+    const activeRoom = getActiveRoom();
+    if (activeRoom) {
+      await fetch(`/api/estimation/rooms/${activeRoom}/leave`, { method: "POST" }).catch(() => {});
+    }
+    await signOut({ redirectTo: "/" });
+  }
 
   return (
     <Dropdown>
@@ -80,7 +92,7 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
             key="logout"
             className="text-danger"
             color="danger"
-            onPress={() => signOut({ redirectTo: "/" })}
+            onPress={handleSignOut}
           >
             Sign out
           </DropdownItem>
