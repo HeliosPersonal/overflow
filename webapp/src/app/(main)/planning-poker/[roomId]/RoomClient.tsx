@@ -271,6 +271,10 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
         await doAction('Reset', `/api/estimation/rooms/${roomId}/reset`);
     }
 
+    async function handleRevote() {
+        await doAction('Revote', `/api/estimation/rooms/${roomId}/revote`);
+    }
+
     async function handleArchive() {
         await doAction('Archive', `/api/estimation/rooms/${roomId}/archive`);
         hasLeftRef.current = true; // Prevent redundant leave on navigation
@@ -643,18 +647,31 @@ export default function RoomClient({roomId, isAuthenticated}: {roomId: string; i
 
                     {isModerator && !isArchived && (
                         <div className="flex justify-center gap-4">
-                            <Button size="md" color="primary" variant={isVoting ? 'solid' : 'flat'}
-                                onPress={handleReveal} isDisabled={!isVoting}
-                                isLoading={actionLoading === 'Reveal'} className="font-semibold px-6">
-                                Reveal Cards
-                            </Button>
-                            <Button size="md" color="secondary" variant={isRevealed ? 'solid' : 'flat'}
-                                onPress={handleReset} isDisabled={!isRevealed}
-                                isLoading={actionLoading === 'Reset'}
-                                startContent={<ArrowPathIcon className="h-4 w-4"/>}
-                                className="font-semibold px-6">
-                                Next Round
-                            </Button>
+                            {isVoting && (
+                                <Button size="md" color="primary" variant="solid"
+                                    onPress={handleReveal}
+                                    isLoading={actionLoading === 'Reveal'} className="font-semibold px-6">
+                                    Reveal Cards
+                                </Button>
+                            )}
+                            {isRevealed && (
+                                <Button size="md" color="warning" variant="flat"
+                                    onPress={handleRevote}
+                                    isLoading={actionLoading === 'Revote'}
+                                    startContent={<ArrowPathIcon className="h-4 w-4"/>}
+                                    className="font-semibold px-6">
+                                    Revote
+                                </Button>
+                            )}
+                            {isRevealed && (
+                                <Button size="md" color="secondary" variant="solid"
+                                    onPress={handleReset}
+                                    isLoading={actionLoading === 'Reset'}
+                                    startContent={<ArrowPathIcon className="h-4 w-4"/>}
+                                    className="font-semibold px-6">
+                                    Next Round
+                                </Button>
+                            )}
                         </div>
                     )}
 

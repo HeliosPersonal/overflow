@@ -256,6 +256,23 @@ public class RoomsController(
         return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
     }
 
+    // ─── POST /estimation/rooms/{roomId}/revote ─────────────────────────────
+
+    [Authorize]
+    [HttpPost("rooms/{roomId:guid}/revote")]
+    public async Task<IActionResult> Revote(Guid roomId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await svc.RevoteAsync(roomId, userId);
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
+    }
+
     // ─── POST /estimation/rooms/{roomId}/archive ───────────────────────────
 
     [Authorize]

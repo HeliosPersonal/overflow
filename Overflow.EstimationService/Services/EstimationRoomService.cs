@@ -394,6 +394,40 @@ public class EstimationRoomService(
         return await ReloadRoom(roomId);
     }
 
+    // ─── Revote ──────────────────────────────────────────────────────────
+
+    public async Task<Result<EstimationRoom, RoomError>> RevoteAsync(Guid roomId, string moderatorId)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
+
+        if (room.Status != RoomStatus.Revealed)
+            return RoomErrors.InvalidState("Can only revote after votes are revealed");
+
+        // Clear all votes for the current round
+        await db.Votes.Where(v => v.RoomId == roomId && v.RoundNumber == room.RoundNumber).ExecuteDeleteAsync();
+
+        // Remove the round history entry that was created on reveal
+        await db.RoundHistory.Where(h => h.RoomId == roomId && h.RoundNumber == room.RoundNumber).ExecuteDeleteAsync();
+
+        // Set status back to Voting — same round number
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, RoomStatus.Voting)
+                .SetProperty(r => r.UpdatedAtUtc, now));
+
+        await InvalidateAndBroadcastAsync(roomId);
+        logger.LogInformation("Revote started in room {RoomId} for round {Round} by {ModeratorId}", roomId,
+            room.RoundNumber, moderatorId);
+        return await ReloadRoom(roomId);
+    }
+
     // ─── Archive ──────────────────────────────────────────────────────────
 
     public async Task<Result<EstimationRoom, RoomError>> ArchiveRoomAsync(Guid roomId, string moderatorId)
