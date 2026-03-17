@@ -596,7 +596,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
 
                 {/* ── Center column ── */}
                 <div
-                    className={`flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto ${showCardPicker ? 'pb-28' : 'pb-6'}`}>
+                    className="flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto pb-6">
 
                     <div className="flex-1 max-w-[960px] w-full mx-auto px-4 pt-6 flex flex-col gap-5 relative">
 
@@ -795,9 +795,9 @@ export default function RoomClient({roomId, isAuthenticated}: {
                     <div className={`sticky bottom-0 z-20 pointer-events-none
                     transition-all duration-500 ease-out
                     ${showCardPicker ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                        <div className="flex justify-center px-4 pt-4 pb-5 pointer-events-auto">
+                        <div className="flex justify-center px-2 pt-1 pb-1 pointer-events-auto">
                             <div className="bg-content2/95 backdrop-blur-xl border border-content3 shadow-[0_-4px_40px_rgba(0,0,0,0.15)]
-                            rounded-2xl px-5 py-3.5 max-w-fit">
+                            rounded-xl px-3 py-2 max-w-fit">
                                 <div className="flex items-center justify-center gap-2 flex-wrap">
                                     {(room?.deck.values ?? []).map(v => {
                                         const isSelected = effectiveVote === v;
@@ -927,64 +927,57 @@ function ResultsPanel({summary, participants}: {
         <div className={`rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden
             transition-all duration-500 ease-out
             ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {/* Header */}
-            <div className="px-6 pt-5 pb-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400">
-                    Results — {summary.taskName ?? `Round ${summary.roundNumber}`}
-                </p>
-            </div>
 
-            {/* Hero average + consensus */}
-            <div className={`flex flex-col items-center py-5 gap-1.5
+            {/* Header row — label + average + consensus inline */}
+            <div className={`flex items-center gap-4 px-5 py-3
                 transition-all duration-700 delay-150 ease-out
                 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400 shrink-0">
+                    Results — {summary.taskName ?? `Round ${summary.roundNumber}`}
+                </p>
+                <div className="flex-1"/>
                 {summary.numericAverageDisplay ? (
-                    <>
-                        <div className="relative">
-                            <div className="absolute inset-0 rounded-full bg-warning/10 blur-xl scale-150"/>
-                            <span className="relative text-6xl font-black tabular-nums text-warning">
-                                {summary.numericAverageDisplay}
-                            </span>
-                        </div>
-                        <span className="text-xs font-semibold uppercase tracking-wider text-foreground-400 mt-1">
-                            Average
+                    <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black tabular-nums text-warning leading-none">
+                            {summary.numericAverageDisplay}
                         </span>
-                    </>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">Avg</span>
+                            <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+                        </div>
+                    </div>
                 ) : (
-                    <span className="text-2xl font-bold text-foreground-500">No numeric average</span>
+                    <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
                 )}
-                <span className={`text-sm font-semibold ${consensusColor}`}>
-                    {consensusLabel}
-                </span>
             </div>
 
-            <div className="h-px bg-content3 mx-6"/>
+            <div className="h-px bg-content3 mx-5"/>
 
-            {/* Distribution — card layout */}
-            <div className="px-6 py-5">
-                <div className="flex flex-wrap justify-center gap-4">
+            {/* Distribution — compact card layout */}
+            <div className="px-5 py-3">
+                <div className="flex flex-wrap justify-center gap-3">
                     {sorted.map(([value, count], index) => {
                         const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
                         const isTop = count === maxCount;
                         const voters = voteGroups[value] ?? [];
 
                         return (
-                            <div key={value} className="flex flex-col items-center gap-2"
+                            <div key={value} className="flex flex-col items-center gap-1.5"
                                  style={{
                                      opacity: visible ? 1 : 0,
-                                     transform: visible ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.9)',
-                                     transition: `opacity 400ms ease-out ${300 + index * 120}ms, transform 400ms ease-out ${300 + index * 120}ms`,
+                                     transform: visible ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)',
+                                     transition: `opacity 300ms ease-out ${200 + index * 80}ms, transform 300ms ease-out ${200 + index * 80}ms`,
                                  }}>
                                 {/* Card */}
-                                <div className={`relative w-16 h-24 rounded-xl border-2 flex items-center justify-center
-                                    text-2xl font-black transition-all duration-500
+                                <div className={`relative w-12 h-[68px] rounded-lg border-2 flex items-center justify-center
+                                    text-lg font-black transition-all duration-500
                                     ${isTop
-                                    ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/25 scale-110'
+                                    ? 'border-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105'
                                     : 'border-content4 bg-content3/50 text-foreground-600'}`}>
                                     {value}
                                     {/* Vote count badge */}
-                                    <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center
-                                        text-[11px] font-bold shadow-sm
+                                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center
+                                        text-[10px] font-bold shadow-sm
                                         ${isTop
                                         ? 'bg-primary text-white'
                                         : 'bg-content4 text-foreground-600'}`}>
@@ -993,7 +986,7 @@ function ResultsPanel({summary, participants}: {
                                 </div>
 
                                 {/* Percentage */}
-                                <span className={`text-xs font-semibold tabular-nums
+                                <span className={`text-[10px] font-semibold tabular-nums
                                     ${isTop ? 'text-primary' : 'text-foreground-400'}`}>
                                     {pct}%
                                 </span>
@@ -1008,7 +1001,7 @@ function ResultsPanel({summary, participants}: {
                                                         userId={p.participantId}
                                                         avatarJson={p.avatarUrl}
                                                         name={p.displayName}
-                                                        className="h-6 w-6"
+                                                        className="h-5 w-5"
                                                     />
                                                 </span>
                                             </Tooltip>
