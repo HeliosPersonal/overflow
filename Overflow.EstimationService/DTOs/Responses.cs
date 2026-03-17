@@ -14,7 +14,9 @@ public record RoomResponse(
     ViewerResponse Viewer,
     List<ParticipantResponse> Participants,
     RoundSummaryResponse RoundSummary,
-    List<RoundHistoryResponse> RoundHistory
+    List<RoundHistoryResponse> RoundHistory,
+    List<string>? Tasks,
+    string? CurrentTaskName
 );
 
 public record DeckResponse(string Id, string Name, string[] Values);
@@ -46,6 +48,7 @@ public record ParticipantResponse(
 
 public record RoundSummaryResponse(
     int RoundNumber,
+    string? TaskName,
     RoomStatus Status,
     bool VotesRevealed,
     Dictionary<string, int>? Distribution,
@@ -58,6 +61,7 @@ public record RoundSummaryResponse(
 
 public record RoundHistoryResponse(
     int RoundNumber,
+    string? TaskName,
     int VoterCount,
     Dictionary<string, int> Distribution,
     double? NumericAverage,

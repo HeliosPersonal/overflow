@@ -125,6 +125,7 @@ export type PlanningPokerParticipant = {
 
 export type PlanningPokerRoundSummary = {
     roundNumber: number
+    taskName?: string | null
     status: PlanningPokerStatus
     votesRevealed: boolean
     distribution?: Record<string, number> | null
@@ -137,6 +138,7 @@ export type PlanningPokerRoundSummary = {
 
 export type PlanningPokerRoundHistory = {
     roundNumber: number
+    taskName?: string | null
     voterCount: number
     distribution: Record<string, number>
     numericAverage?: number | null
@@ -177,5 +179,7 @@ export type PlanningPokerRoom = {
     participants: PlanningPokerParticipant[]
     roundSummary: PlanningPokerRoundSummary
     roundHistory: PlanningPokerRoundHistory[]
+    tasks?: string[] | null
+    currentTaskName?: string | null
 }
 

@@ -6,5 +6,10 @@ export default async function RoomPage({params}: {params: Promise<{roomId: strin
     const session = await auth();
     const isAuthenticated = !!session?.user;
 
-    return <RoomClient roomId={roomId} isAuthenticated={isAuthenticated}/>;
+    return (
+        <RoomClient
+            roomId={roomId}
+            isAuthenticated={isAuthenticated}
+        />
+    );
 }

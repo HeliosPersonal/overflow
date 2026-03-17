@@ -97,10 +97,29 @@ public static class RoomResponseMapper
         var deck = new DeckResponse(room.DeckType, Decks.GetOrDefault(room.DeckType).Name,
             Decks.GetOrDefault(room.DeckType).Values);
 
+        // Parse optional task list
+        List<string>? tasks = null;
+        if (!string.IsNullOrWhiteSpace(room.TasksJson))
+        {
+            try
+            {
+                tasks = JsonSerializer.Deserialize<List<string>>(room.TasksJson);
+            }
+            catch
+            {
+                /* ignore malformed JSON */
+            }
+        }
+
+        string? currentTaskName = tasks is { Count: > 0 } && room.RoundNumber <= tasks.Count
+            ? tasks[room.RoundNumber - 1]
+            : null;
+
         var roundHistory = room.RoundHistory
             .OrderBy(h => h.RoundNumber)
             .Select(h => new RoundHistoryResponse(
                 h.RoundNumber,
+                h.TaskName,
                 h.VoterCount,
                 DeserializeDistribution(h.DistributionJson),
                 h.NumericAverage,
@@ -130,6 +149,7 @@ public static class RoomResponseMapper
             Participants: participants,
             RoundSummary: new RoundSummaryResponse(
                 room.RoundNumber,
+                currentTaskName,
                 room.Status,
                 isRevealed || isArchived,
                 distribution,
@@ -139,7 +159,9 @@ public static class RoomResponseMapper
                 spectators.Count,
                 deck
             ),
-            RoundHistory: roundHistory
+            RoundHistory: roundHistory,
+            Tasks: tasks,
+            CurrentTaskName: currentTaskName
         );
     }
 

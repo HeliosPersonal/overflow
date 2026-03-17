@@ -116,7 +116,7 @@ public class RoomsController(
             return BadRequest("Display name is required for guest users");
 
         var result = await svc.CreateRoomAsync(req.Title, identity.ParticipantId,
-            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType);
+            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType, req.Tasks);
 
         if (!result.IsSuccess)
             return result.Error.ToActionResult();
@@ -260,12 +260,29 @@ public class RoomsController(
 
     [Authorize]
     [HttpPost("rooms/{roomId:guid}/revote")]
-    public async Task<IActionResult> Revote(Guid roomId)
+    public async Task<IActionResult> Revote(Guid roomId, [FromBody] RevoteRequest? req = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
-        var result = await svc.RevoteAsync(roomId, userId);
+        var result = await svc.RevoteAsync(roomId, userId, req?.RoundNumber);
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
+    }
+
+    // ─── PUT /estimation/rooms/{roomId}/tasks ────────────────────────────────
+
+    [Authorize]
+    [HttpPut("rooms/{roomId:guid}/tasks")]
+    public async Task<IActionResult> UpdateTasks(Guid roomId, [FromBody] UpdateTasksRequest req)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await svc.UpdateTasksAsync(roomId, userId, req.Tasks);
         if (!result.IsSuccess)
             return result.Error.ToActionResult();
 
@@ -283,6 +300,23 @@ public class RoomsController(
         if (userId is null) return Unauthorized();
 
         var result = await svc.ArchiveRoomAsync(roomId, userId);
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
+    }
+
+    // ─── PUT /estimation/rooms/{roomId}/title ──────────────────────────────
+
+    [Authorize]
+    [HttpPut("rooms/{roomId:guid}/title")]
+    public async Task<IActionResult> RenameRoom(Guid roomId, [FromBody] RenameRoomRequest req)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await svc.RenameRoomAsync(roomId, userId, req.Title);
         if (!result.IsSuccess)
             return result.Error.ToActionResult();
 

@@ -1,8 +1,9 @@
 'use client';
 
 import {useState} from "react";
-import {Button, Divider, Input, Tooltip, addToast} from "@heroui/react";
-import {ArrowLeftIcon} from "@heroicons/react/24/outline";
+import {Button, Divider, Input, Switch, Tooltip, addToast} from "@heroui/react";
+import {ArrowLeftIcon, ListBulletIcon} from "@heroicons/react/24/outline";
+import {Textarea} from "@heroui/input";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import {useRouter} from "next/navigation";
 import {generateRoomName} from "@/lib/room-name-generator";
@@ -21,6 +22,8 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
         return JSON.stringify({ eyes: [eyes], mouth: [mouth] });
     });
     const [creating, setCreating] = useState(false);
+    const [hasTaskList, setHasTaskList] = useState(false);
+    const [taskListText, setTaskListText] = useState('');
 
     function rollName() {
         setTitle(generateRoomName());
@@ -40,10 +43,14 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                 }
             }
 
+            const tasks = hasTaskList
+                ? taskListText.split('\n').map(t => t.trim()).filter(Boolean)
+                : undefined;
+
             const res = await fetch('/api/estimation/rooms', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({title: title.trim(), deckType}),
+                body: JSON.stringify({title: title.trim(), deckType, tasks}),
             });
 
             if (!res.ok) {
@@ -187,6 +194,35 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                                 </button>
                             ))}
                         </div>
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="text-sm font-semibold uppercase tracking-wide text-foreground-400 flex items-center gap-1.5">
+                                <ListBulletIcon className="h-4 w-4"/>
+                                Task list
+                            </label>
+                            <Switch
+                                size="sm"
+                                isSelected={hasTaskList}
+                                onValueChange={setHasTaskList}
+                                aria-label="Enable task list"
+                            />
+                        </div>
+                        {hasTaskList && (
+                            <div className="flex flex-col gap-2">
+                                <Textarea
+                                    placeholder={"Login page\nDashboard redesign\nAPI integration\nUser profile"}
+                                    value={taskListText}
+                                    onValueChange={setTaskListText}
+                                    minRows={4}
+                                    maxRows={12}
+                                    description={(() => {
+                                        const count = taskListText.split('\n').map(t => t.trim()).filter(Boolean).length;
+                                        return `${count} task${count !== 1 ? 's' : ''} · One task per line. Each task becomes a voting round.`;
+                                    })()}
+                                />
+                            </div>
+                        )}
                     </div>
                     <Button
                         color="primary"

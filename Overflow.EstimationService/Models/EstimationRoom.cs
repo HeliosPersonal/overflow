@@ -18,6 +18,13 @@ public class EstimationRoom
     public string DeckType { get; set; } = "fibonacci";
     public RoomStatus Status { get; set; } = RoomStatus.Voting;
     public int RoundNumber { get; set; } = 1;
+
+    /// <summary>
+    /// Optional JSON array of task names, e.g. ["Login page","Dashboard","API integration"].
+    /// When set, each round corresponds to a task from this list (1-based index).
+    /// </summary>
+    public string? TasksJson { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
     public DateTime? ArchivedAtUtc { get; set; }

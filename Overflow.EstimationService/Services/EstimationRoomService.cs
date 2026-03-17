@@ -29,10 +29,20 @@ public class EstimationRoomService(
 
     public async Task<Result<EstimationRoom, RoomError>> CreateRoomAsync(
         string title, string moderatorParticipantId, string? moderatorUserId,
-        string? moderatorGuestId, string moderatorDisplayName, bool isGuest, string? deckType)
+        string? moderatorGuestId, string moderatorDisplayName, bool isGuest, string? deckType,
+        List<string>? tasks)
     {
         var deck = Decks.GetOrDefault(deckType);
         var now = DateTime.UtcNow;
+
+        // Sanitize task list: trim, remove empty entries
+        string? tasksJson = null;
+        if (tasks is { Count: > 0 })
+        {
+            var cleaned = tasks.Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
+            if (cleaned.Count > 0)
+                tasksJson = JsonSerializer.Serialize(cleaned);
+        }
 
         var room = new EstimationRoom
         {
@@ -42,6 +52,7 @@ public class EstimationRoomService(
             DeckType = deck.Id,
             Status = RoomStatus.Voting,
             RoundNumber = 1,
+            TasksJson = tasksJson,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
             Participants =
@@ -337,11 +348,28 @@ public class EstimationRoomService(
             .Where(h => h.RoomId == roomId && h.RoundNumber == room.RoundNumber)
             .ExecuteDeleteAsync();
 
+        // Resolve task name for this round (if task list is configured)
+        string? taskName = null;
+        if (!string.IsNullOrWhiteSpace(room.TasksJson))
+        {
+            try
+            {
+                var tasks = JsonSerializer.Deserialize<List<string>>(room.TasksJson);
+                if (tasks is { Count: > 0 } && room.RoundNumber <= tasks.Count)
+                    taskName = tasks[room.RoundNumber - 1];
+            }
+            catch
+            {
+                /* ignore malformed JSON */
+            }
+        }
+
         db.RoundHistory.Add(new EstimationRoundHistory
         {
             Id = Guid.NewGuid(),
             RoomId = roomId,
             RoundNumber = room.RoundNumber,
+            TaskName = taskName,
             VoterCount = roundVotes.Count,
             DistributionJson = JsonSerializer.Serialize(distribution),
             NumericAverage = numericAverage,
@@ -381,7 +409,45 @@ public class EstimationRoomService(
 
         await db.Votes.Where(v => v.RoomId == roomId).ExecuteDeleteAsync();
 
-        var newRound = room.RoundNumber + 1;
+        // Determine the next round: find the first task/round that has no history entry.
+        // This correctly handles revoting — e.g. if you revoted task 2 while tasks 3-5 are done,
+        // after revealing task 2, "Next Task" should jump to the next unestimated task.
+        var completedRounds = room.RoundHistory.Select(h => h.RoundNumber).ToHashSet();
+        // Include the current round as completed (it was just revealed)
+        completedRounds.Add(room.RoundNumber);
+
+        // Parse total task count (if tasks are configured)
+        var totalTasks = 0;
+        if (!string.IsNullOrWhiteSpace(room.TasksJson))
+        {
+            try
+            {
+                var tasks = JsonSerializer.Deserialize<List<string>>(room.TasksJson);
+                totalTasks = tasks?.Count ?? 0;
+            }
+            catch
+            {
+                /* ignore */
+            }
+        }
+
+        int newRound;
+        if (totalTasks > 0)
+        {
+            // Find the first round (1-based) within the task list that hasn't been completed
+            newRound = Enumerable.Range(1, totalTasks)
+                .FirstOrDefault(r => !completedRounds.Contains(r));
+
+            // All tasks done — append beyond the list (frontend auto-adds a new task)
+            if (newRound == 0)
+                newRound = totalTasks + 1;
+        }
+        else
+        {
+            // No task list — simple increment
+            newRound = room.RoundNumber + 1;
+        }
+
         var now = DateTime.UtcNow;
         await db.Rooms.Where(r => r.Id == roomId)
             .ExecuteUpdateAsync(s => s
@@ -396,7 +462,8 @@ public class EstimationRoomService(
 
     // ─── Revote ──────────────────────────────────────────────────────────
 
-    public async Task<Result<EstimationRoom, RoomError>> RevoteAsync(Guid roomId, string moderatorId)
+    public async Task<Result<EstimationRoom, RoomError>> RevoteAsync(Guid roomId, string moderatorId,
+        int? targetRound = null)
     {
         var roomResult = await GetRoomWithAll(roomId);
         if (roomResult.IsFailure) return roomResult.Error;
@@ -406,25 +473,106 @@ public class EstimationRoomService(
         var moderatorCheck = EnsureModerator(room, moderatorId);
         if (moderatorCheck.IsFailure) return moderatorCheck.Error;
 
-        if (room.Status != RoomStatus.Revealed)
+        if (room.Status == RoomStatus.Archived)
+            return RoomErrors.Archived(roomId);
+
+        // When no target round specified, revote the current round (original behavior — requires Revealed state)
+        var round = targetRound ?? room.RoundNumber;
+
+        if (targetRound is null && room.Status != RoomStatus.Revealed)
             return RoomErrors.InvalidState("Can only revote after votes are revealed");
 
-        // Clear all votes for the current round
-        await db.Votes.Where(v => v.RoomId == roomId && v.RoundNumber == room.RoundNumber).ExecuteDeleteAsync();
+        // Validate round number: must be the current round, or a round that has a history entry (already estimated)
+        if (round < 1)
+            return RoomErrors.InvalidState($"Invalid round number: {round}");
 
-        // Remove the round history entry that was created on reveal
-        await db.RoundHistory.Where(h => h.RoomId == roomId && h.RoundNumber == room.RoundNumber).ExecuteDeleteAsync();
+        var hasHistoryEntry = room.RoundHistory.Any(h => h.RoundNumber == round);
+        if (round != room.RoundNumber && !hasHistoryEntry)
+            return RoomErrors.InvalidState($"Invalid round number: {round}");
 
-        // Set status back to Voting — same round number
+        // Clear votes for the target round
+        await db.Votes.Where(v => v.RoomId == roomId && v.RoundNumber == round).ExecuteDeleteAsync();
+
+        // Remove the round history entry for the target round
+        await db.RoundHistory.Where(h => h.RoomId == roomId && h.RoundNumber == round).ExecuteDeleteAsync();
+
+        // Set the room's current round to the target round and status to Voting
         var now = DateTime.UtcNow;
         await db.Rooms.Where(r => r.Id == roomId)
             .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.RoundNumber, round)
                 .SetProperty(r => r.Status, RoomStatus.Voting)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
         await InvalidateAndBroadcastAsync(roomId);
         logger.LogInformation("Revote started in room {RoomId} for round {Round} by {ModeratorId}", roomId,
-            room.RoundNumber, moderatorId);
+            round, moderatorId);
+        return await ReloadRoom(roomId);
+    }
+
+    // ─── Rename Room ──────────────────────────────────────────────────────
+
+    public async Task<Result<EstimationRoom, RoomError>> RenameRoomAsync(Guid roomId, string moderatorId,
+        string newTitle)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
+
+        if (room.Status == RoomStatus.Archived)
+            return RoomErrors.Archived(roomId);
+
+        var trimmed = newTitle.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return RoomErrors.InvalidState("Room title cannot be empty");
+
+        if (trimmed.Length > 80)
+            return RoomErrors.InvalidState("Room title must be 80 characters or fewer");
+
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Title, trimmed)
+                .SetProperty(r => r.UpdatedAtUtc, now));
+
+        await InvalidateAndBroadcastAsync(roomId);
+        logger.LogInformation("Room {RoomId} renamed to '{Title}' by {ModeratorId}", roomId, trimmed, moderatorId);
+        return await ReloadRoom(roomId);
+    }
+
+    // ─── Update Tasks ──────────────────────────────────────────────────────
+
+    public async Task<Result<EstimationRoom, RoomError>> UpdateTasksAsync(Guid roomId, string moderatorId,
+        List<string> tasks)
+    {
+        var roomResult = await GetRoomWithAll(roomId);
+        if (roomResult.IsFailure) return roomResult.Error;
+
+        var room = roomResult.Value;
+
+        var moderatorCheck = EnsureModerator(room, moderatorId);
+        if (moderatorCheck.IsFailure) return moderatorCheck.Error;
+
+        if (room.Status == RoomStatus.Archived)
+            return RoomErrors.Archived(roomId);
+
+        // Sanitize: trim, keep non-empty, allow empty list (clears tasks)
+        var cleaned = tasks.Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
+        string? tasksJson = cleaned.Count > 0 ? JsonSerializer.Serialize(cleaned) : null;
+
+        var now = DateTime.UtcNow;
+        await db.Rooms.Where(r => r.Id == roomId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.TasksJson, tasksJson)
+                .SetProperty(r => r.UpdatedAtUtc, now));
+
+        await InvalidateAndBroadcastAsync(roomId);
+        logger.LogInformation("Tasks updated in room {RoomId} ({Count} tasks) by {ModeratorId}", roomId, cleaned.Count,
+            moderatorId);
         return await ReloadRoom(roomId);
     }
 

@@ -22,8 +22,8 @@ export default async function TopNav() {
     }
 
     return (
-        <header className='p-2 w-full fixed top-0 z-50 bg-content1 shadow-raise-sm'>
-            <div className='flex px-10 mx-auto'>
+        <header className='h-14 w-full fixed top-0 z-50 bg-content1 shadow-raise-sm'>
+            <div className='flex items-center h-full px-4 mx-auto'>
                 <div className='flex items-center gap-6'>
                     <Link href='/' className='flex items-center gap-3 max-h-16'>
                         <SparklesIcon className='size-10 text-primary' />
