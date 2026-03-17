@@ -11,6 +11,10 @@
 #        staging_questions, staging_profiles, staging_votes, staging_stats, staging_estimations
 #   3. Drops & recreates the Typesense collection: staging_questions
 #   4. Scales deployments back up to 1
+#   5. Pulls the Ollama model (qwen2.5:3b) so the DataSeeder can generate content
+#
+# Note: Default tags are auto-seeded by QuestionService on startup when the Tags
+#       table is empty — no manual tag creation needed after a reset.
 #
 # Prerequisites:
 #   - kubectl configured and pointing at the correct cluster
@@ -225,6 +229,33 @@ for DEPLOY in "${DEPLOYMENTS[@]}"; do
 done
 
 # ============================================================================
+# 5. Pull Ollama model
+# ============================================================================
+OLLAMA_MODEL="qwen2.5:3b"
+echo ""
+echo "🤖 Pulling Ollama model '$OLLAMA_MODEL'..."
+
+if [ "$DRY_RUN" = true ]; then
+    echo "  [dry-run] would wait for ollama pod and run: ollama pull $OLLAMA_MODEL"
+else
+    if kubectl get deployment ollama -n "$NAMESPACE" &>/dev/null; then
+        echo "  ▶ Waiting for ollama deployment to be ready..."
+        kubectl rollout status deployment/ollama -n "$NAMESPACE" --timeout=180s
+
+        OLLAMA_POD=$(kubectl get pod -n "$NAMESPACE" -l app=ollama -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+        if [ -n "$OLLAMA_POD" ]; then
+            echo "  ▶ Pulling $OLLAMA_MODEL in pod $OLLAMA_POD (this may take a few minutes)..."
+            kubectl exec "$OLLAMA_POD" -n "$NAMESPACE" -- ollama pull "$OLLAMA_MODEL"
+            echo "  ✅ Model $OLLAMA_MODEL pulled successfully"
+        else
+            echo "  ⚠️  Could not find ollama pod — model must be pulled manually"
+        fi
+    else
+        echo "  ⚠️  ollama deployment not found — skipping model pull"
+    fi
+fi
+
+# ============================================================================
 # Done
 # ============================================================================
 echo ""
@@ -234,6 +265,7 @@ echo ""
 echo "   Namespace : $NAMESPACE"
 echo "   Postgres  : ${PG_DATABASES[*]}"
 echo "   Typesense : $TYPESENSE_COLLECTION"
+echo "   Ollama    : $OLLAMA_MODEL"
 echo ""
 echo "   Services are starting up. Monitor with:"
 echo "   kubectl rollout status deployment -n $NAMESPACE"

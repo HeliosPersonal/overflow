@@ -54,5 +54,6 @@ app.MapControllers();
 app.MapDefaultEndpoints();
 
 await app.MigrateDbContextAsync<QuestionDbContext>();
+await TagSeeder.SeedDefaultTagsAsync(app);
 
 app.Run();

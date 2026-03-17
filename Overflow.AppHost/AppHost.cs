@@ -118,6 +118,24 @@ var yarp = builder
         yarpBuilder.AddRoute("/notifications/{**catch-all}", notificationService);
     });
 
+var ollama = builder.AddContainer("ollama", "ollama/ollama", "latest")
+    .WithVolume("ollama-data", "/root/.ollama")
+    .WithHttpEndpoint(port: 11434, targetPort: 11434, name: "ollama");
+
+var ollamaReference = ollama.GetEndpoint("ollama");
+
+var dataSeeder = builder.AddProject<Projects.Overflow_DataSeederService>("data-seeder-svc")
+    .WithReference(keycloak)
+    .WithEnvironment("SeederOptions__QuestionServiceUrl", yarp.GetEndpoint("http"))
+    .WithEnvironment("SeederOptions__ProfileServiceUrl", yarp.GetEndpoint("http"))
+    .WithEnvironment("SeederOptions__VoteServiceUrl", yarp.GetEndpoint("http"))
+    .WithEnvironment("SeederOptions__LlmApiUrl", ollamaReference)
+    .WaitFor(keycloak)
+    .WaitFor(questionService)
+    .WaitFor(profileService)
+    .WaitFor(voteService)
+    .WaitFor(ollama);
+
 var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")
     .WithReference(keycloak)
     .WithHttpEndpoint(env: "PORT", port: 3000, targetPort: 4000);
