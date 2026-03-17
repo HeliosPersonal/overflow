@@ -596,9 +596,9 @@ export default function RoomClient({roomId, isAuthenticated}: {
 
                 {/* ── Center column ── */}
                 <div
-                    className="flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto pb-6">
+                    className="flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto">
 
-                    <div className="flex-1 max-w-[960px] w-full mx-auto px-4 pt-6 flex flex-col gap-5 relative">
+                    <div className="max-w-[960px] w-full mx-auto px-4 pt-6 flex flex-col gap-5 relative">
 
                         {/* ── Spectators — floating block to the left of content ── */}
                         {spectators.length > 0 && (
@@ -690,7 +690,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                         )}
 
                         {/* ── Table layout ── */}
-                        <div className="flex-1 flex items-start justify-center">
+                        <div className="flex items-start justify-center">
                             <div className="w-full">
                                 {activeParticipants.length === 0 ? (
                                     <p className="text-sm text-foreground-400 py-8 text-center">No active voters yet</p>
@@ -764,16 +764,6 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             </div>
                         </div>
 
-                        {/* ── Results block (after reveal) ── */}
-                        {(isRevealed || isArchived) && room.roundSummary && room.roundSummary.distribution &&
-                            Object.keys(room.roundSummary.distribution).length > 0 && (
-                                <ResultsPanel
-                                    summary={room.roundSummary}
-                                    participants={activeParticipants}
-                                />
-                            )}
-
-
                         {/* Spectator notice */}
                         {isSpectator && !isArchived && (
                             <div className="flex items-center justify-center gap-2 text-foreground-400 text-sm py-2">
@@ -790,6 +780,20 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             </div>
                         )}
                     </div>
+
+                    {/* Spacer — pushes results + card picker to the bottom */}
+                    <div className="flex-1"/>
+
+                    {/* ── Results block (after reveal) — pinned above card picker ── */}
+                    {(isRevealed || isArchived) && room.roundSummary && room.roundSummary.distribution &&
+                        Object.keys(room.roundSummary.distribution).length > 0 && (
+                            <div className="max-w-[960px] w-full mx-auto px-4 mb-5">
+                                <ResultsPanel
+                                    summary={room.roundSummary}
+                                    participants={activeParticipants}
+                                />
+                            </div>
+                        )}
 
                     {/* ════════════ CARD PICKER — floating bottom ════════════ */}
                     <div className={`sticky bottom-0 z-20 pointer-events-none
