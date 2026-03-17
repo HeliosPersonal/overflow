@@ -3,7 +3,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useRouter} from "next/navigation";
 import {
-    Button, Input, Chip, Divider, Spinner, Tooltip, addToast,
+    Button, Input, Chip, Divider, Spinner, Tooltip, Switch, addToast,
 } from "@heroui/react";
 import {
     ClipboardDocumentIcon, ArrowLeftOnRectangleIcon, EyeIcon, EyeSlashIcon,
@@ -509,7 +509,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
     const spectators = room.participants.filter(p => p.isSpectator && p.isPresent);
     const votedCount = activeParticipants.filter(p => p.hasVoted).length;
     const allVoted = votedCount === activeParticipants.length && activeParticipants.length > 0;
-    const showCardPicker = !isArchived && !isSpectator && isVoting;
+    const showCardPicker = !isArchived && !isSpectator && (isVoting || isRevealed);
 
     return (
         <div className="min-h-full bg-content1 flex flex-col">
@@ -596,7 +596,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
 
                 {/* ── Center column ── */}
                 <div
-                    className={`flex-1 flex flex-col transition-all duration-300 relative ${showCardPicker ? 'pb-32' : 'pb-6'}`}>
+                    className={`flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto ${showCardPicker ? 'pb-28' : 'pb-6'}`}>
 
                     <div className="flex-1 max-w-[960px] w-full mx-auto px-4 pt-6 flex flex-col gap-5 relative">
 
@@ -790,6 +790,39 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             </div>
                         )}
                     </div>
+
+                    {/* ════════════ CARD PICKER — floating bottom ════════════ */}
+                    <div className={`sticky bottom-0 z-20 pointer-events-none
+                    transition-all duration-500 ease-out
+                    ${showCardPicker ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+                        <div className="flex justify-center px-4 pt-4 pb-5 pointer-events-auto">
+                            <div className="bg-content2/95 backdrop-blur-xl border border-content3 shadow-[0_-4px_40px_rgba(0,0,0,0.15)]
+                            rounded-2xl px-5 py-3.5 max-w-fit">
+                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                    {(room?.deck.values ?? []).map(v => {
+                                        const isSelected = effectiveVote === v;
+                                        return (
+                                            <button key={v}
+                                                    onClick={isVoting ? () => isSelected ? handleClearVote() : handleVote(v) : undefined}
+                                                    disabled={!isVoting}
+                                                    className={`
+                                                w-14 h-20 rounded-xl border-2 text-lg font-bold
+                                                flex items-center justify-center transition-all duration-150
+                                                ${isVoting ? 'cursor-pointer active:scale-90' : 'cursor-default opacity-50'}
+                                                ${isSelected
+                                                        ? 'border-primary bg-primary text-white scale-110 shadow-lg shadow-primary/40 -translate-y-2'
+                                                        : isVoting
+                                                            ? 'border-content4 bg-content1 text-foreground-600 hover:border-primary/50 hover:-translate-y-1 hover:shadow-md'
+                                                            : 'border-content4 bg-content1 text-foreground-600'}
+                                            `}>
+                                                {v}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ── Right sidebar (Tasks + History) ── */}
@@ -807,36 +840,6 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             />
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* ════════════ CARD PICKER — floating bottom ════════════ */}
-            <div className={`sticky bottom-0 z-20 pointer-events-none
-            transition-all duration-500 ease-out
-            ${showCardPicker ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                <div className="flex justify-center px-4 pb-5 pointer-events-auto">
-                    <div className="bg-content2/95 backdrop-blur-xl border border-content3 shadow-[0_-4px_40px_rgba(0,0,0,0.15)]
-                    rounded-2xl px-5 py-3.5 max-w-fit">
-                        <div className="flex items-center justify-center gap-2 flex-wrap">
-                            {(room?.deck.values ?? []).map(v => {
-                                const isSelected = effectiveVote === v;
-                                return (
-                                    <button key={v}
-                                            onClick={() => isSelected ? handleClearVote() : handleVote(v)}
-                                            className={`
-                                        w-14 h-20 rounded-xl border-2 text-lg font-bold
-                                        flex items-center justify-center transition-all duration-150
-                                        cursor-pointer active:scale-90
-                                        ${isSelected
-                                                ? 'border-primary bg-primary text-white scale-110 shadow-lg shadow-primary/40 -translate-y-2'
-                                                : 'border-content4 bg-content1 text-foreground-600 hover:border-primary/50 hover:-translate-y-1 hover:shadow-md'}
-                                    `}>
-                                        {v}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -1198,10 +1201,14 @@ function SidebarPanel({
                 <ListBulletIcon className="h-8 w-8 text-foreground-300"/>
                 <p className="text-sm text-foreground-400 text-center">No rounds yet.</p>
                 {isModerator && !isArchived && (
-                    <Button size="sm" variant="flat" color="primary" onPress={onEnableTasks}
-                            isLoading={isLoading} startContent={<PlusIcon className="h-4 w-4"/>}>
-                        Enable Task List
-                    </Button>
+                    <Switch
+                        size="sm"
+                        isSelected={false}
+                        isDisabled={isLoading}
+                        onValueChange={() => onEnableTasks()}
+                    >
+                        <span className="text-xs text-foreground-500">Task list</span>
+                    </Switch>
                 )}
             </div>
         );
@@ -1217,11 +1224,17 @@ function SidebarPanel({
                         {hasTasks ? `Tasks (${tasks.length})` : `Rounds (${rows.length})`}
                     </h3>
                 </div>
-                {!hasTasks && isModerator && !isArchived && (
-                    <Tooltip content="Enable task list">
-                        <Button size="sm" variant="light" isIconOnly onPress={onEnableTasks} isLoading={isLoading}>
-                            <PlusIcon className="h-4 w-4"/>
-                        </Button>
+                {isModerator && !isArchived && (
+                    <Tooltip content={hasTasks ? 'Disable task list' : 'Enable task list'}>
+                        <div>
+                            <Switch
+                                size="sm"
+                                isSelected={hasTasks}
+                                isDisabled={isLoading}
+                                onValueChange={(checked) => checked ? onEnableTasks() : onDisableTasks()}
+                                aria-label="Toggle task list"
+                            />
+                        </div>
                     </Tooltip>
                 )}
             </div>
@@ -1370,12 +1383,6 @@ function SidebarPanel({
                             isLoading={isLoading} startContent={<PlusIcon className="h-4 w-4"/>}>
                         Add Task
                     </Button>
-                    <Tooltip content="Delete all tasks">
-                        <Button size="sm" variant="flat" color="danger" isIconOnly
-                                onPress={onDisableTasks} isLoading={isLoading}>
-                            <TrashIcon className="h-4 w-4"/>
-                        </Button>
-                    </Tooltip>
                 </div>
             )}
         </div>
