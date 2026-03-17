@@ -8,7 +8,7 @@ export default function RegisterButton() {
     
     return (
         <Button 
-            onPress={() => router.push('/signup?callbackUrl=/questions')}
+            onPress={() => router.push('/signup?callbackUrl=/')}
             color='primary'
         >
             Register

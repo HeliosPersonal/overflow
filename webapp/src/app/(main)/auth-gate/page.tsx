@@ -14,7 +14,7 @@ import {AVATAR_EYES, AVATAR_MOUTH} from "@/lib/avatar";
 export default function AuthGatePage() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const callbackUrl = searchParams.get("callbackUrl") || '/questions';
+    const callbackUrl = searchParams.get("callbackUrl") || '/';
     const [name, setName] = useState('');
     const [avatarJson, setAvatarJson] = useState<string | null>(() => {
         const eyes = AVATAR_EYES[Math.floor(Math.random() * AVATAR_EYES.length)];
