@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.Data;
 using Overflow.EstimationService.Mapping;
 using Overflow.EstimationService.Models;
@@ -79,6 +80,7 @@ public class WebSocketBroadcaster(
     /// <summary>
     /// Loads the room from DB and broadcasts a viewer-scoped snapshot to every
     /// connected participant in the room. Called after any mutation.
+    /// Resolves avatar URLs from ProfileService (via FusionCache) at broadcast time.
     /// </summary>
     public async Task BroadcastRoomUpdateAsync(Guid roomId)
     {
@@ -96,7 +98,11 @@ public class WebSocketBroadcaster(
 
             if (room is null) return;
 
-            await BroadcastRoomAsync(room);
+            // Resolve avatars for all authenticated participants
+            var profileClient = scope.ServiceProvider.GetRequiredService<ProfileServiceClient>();
+            var avatarLookup = await ResolveAvatarsAsync(profileClient, room);
+
+            await BroadcastRoomAsync(room, avatarLookup);
         }
         catch (Exception ex)
         {
@@ -108,8 +114,10 @@ public class WebSocketBroadcaster(
     /// Broadcasts a pre-loaded room to all connected participants.
     /// Useful when the caller already has the room loaded.
     /// </summary>
-    public async Task BroadcastRoomAsync(EstimationRoom room)
+    public async Task BroadcastRoomAsync(EstimationRoom room,
+        IReadOnlyDictionary<string, string?>? avatarLookup = null)
     {
+        avatarLookup ??= new Dictionary<string, string?>();
         var tasks = new List<Task>();
         var baseUrl = BaseUrl;
 
@@ -123,7 +131,7 @@ public class WebSocketBroadcaster(
                 continue;
             }
 
-            var response = RoomResponseMapper.ToResponse(room, participantId, baseUrl);
+            var response = RoomResponseMapper.ToResponse(room, participantId, baseUrl, avatarLookup);
             var json = JsonSerializer.Serialize(response, JsonOptions);
             tasks.Add(SendSafeAsync(connection, json, participantId, roomId));
         }
@@ -156,5 +164,27 @@ public class WebSocketBroadcaster(
         {
             // Ignore errors on stale sockets
         }
+    }
+
+    private static async Task<Dictionary<string, string?>> ResolveAvatarsAsync(
+        ProfileServiceClient profileClient, EstimationRoom room)
+    {
+        var userIds = room.Participants
+            .Where(p => p.UserId is not null)
+            .Select(p => p.UserId!)
+            .Distinct()
+            .ToList();
+
+        var result = new Dictionary<string, string?>();
+        await Task.WhenAll(userIds.Select(async userId =>
+        {
+            var profile = await profileClient.GetProfileDataAsync(userId);
+            lock (result)
+            {
+                result[userId] = profile?.AvatarUrl;
+            }
+        }));
+
+        return result;
     }
 }

@@ -42,9 +42,8 @@ export default function ProfileDetailed({
         return;
       }
       successToast("Avatar updated!");
-      // Soft-refresh: the editProfile server action sets a profile_dirty cookie,
-      // so the JWT callback will re-fetch from ProfileService on the next request.
-      // router.refresh() triggers that request without a full page reload.
+      // editProfile calls revalidatePath('/', 'layout') which busts the Next.js cache.
+      // router.refresh() re-renders TopNav which fetches fresh data from ProfileService.
       router.refresh();
     });
   }

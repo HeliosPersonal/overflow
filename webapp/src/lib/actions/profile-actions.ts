@@ -4,7 +4,6 @@ import {fetchClient} from "@/lib/fetchClient";
 import {FetchResponse, Profile, TopUser, TopUserWithProfile} from "@/lib/types";
 import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
-import {cookies} from "next/headers";
 import {auth} from "@/auth";
 
 export async function getUserProfiles(sortBy?: string) {
@@ -19,37 +18,29 @@ export async function getProfileById(id: string) {
 export async function editProfile(id: string, profile: EditProfileSchema) {
     const result = await fetchClient<Profile>(`/profiles/edit`, 'PUT', {body: profile});
 
-    // Signal the JWT callback to re-fetch the profile immediately on next request
-    const cookieStore = await cookies();
-    cookieStore.set('profile_dirty', '1', { maxAge: 30, path: '/', httpOnly: true });
-
-    // ProfileService is the source of truth for display names.
-    // Revalidate broadly so all pages showing the user's name pick up the change.
+    // ProfileService is the source of truth for display names + avatars.
+    // Revalidate broadly so all pages (including TopNav which fetches /profiles/me) pick up changes.
     revalidatePath(`/profiles/${id}`);
     revalidatePath('/profiles');
     revalidatePath('/questions');
     revalidatePath('/', 'layout');
 
-    // Push updated profile (name + avatar) to all estimation rooms the user is in.
-    // Uses raw fetch instead of fetchClient to avoid notFound() throwing in server-action context.
-    // Best-effort: failures here must not block the profile edit response.
+    // Evict the cached profile in EstimationService so WebSocket broadcasts and
+    // room listings fetch fresh avatar/display name from ProfileService.
+    // This is lightweight — just a cache eviction, no DB writes.
     try {
         const apiUrl = process.env.API_URL;
         const session = await auth();
         if (apiUrl && session?.accessToken) {
-            const refreshRes = await fetch(`${apiUrl}/estimation/refresh-profile`, {
-                method: 'POST',
+            await fetch(`${apiUrl}/estimation/profile-cache`, {
+                method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
-                    'Content-Type': 'application/json',
                 },
             });
-            if (!refreshRes.ok) {
-                console.warn('[editProfile] refresh-profile failed:', refreshRes.status, await refreshRes.text().catch(() => ''));
-            }
         }
     } catch (e) {
-        console.warn('[editProfile] refresh-profile threw:', e instanceof Error ? e.message : e);
+        console.warn('[editProfile] profile-cache eviction threw:', e instanceof Error ? e.message : e);
     }
 
     return result;

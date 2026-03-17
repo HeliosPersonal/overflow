@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Overflow.EstimationService.Auth;
+using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.Mapping;
 using Overflow.EstimationService.Services;
 
@@ -28,6 +29,7 @@ public static class WebSocketEndpoints
             EstimationRoomService svc,
             WebSocketBroadcaster broadcaster,
             IdentityResolver identityResolver,
+            ProfileServiceClient profileClient,
             IServiceScopeFactory scopeFactory,
             IConfiguration configuration,
             ILoggerFactory loggerFactory) =>
@@ -55,8 +57,9 @@ public static class WebSocketEndpoints
 
             var connection = broadcaster.AddConnection(roomId, identity.ParticipantId, socket);
 
-            // Send initial room snapshot
-            var initialResponse = RoomResponseMapper.ToResponse(room, identity.ParticipantId, baseUrl);
+            // Send initial room snapshot with avatars resolved from ProfileService
+            var avatarLookup = await ResolveAvatarsAsync(profileClient, room);
+            var initialResponse = RoomResponseMapper.ToResponse(room, identity.ParticipantId, baseUrl, avatarLookup);
             var initialJson = JsonSerializer.Serialize(initialResponse, JsonOptions);
             try
             {
@@ -127,5 +130,27 @@ public static class WebSocketEndpoints
         });
 
         return app;
+    }
+
+    private static async Task<Dictionary<string, string?>> ResolveAvatarsAsync(
+        ProfileServiceClient profileClient, Models.EstimationRoom room)
+    {
+        var userIds = room.Participants
+            .Where(p => p.UserId is not null)
+            .Select(p => p.UserId!)
+            .Distinct()
+            .ToList();
+
+        var result = new Dictionary<string, string?>();
+        await Task.WhenAll(userIds.Select(async userId =>
+        {
+            var profile = await profileClient.GetProfileDataAsync(userId);
+            lock (result)
+            {
+                result[userId] = profile?.AvatarUrl;
+            }
+        }));
+
+        return result;
     }
 }

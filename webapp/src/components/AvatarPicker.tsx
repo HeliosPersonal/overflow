@@ -45,23 +45,36 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
         return Array.isArray(v) ? v[0] : undefined;
     });
 
+    // Use the seed persisted inside the avatar JSON (set by ensureAvatarSeed
+    // during guest creation) so the picker preview matches the actual avatar.
+    // Fall back to the seed prop when no persisted seed exists (new avatars).
+    const effectiveSeed = useMemo(() => {
+        if (value) {
+            try {
+                const parsed = JSON.parse(value);
+                if (parsed.seed) return parsed.seed as string;
+            } catch { /* ignore */ }
+        }
+        return seed;
+    }, [value, seed]);
+
     const currentOptions = useMemo<AvatarOptions>(() => {
-        const opts: AvatarOptions = { seed: seed || 'default' };
+        const opts: AvatarOptions = { seed: effectiveSeed || 'default' };
         for (const [k, v] of Object.entries(features)) {
             if (v !== undefined) opts[k] = [v];
         }
         if (bg) opts.backgroundColor = [bg];
         return opts;
-    }, [seed, features, bg]);
+    }, [effectiveSeed, features, bg]);
 
-    const previewSrc = useMemo(() => generateAvatarUrl(seed, currentOptions), [seed, currentOptions]);
+    const previewSrc = useMemo(() => generateAvatarUrl(effectiveSeed, currentOptions), [effectiveSeed, currentOptions]);
 
     const displaySrc = useMemo(() => {
         if (value) {
-            try { return generateAvatarUrl(seed, JSON.parse(value)); } catch { /* fall through */ }
+            try { return generateAvatarUrl(effectiveSeed, JSON.parse(value)); } catch { /* fall through */ }
         }
-        return generateAvatarUrl(seed);
-    }, [seed, value]);
+        return generateAvatarUrl(effectiveSeed);
+    }, [effectiveSeed, value]);
 
     const setFeature = useCallback((key: string, val: string | undefined) => {
         setFeatures(prev => ({ ...prev, [key]: val }));
@@ -182,7 +195,7 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
                                                             }`}
                                                         >
                                                             <img
-                                                                src={generateAvatarUrl(seed, { ...currentOptions, [def.key]: [v] })}
+                                                                src={generateAvatarUrl(effectiveSeed, { ...currentOptions, [def.key]: [v] })}
                                                                 alt={v}
                                                                 className="h-12 w-12"
                                                             />

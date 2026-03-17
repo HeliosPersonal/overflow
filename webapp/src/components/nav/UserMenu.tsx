@@ -16,9 +16,13 @@ import { useCookieConsentStore } from "@/lib/hooks/useCookieConsentStore";
 
 type Props = {
   user: User;
+  /** Avatar URL fetched directly from ProfileService (source of truth). */
+  avatarUrl?: string | null;
+  /** Display name fetched directly from ProfileService (source of truth). */
+  displayName: string;
 };
 
-export default function UserMenu({ user }: Props) {
+export default function UserMenu({ user, avatarUrl, displayName }: Props) {
   const router = useRouter();
   const openPreferences = useCookieConsentStore((s) => s.openPreferences);
   const isAnonymous = user.isAnonymous;
@@ -29,12 +33,12 @@ export default function UserMenu({ user }: Props) {
         <div className="flex items-center gap-2 cursor-pointer">
           <DiceBearAvatar
             userId={user.id}
-            avatarJson={user.avatarUrl}
+            avatarJson={avatarUrl}
             color={isAnonymous ? "default" : "primary"}
             size="md"
-            name={user.displayName?.charAt(0)}
+            name={displayName?.charAt(0)}
           />
-          {user.displayName}
+          {displayName}
           {isAnonymous && (
             <Chip
               size="sm"

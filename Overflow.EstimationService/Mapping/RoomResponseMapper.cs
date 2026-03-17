@@ -8,11 +8,19 @@ namespace Overflow.EstimationService.Mapping;
 /// Maps the EF Core <see cref="EstimationRoom"/> entity to a viewer-scoped <see cref="RoomResponse"/>.
 /// Handles vote visibility rules: before reveal only the viewer sees their own vote;
 /// after reveal all votes are visible.
+/// Avatar URLs are resolved from ProfileService at read time (passed in as a lookup dictionary)
+/// rather than stored in the participant entity.
 /// </summary>
 public static class RoomResponseMapper
 {
-    public static RoomResponse ToResponse(EstimationRoom room, string viewerParticipantId, string baseUrl)
+    public static RoomResponse ToResponse(
+        EstimationRoom room,
+        string viewerParticipantId,
+        string baseUrl,
+        IReadOnlyDictionary<string, string?>? avatarLookup = null)
     {
+        avatarLookup ??= new Dictionary<string, string?>();
+
         var isRevealed = room.Status == RoomStatus.Revealed;
         var isArchived = room.Status == RoomStatus.Archived;
         var currentRoundVotes = room.Votes
@@ -71,10 +79,12 @@ public static class RoomResponseMapper
                     .FirstOrDefault(v => v.ParticipantId == p.ParticipantId)?.Value;
             }
 
+            var avatarUrl = p.UserId is not null ? avatarLookup.GetValueOrDefault(p.UserId) : null;
+
             return new ParticipantResponse(
                 p.ParticipantId,
                 p.DisplayName,
-                p.AvatarUrl,
+                avatarUrl,
                 p.IsGuest,
                 p.IsModerator,
                 p.IsSpectator,

@@ -7,6 +7,7 @@ using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Exceptions;
 using Overflow.EstimationService.Mapping;
+using Overflow.EstimationService.Models;
 using Overflow.EstimationService.Options;
 using Overflow.EstimationService.Services;
 
@@ -46,33 +47,6 @@ public class RoomsController(
         return Ok(new { claimed });
     }
 
-    // ─── POST /estimation/refresh-profile ────────────────────────────────
-
-    /// <summary>
-    /// Invalidates the cached profile for the current user and pushes their latest
-    /// display name + avatar to every room they participate in. Call this after a
-    /// profile or avatar edit so changes appear instantly in open rooms.
-    /// </summary>
-    [Authorize]
-    [HttpPost("refresh-profile")]
-    public async Task<IActionResult> RefreshProfile()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
-        // Evict stale profile from FusionCache so we fetch fresh data
-        await profileClient.InvalidateAsync(userId);
-
-        // Resolve fresh identity (will call ProfileService since cache was just cleared)
-        var identity = await identityResolver.ResolveAsync(HttpContext);
-
-        // Push updated profile across all rooms
-        var updated = await svc.RefreshParticipantProfileAsync(
-            userId, identity.DisplayName, identity.AvatarUrl);
-
-        return Ok(new { updated });
-    }
-
     // ─── GET /estimation/rooms/my ────────────────────────────────────────
 
     [Authorize]
@@ -83,6 +57,16 @@ public class RoomsController(
         if (userId is null) return Unauthorized();
 
         var rooms = await svc.GetRoomsForUserAsync(userId);
+
+        // Collect all unique user IDs from participants to resolve avatars in a single batch
+        var allUserIds = rooms
+            .SelectMany(r => r.Participants)
+            .Where(p => p.UserId is not null)
+            .Select(p => p.UserId!)
+            .Distinct()
+            .ToList();
+
+        var avatarLookup = await ResolveAvatarsAsync(allUserIds);
 
         var summaries = rooms
             .OrderBy(r => r.Status)
@@ -103,9 +87,11 @@ public class RoomsController(
                     r.ModeratorUserId == userId,
                     RetentionDays,
                     creator?.DisplayName ?? "Unknown",
-                    creator?.AvatarUrl,
+                    creator?.UserId is not null ? avatarLookup.GetValueOrDefault(creator.UserId) : null,
                     r.Participants
-                        .Select(p => new ParticipantSummaryResponse(p.DisplayName, p.AvatarUrl))
+                        .Select(p => new ParticipantSummaryResponse(
+                            p.DisplayName,
+                            p.UserId is not null ? avatarLookup.GetValueOrDefault(p.UserId) : null))
                         .ToList()
                 );
             }).ToList();
@@ -130,12 +116,14 @@ public class RoomsController(
             return BadRequest("Display name is required for guest users");
 
         var result = await svc.CreateRoomAsync(req.Title, identity.ParticipantId,
-            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType,
-            identity.AvatarUrl);
-        return result.IsSuccess
-            ? Created($"/estimation/rooms/{result.Value.Id}",
-                RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))
-            : result.Error.ToActionResult();
+            identity.UserId, identity.GuestId, identity.DisplayName, identity.IsGuest, req.DeckType);
+
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Created($"/estimation/rooms/{result.Value.Id}",
+            RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl, avatarLookup));
     }
 
     // ─── POST /estimation/rooms/{roomId}/join ──────────────────────────────
@@ -156,11 +144,13 @@ public class RoomsController(
         }
 
         var result = await svc.JoinRoomAsync(roomId, identity.ParticipantId, identity.UserId,
-            identity.GuestId, identity.DisplayName, identity.IsGuest, identity.AvatarUrl);
+            identity.GuestId, identity.DisplayName, identity.IsGuest);
 
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl, avatarLookup));
     }
 
     // ─── GET /estimation/rooms/{roomId} ────────────────────────────────────
@@ -172,8 +162,8 @@ public class RoomsController(
         if (room is null) return NotFound("Room not found");
 
         var identity = await identityResolver.ResolveAsync(HttpContext);
-        var response = RoomResponseMapper.ToResponse(room, identity.ParticipantId, BaseUrl);
-        return Ok(response);
+        var avatarLookup = await ResolveAvatarsForRoomAsync(room);
+        return Ok(RoomResponseMapper.ToResponse(room, identity.ParticipantId, BaseUrl, avatarLookup));
     }
 
     // ─── POST /estimation/rooms/{roomId}/mode ──────────────────────────────
@@ -184,9 +174,11 @@ public class RoomsController(
         var identity = await identityResolver.ResolveAsync(HttpContext);
 
         var result = await svc.ChangeModeAsync(roomId, identity.ParticipantId, req.IsSpectator);
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl, avatarLookup));
     }
 
     // ─── POST /estimation/rooms/{roomId}/leave ─────────────────────────────
@@ -210,9 +202,11 @@ public class RoomsController(
         var identity = await identityResolver.ResolveAsync(HttpContext);
 
         var result = await svc.SubmitVoteAsync(roomId, identity.ParticipantId, req.Value);
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, identity.ParticipantId, BaseUrl, avatarLookup));
     }
 
     // ─── DELETE /estimation/rooms/{roomId}/votes/me ────────────────────────
@@ -238,9 +232,11 @@ public class RoomsController(
         if (userId is null) return Unauthorized();
 
         var result = await svc.RevealVotesAsync(roomId, userId);
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
     }
 
     // ─── POST /estimation/rooms/{roomId}/reset ─────────────────────────────
@@ -253,9 +249,11 @@ public class RoomsController(
         if (userId is null) return Unauthorized();
 
         var result = await svc.ResetRoundAsync(roomId, userId);
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
     }
 
     // ─── POST /estimation/rooms/{roomId}/archive ───────────────────────────
@@ -268,9 +266,11 @@ public class RoomsController(
         if (userId is null) return Unauthorized();
 
         var result = await svc.ArchiveRoomAsync(roomId, userId);
-        return result.IsSuccess
-            ? Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl))
-            : result.Error.ToActionResult();
+        if (!result.IsSuccess)
+            return result.Error.ToActionResult();
+
+        var avatarLookup = await ResolveAvatarsForRoomAsync(result.Value);
+        return Ok(RoomResponseMapper.ToResponse(result.Value, userId, BaseUrl, avatarLookup));
     }
 
     // ─── DELETE /estimation/rooms/{roomId} ─────────────────────────────────
@@ -286,6 +286,44 @@ public class RoomsController(
         return result.IsSuccess
             ? NoContent()
             : result.Error.ToActionResult();
+    }
+
+    // ─── Avatar resolution helpers ──────────────────────────────────────
+
+    /// <summary>
+    /// Resolves avatar URLs for all authenticated participants in a room.
+    /// Uses ProfileServiceClient (FusionCache: 60s L1 + L2 Redis) so repeated
+    /// calls for the same user within a request are essentially free.
+    /// </summary>
+    private async Task<Dictionary<string, string?>> ResolveAvatarsForRoomAsync(EstimationRoom room)
+    {
+        var userIds = room.Participants
+            .Where(p => p.UserId is not null)
+            .Select(p => p.UserId!)
+            .Distinct()
+            .ToList();
+
+        return await ResolveAvatarsAsync(userIds);
+    }
+
+    private async Task<Dictionary<string, string?>> ResolveAvatarsAsync(IList<string> userIds)
+    {
+        var result = new Dictionary<string, string?>();
+        var accessToken = HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
+        var token = string.IsNullOrWhiteSpace(accessToken) ? null : accessToken;
+
+        // ProfileServiceClient uses FusionCache internally — each call is cached for 60s.
+        // For rooms with many participants, this fans out to parallel cache lookups (fast).
+        await Task.WhenAll(userIds.Select(async userId =>
+        {
+            var profile = await profileClient.GetProfileDataAsync(userId, token);
+            lock (result)
+            {
+                result[userId] = profile?.AvatarUrl;
+            }
+        }));
+
+        return result;
     }
 }
 

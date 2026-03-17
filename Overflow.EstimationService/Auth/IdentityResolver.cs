@@ -16,24 +16,22 @@ public class IdentityResolver(ProfileServiceClient profileClient)
         string? UserId,
         string? GuestId,
         string DisplayName,
-        bool IsGuest,
-        string? AvatarUrl = null);
+        bool IsGuest);
 
     public async Task<ParticipantIdentity> ResolveAsync(HttpContext ctx, string? guestDisplayName = null)
     {
         var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is not null)
         {
-            // Try Profile Service first (single source of truth for display names + avatars)
+            // Try Profile Service first (single source of truth for display names)
             var accessToken = ctx.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
             var token = string.IsNullOrWhiteSpace(accessToken) ? null : accessToken;
             var profileData = await profileClient.GetProfileDataAsync(userId, token);
 
             // Fallback to JWT claims only if profile service is unreachable
             var name = profileData?.DisplayName ?? FallbackNameFromClaims(ctx) ?? "User";
-            var avatarUrl = profileData?.AvatarUrl;
 
-            return new ParticipantIdentity(userId, userId, null, name, false, avatarUrl);
+            return new ParticipantIdentity(userId, userId, null, name, false);
         }
 
         var guestId = GuestIdentity.GetGuestId(ctx);

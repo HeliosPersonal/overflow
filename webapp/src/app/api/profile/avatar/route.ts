@@ -6,6 +6,8 @@ import { auth } from '@/auth';
  *
  * Proxies the avatar update to ProfileService's PUT /profiles/edit endpoint.
  * Used after guest sign-in to persist the avatar chosen during account creation.
+ * Also invalidates the EstimationService profile cache so room joins/broadcasts
+ * pick up the new avatar immediately.
  *
  * Body: { avatarUrl: string }
  */
@@ -39,6 +41,17 @@ export async function PUT(request: NextRequest) {
         console.error('[AvatarUpdate] Failed to update avatar:', res.status, body);
         return NextResponse.json({ error: 'Failed to update avatar' }, { status: res.status });
     }
+
+    // Invalidate the EstimationService profile cache so room joins and WebSocket
+    // broadcasts fetch the fresh avatar from ProfileService.
+    try {
+        await fetch(`${apiUrl}/estimation/profile-cache`, {
+            method: 'DELETE',
+            headers: {
+                Authorization: `Bearer ${session.accessToken}`,
+            },
+        });
+    } catch { /* best-effort */ }
 
     return NextResponse.json({ ok: true });
 }
