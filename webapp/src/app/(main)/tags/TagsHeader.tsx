@@ -39,7 +39,7 @@ export default function TagHeader({isAdmin}: Props) {
                     className='w-fit'
                     required
                     placeholder="Search"
-                    startContent={<Search size={24} className='text-neutral-500'/>}
+                    startContent={<Search size={24} className='text-foreground-400'/>}
                 />
 
                 <Tabs

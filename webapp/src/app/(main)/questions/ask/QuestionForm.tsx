@@ -59,7 +59,7 @@ export default function QuestionForm({questionToUpdate}: Props) {
     }
 
     return (
-        <Form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-3 p-6 shadow-xl bg-white dark:bg-black'>
+        <Form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-3 p-6 shadow-xl bg-content1'>
             <div className='flex flex-col gap-3 w-full'>
                 <h2>Title</h2>
                 <Input

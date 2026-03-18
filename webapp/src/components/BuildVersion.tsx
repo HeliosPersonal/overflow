@@ -8,7 +8,7 @@ export default function BuildVersion() {
     return (
         <span
             title={sha}
-            className="fixed bottom-2 left-2 z-50 text-[10px] font-mono text-neutral-400 dark:text-neutral-600 select-none pointer-events-none"
+            className="fixed bottom-2 left-2 z-50 text-[10px] font-mono text-foreground-400 select-none pointer-events-none"
         >
             {short}
         </span>

@@ -14,7 +14,7 @@ export default function CookieSettingsButton() {
         <>
             <button
                 onClick={openPreferences}
-                className="text-xs text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+                className="text-xs text-foreground-400 hover:text-foreground-600 transition-colors"
             >
                 🍪 Cookie Settings
             </button>
