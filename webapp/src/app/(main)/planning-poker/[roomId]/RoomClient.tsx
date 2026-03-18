@@ -13,6 +13,7 @@ import {
 import {CheckCircle, Flag} from "lucide-react";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
+import {celebrationColors} from "@/lib/theme/colors";
 import {setActiveRoom} from "@/lib/hooks/useActiveRoom";
 import AvatarPicker from "@/components/AvatarPicker";
 import DiceBearAvatar from "@/components/DiceBearAvatar";
@@ -508,6 +509,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
     const activeParticipants = room.participants.filter(p => !p.isSpectator && p.isPresent);
     const spectators = room.participants.filter(p => p.isSpectator && p.isPresent);
     const votedCount = activeParticipants.filter(p => p.hasVoted).length;
+    const hasAnyVotes = votedCount > 0;
     const allVoted = votedCount === activeParticipants.length && activeParticipants.length > 0;
     const showCardPicker = !isArchived && !isSpectator && (isVoting || isRevealed);
 
@@ -713,17 +715,28 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                             {/* Center action */}
                                             <div className="py-6 flex items-center justify-center">
                                                 {isModerator && !isArchived && isVoting && (
-                                                    <Button size="lg" color="primary" variant="solid"
-                                                        onPress={handleReveal}
-                                                        isLoading={actionLoading === 'Reveal'}
-                                                        startContent={!actionLoading ? <Eye className="h-7 w-7"/> : undefined}
-                                                        className={`font-bold px-16 h-16 text-xl rounded-2xl
-                                                            shadow-xl shadow-primary/30
-                                                            hover:shadow-2xl hover:shadow-primary/40 hover:scale-105
-                                                            active:scale-95 transition-all duration-200
-                                                            ${allVoted ? 'animate-pulse' : ''}`}>
-                                                        Reveal Cards
-                                                    </Button>
+                                                    <Tooltip
+                                                        content="No votes yet — at least one participant must vote before revealing"
+                                                        isDisabled={hasAnyVotes}
+                                                        placement="bottom"
+                                                        delay={200}
+                                                    >
+                                                        {/* span wrapper required so Tooltip works on a disabled Button */}
+                                                        <span className="inline-block">
+                                                            <Button size="lg" color="primary" variant="solid"
+                                                                onPress={handleReveal}
+                                                                isDisabled={!hasAnyVotes}
+                                                                isLoading={actionLoading === 'Reveal'}
+                                                                startContent={!actionLoading ? <Eye className="h-7 w-7"/> : undefined}
+                                                                className={`font-bold px-16 h-16 text-xl rounded-2xl
+                                                                    shadow-xl shadow-primary/30
+                                                                    hover:shadow-2xl hover:shadow-primary/40 hover:scale-105
+                                                                    active:scale-95 transition-all duration-200
+                                                                    ${allVoted ? 'animate-pulse' : ''}`}>
+                                                                Reveal Cards
+                                                            </Button>
+                                                        </span>
+                                                    </Tooltip>
                                                 )}
                                                 {isModerator && !isArchived && isRevealed && (
                                                     <div className="flex gap-3">
@@ -884,8 +897,8 @@ function ResultsPanel({summary, participants}: {
     // 🎉 Fire confetti on full consensus
     useEffect(() => {
         if (!isFullConsensus) return;
-        // Theme-matched colors: primary purple, warning gold, success green, danger pink + lighter accents
-        const themeColors = ['#9573da', '#f5a524', '#f7b750', '#17c964', '#45d483', '#f31260', '#f54180'];
+        // Theme-matched colors from centralized palette
+        const themeColors = [...celebrationColors];
         const end = Date.now() + 1500;
         const frame = () => {
             confetti({

@@ -24,7 +24,8 @@
 
 ## 0. Colour Palette
 
-> **Source of truth:** `src/app/hero.ts`. Do not hardcode hex values anywhere else.  
+> **Source of truth:** `src/lib/theme/colors.ts`. Do not hardcode hex values anywhere else.  
+> `src/app/hero.ts` imports from this file and wires colors into HeroUI / Tailwind.  
 > Use HeroUI token classes (`bg-primary`, `text-danger`, `bg-content2`, etc.) so both themes work automatically.
 
 ---
