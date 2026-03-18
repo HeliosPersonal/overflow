@@ -600,213 +600,159 @@ export default function RoomClient({roomId, isAuthenticated}: {
                 <div
                     className="flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto">
 
-                    <div className="max-w-[960px] w-full mx-auto px-4 pt-6 flex flex-col gap-5 relative">
-
-                        {/* ── Spectators — floating block to the left of content ── */}
-                        {spectators.length > 0 && (
-                            <div className="absolute -left-28 top-1/2 -translate-y-1/2 z-10 hidden xl:block">
-                                <div className="rounded-2xl bg-content2/80 backdrop-blur-sm border border-content3 shadow-raise-sm p-4 flex flex-col items-center gap-4 w-20">
-                                    <Tooltip content="Spectators" placement="right">
-                                        <div className="flex items-center gap-1.5 cursor-default">
-                                            <Eye className="h-3.5 w-3.5 text-foreground-400"/>
-                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">
-                                                {spectators.length}
-                                            </span>
-                                        </div>
-                                    </Tooltip>
-                                    <div className="flex flex-col items-center gap-3">
-                                        {spectators.map(p => (
-                                            <Tooltip key={p.participantId} content={p.displayName} placement="right">
-                                                <div className="flex flex-col items-center gap-1 group cursor-default">
-                                                    <div className="rounded-full ring-2 ring-content3 group-hover:ring-primary/40 transition-all">
-                                                        <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
-                                                            name={p.displayName}
-                                                            className="h-11 w-11 opacity-70 group-hover:opacity-100 transition-opacity"/>
-                                                    </div>
-                                                    <span className="text-[10px] text-foreground-500 group-hover:text-foreground-700 truncate w-16 text-center leading-tight transition-colors">
-                                                        {p.displayName}
-                                                    </span>
-                                                </div>
-                                            </Tooltip>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    
-                        {/* ── Task / Round banner ── */}
-                        {hasTasks ? (
-                            <div className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm px-5 py-4">
-                                <div className="flex items-start justify-between gap-4 mb-3">
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400 mb-0.5">
-                                            Currently estimating
-                                        </p>
-                                        <h2 className="text-xl font-extrabold text-foreground-800 truncate">
-                                            {room.currentTaskName ?? `Task ${room.roundNumber}`}
-                                        </h2>
-                                    </div>
-                                    <Chip size="sm" variant="flat"
-                                          color={isRevealed ? 'primary' : isArchived ? 'warning' : 'success'}
-                                          className="font-semibold tabular-nums shrink-0 mt-1">
-                                        {room.roundHistory.length}/{room.tasks!.length}
-                                    </Chip>
-                                </div>
-                                <div className="w-full h-1.5 rounded-full bg-content4 overflow-hidden">
-                                    <div className={`h-full rounded-full transition-all duration-500 ${
-                                        isRevealed ? 'bg-primary' : isArchived ? 'bg-warning' : 'bg-success'
-                                    }`}
-                                         style={{width: `${Math.round((room.roundHistory.length / room.tasks!.length) * 100)}%`}}/>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm px-5 py-3 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                <span className={`text-xl font-extrabold tabular-nums ${
-                                    isRevealed ? 'text-primary' : isArchived ? 'text-warning' : 'text-success'}`}>
-                                    Round {room.roundNumber}
-                                </span>
-                                    <span className="text-sm text-foreground-500">
-                                    {isVoting ? 'Voting in progress' : isRevealed ? 'Votes revealed' : 'Archived'}
-                                </span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ── Voting progress dots ── */}
-                        {isVoting && activeParticipants.length > 0 && (
-                            <div className="flex items-center justify-center gap-2">
-                                <div className="flex items-center gap-1">
-                                    {activeParticipants.map(p => (
-                                        <div key={p.participantId}
-                                             className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
-                                                 p.hasVoted ? 'bg-success' : 'bg-default-300'}`}/>
-                                    ))}
-                                </div>
-                                <span
-                                    className={`text-sm font-semibold tabular-nums ${allVoted ? 'text-success' : 'text-foreground-500'}`}>
-                                {votedCount}/{activeParticipants.length} voted
-                            </span>
-                            </div>
-                        )}
-
-                        {/* ── Table layout ── */}
-                        <div className="flex items-start justify-center">
-                            <div className="w-full">
-                                {activeParticipants.length === 0 ? (
-                                    <p className="text-sm text-foreground-400 py-8 text-center">No active voters yet</p>
-                                ) : (() => {
-                                    const half = Math.ceil(activeParticipants.length / 2);
-                                    const topRow = activeParticipants.slice(0, half);
-                                    const bottomRow = activeParticipants.slice(half);
-
-                                    return (
-                                        <div className="flex flex-col items-center">
-                                            {/* Top row — avatar on outside, card toward center */}
-                                            <div className="flex flex-wrap justify-center gap-8">
-                                                {topRow.map(p => (
-                                                    <ParticipantSeat key={p.participantId} participant={p}
-                                                        isVoting={isVoting} isRevealed={isRevealed || isArchived}
-                                                        side="top"/>
-                                                ))}
-                                            </div>
-
-                                            {/* Center action */}
-                                            <div className="py-6 flex items-center justify-center">
-                                                {isModerator && !isArchived && isVoting && (
-                                                    <Tooltip
-                                                        content="No votes yet — at least one participant must vote before revealing"
-                                                        isDisabled={hasAnyVotes}
-                                                        placement="bottom"
-                                                        delay={200}
-                                                    >
-                                                        {/* span wrapper required so Tooltip works on a disabled Button */}
-                                                        <span className="inline-block">
-                                                            <Button size="lg" color="primary" variant="solid"
-                                                                onPress={handleReveal}
-                                                                isDisabled={!hasAnyVotes}
-                                                                isLoading={actionLoading === 'Reveal'}
-                                                                startContent={!actionLoading ? <Eye className="h-7 w-7"/> : undefined}
-                                                                className={`font-bold px-16 h-16 text-xl rounded-2xl
-                                                                    shadow-xl shadow-primary/30
-                                                                    hover:shadow-2xl hover:shadow-primary/40 hover:scale-105
-                                                                    active:scale-95 transition-all duration-200
-                                                                    ${allVoted ? 'animate-pulse' : ''}`}>
-                                                                Reveal Cards
-                                                            </Button>
-                                                        </span>
-                                                    </Tooltip>
-                                                )}
-                                                {isModerator && !isArchived && isRevealed && (
-                                                    <div className="flex gap-3">
-                                                        <Button size="lg" color="warning" variant="flat"
-                                                            onPress={() => handleRevote()}
-                                                            isLoading={actionLoading === 'Revote'}
-                                                            startContent={<RefreshCw className="h-5 w-5"/>}
-                                                            className="font-semibold px-8 h-12">
-                                                            Revote
-                                                        </Button>
-                                                        <Button size="lg" color="secondary" variant="solid"
-                                                            onPress={handleReset}
-                                                            isLoading={actionLoading === 'Reset'}
-                                                            startContent={<RefreshCw className="h-5 w-5"/>}
-                                                            className="font-semibold px-8 h-12 shadow-lg shadow-secondary/20">
-                                                            {hasTasks ? 'Next Task' : 'Next Round'}
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                                {(!isModerator || isArchived) && isVoting && (
-                                                    <span className="text-sm text-foreground-400">Waiting for reveal…</span>
-                                                )}
-                                            </div>
-
-                                            {/* Bottom row — card toward center, avatar on outside */}
-                                            {bottomRow.length > 0 && (
-                                                <div className="flex flex-wrap justify-center gap-8">
-                                                    {bottomRow.map(p => (
-                                                        <ParticipantSeat key={p.participantId} participant={p}
-                                                            isVoting={isVoting} isRevealed={isRevealed || isArchived}
-                                                            side="bottom"/>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
+                    {/* ── Banner wrapper — fixed min-height so table never shifts when results appear ── */}
+                    <div className="shrink-0 z-30 min-h-[280px] flex flex-col justify-start">
+                        <div className="max-w-[960px] w-full mx-auto px-4 pt-6">
+                            <CurrentEstimationBanner
+                                room={room}
+                                hasTasks={!!hasTasks}
+                                isVoting={isVoting}
+                                isRevealed={isRevealed}
+                                isArchived={isArchived}
+                                activeParticipants={activeParticipants}
+                                votedCount={votedCount}
+                                allVoted={allVoted}
+                            />
                         </div>
-
-                        {/* Spectator notice */}
-                        {isSpectator && !isArchived && (
-                            <div className="flex items-center justify-center gap-2 text-foreground-400 text-sm py-2">
-                                <Eye className="h-4 w-4"/>
-                                <span>You are spectating. Switch to Participant to vote.</span>
-                            </div>
-                        )}
-
-                        {/* Archived notice */}
-                        {isArchived && (
-                            <div className="flex items-center justify-center gap-2 text-warning text-sm py-2">
-                                <Archive className="h-4 w-4"/>
-                                <span className="font-medium">This room has been archived and is read-only.</span>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Spacer — pushes results + card picker to the bottom */}
-                    <div className="flex-1"/>
+                    {/* ── Table layout — fills remaining height, centered vertically ── */}
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="max-w-[960px] w-full mx-auto px-4 relative">
 
-                    {/* ── Results block (after reveal) — pinned above card picker ── */}
-                    {(isRevealed || isArchived) && room.roundSummary && room.roundSummary.distribution &&
-                        Object.keys(room.roundSummary.distribution).length > 0 && (
-                            <div className="max-w-[960px] w-full mx-auto px-4 mb-5">
-                                <ResultsPanel
-                                    summary={room.roundSummary}
-                                    participants={activeParticipants}
-                                />
+                            {/* ── Spectators — floating block to the left of content ── */}
+                            {spectators.length > 0 && (
+                                <div className="absolute -left-28 top-1/2 -translate-y-1/2 z-10 hidden xl:block">
+                                    <div className="rounded-2xl bg-content2/80 backdrop-blur-sm border border-content3 shadow-raise-sm p-4 flex flex-col items-center gap-4 w-20">
+                                        <Tooltip content="Spectators" placement="right">
+                                            <div className="flex items-center gap-1.5 cursor-default">
+                                                <Eye className="h-3.5 w-3.5 text-foreground-400"/>
+                                                <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">
+                                                    {spectators.length}
+                                                </span>
+                                            </div>
+                                        </Tooltip>
+                                        <div className="flex flex-col items-center gap-3">
+                                            {spectators.map(p => (
+                                                <Tooltip key={p.participantId} content={p.displayName} placement="right">
+                                                    <div className="flex flex-col items-center gap-1 group cursor-default">
+                                                        <div className="rounded-full ring-2 ring-content3 group-hover:ring-primary/40 transition-all">
+                                                            <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
+                                                                name={p.displayName}
+                                                                className="h-11 w-11 opacity-70 group-hover:opacity-100 transition-opacity"/>
+                                                        </div>
+                                                        <span className="text-[10px] text-foreground-500 group-hover:text-foreground-700 truncate w-16 text-center leading-tight transition-colors">
+                                                            {p.displayName}
+                                                        </span>
+                                                    </div>
+                                                </Tooltip>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex items-start justify-center">
+                                <div className="w-full">
+                                    {activeParticipants.length === 0 ? (
+                                        <p className="text-sm text-foreground-400 py-8 text-center">No active voters yet</p>
+                                    ) : (() => {
+                                        const half = Math.ceil(activeParticipants.length / 2);
+                                        const topRow = activeParticipants.slice(0, half);
+                                        const bottomRow = activeParticipants.slice(half);
+
+                                        return (
+                                            <div className="flex flex-col items-center">
+                                                {/* Top row — avatar on outside, card toward center */}
+                                                <div className="flex flex-wrap justify-center gap-8">
+                                                    {topRow.map(p => (
+                                                        <ParticipantSeat key={p.participantId} participant={p}
+                                                            isVoting={isVoting} isRevealed={isRevealed || isArchived}
+                                                            side="top"/>
+                                                    ))}
+                                                </div>
+
+                                                {/* Center action */}
+                                                <div className="py-6 flex items-center justify-center">
+                                                    {isModerator && !isArchived && isVoting && (
+                                                        <Tooltip
+                                                            content="No votes yet — at least one participant must vote before revealing"
+                                                            isDisabled={hasAnyVotes}
+                                                            placement="bottom"
+                                                            delay={200}
+                                                        >
+                                                            {/* span wrapper required so Tooltip works on a disabled Button */}
+                                                            <span className="inline-block">
+                                                                <Button size="lg" color="primary" variant="solid"
+                                                                    onPress={handleReveal}
+                                                                    isDisabled={!hasAnyVotes}
+                                                                    isLoading={actionLoading === 'Reveal'}
+                                                                    startContent={!actionLoading ? <Eye className="h-7 w-7"/> : undefined}
+                                                                    className={`font-bold px-16 h-16 text-xl rounded-2xl
+                                                                        shadow-xl shadow-primary/30
+                                                                        hover:shadow-2xl hover:shadow-primary/40 hover:scale-105
+                                                                        active:scale-95 transition-all duration-200
+                                                                        ${allVoted ? 'animate-pulse' : ''}`}>
+                                                                    Reveal Cards
+                                                                </Button>
+                                                            </span>
+                                                        </Tooltip>
+                                                    )}
+                                                    {isModerator && !isArchived && isRevealed && (
+                                                        <div className="flex gap-3">
+                                                            <Button size="lg" color="warning" variant="flat"
+                                                                onPress={() => handleRevote()}
+                                                                isLoading={actionLoading === 'Revote'}
+                                                                startContent={<RefreshCw className="h-5 w-5"/>}
+                                                                className="font-semibold px-8 h-12">
+                                                                Revote
+                                                            </Button>
+                                                            <Button size="lg" color="secondary" variant="solid"
+                                                                onPress={handleReset}
+                                                                isLoading={actionLoading === 'Reset'}
+                                                                startContent={<RefreshCw className="h-5 w-5"/>}
+                                                                className="font-semibold px-8 h-12 shadow-lg shadow-secondary/20">
+                                                                {hasTasks ? 'Next Task' : 'Next Round'}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                    {(!isModerator || isArchived) && isVoting && (
+                                                        <span className="text-sm text-foreground-400">Waiting for reveal…</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Bottom row — card toward center, avatar on outside */}
+                                                {bottomRow.length > 0 && (
+                                                    <div className="flex flex-wrap justify-center gap-8">
+                                                        {bottomRow.map(p => (
+                                                            <ParticipantSeat key={p.participantId} participant={p}
+                                                                isVoting={isVoting} isRevealed={isRevealed || isArchived}
+                                                                side="bottom"/>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
                             </div>
-                        )}
+
+                            {/* Spectator notice */}
+                            {isSpectator && !isArchived && (
+                                <div className="flex items-center justify-center gap-2 text-foreground-400 text-sm py-2">
+                                    <Eye className="h-4 w-4"/>
+                                    <span>You are spectating. Switch to Participant to vote.</span>
+                                </div>
+                            )}
+
+                            {/* Archived notice */}
+                            {isArchived && (
+                                <div className="flex items-center justify-center gap-2 text-warning text-sm py-2">
+                                    <Archive className="h-4 w-4"/>
+                                    <span className="font-medium">This room has been archived and is read-only.</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* ════════════ CARD PICKER — floating bottom ════════════ */}
                     <div className={`sticky bottom-0 z-20 pointer-events-none
@@ -873,31 +819,44 @@ function StatusBadge({status}: { status: string }) {
     return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="flat">{status}</Chip>;
 }
 
-/** Results panel — shown after votes are revealed */
-function ResultsPanel({summary, participants}: {
-    summary: PlanningPokerRoundSummary;
-    participants: PlanningPokerParticipant[];
+/** Merged banner — "Currently estimating" + voting progress + results (after reveal) */
+function CurrentEstimationBanner({room, hasTasks, isVoting, isRevealed, isArchived, activeParticipants, votedCount, allVoted}: {
+    room: PlanningPokerRoom;
+    hasTasks: boolean;
+    isVoting: boolean;
+    isRevealed: boolean;
+    isArchived: boolean;
+    activeParticipants: PlanningPokerParticipant[];
+    votedCount: number;
+    allVoted: boolean;
 }) {
-    const distribution = summary.distribution!;
+    const totalActive = activeParticipants.length;
+    const votePct = totalActive > 0 ? Math.round((votedCount / totalActive) * 100) : 0;
+
+    // Results section data
+    const summary = room.roundSummary;
+    const hasResults = (isRevealed || isArchived) && summary?.distribution && Object.keys(summary.distribution).length > 0;
+    const distribution = hasResults ? summary!.distribution! : {};
     const sorted = Object.entries(distribution).sort(([, a], [, b]) => b - a);
-    const maxCount = Math.max(...sorted.map(([, c]) => c));
+    const maxCount = sorted.length > 0 ? Math.max(...sorted.map(([, c]) => c)) : 0;
     const totalVotes = sorted.reduce((sum, [, c]) => sum + c, 0);
     const uniqueValues = sorted.length;
     const isFullConsensus = uniqueValues === 1 && totalVotes > 1;
 
-    // Entrance animation: fade-in + slide-up
-    const [visible, setVisible] = useState(false);
+    // Entrance animation for results
+    const [resultsVisible, setResultsVisible] = useState(false);
     useEffect(() => {
-        const t1 = requestAnimationFrame(() => setVisible(true));
-        return () => {
-            cancelAnimationFrame(t1);
-        };
-    }, []);
+        if (!hasResults) {
+            setResultsVisible(false);
+            return;
+        }
+        const t1 = requestAnimationFrame(() => setResultsVisible(true));
+        return () => cancelAnimationFrame(t1);
+    }, [hasResults]);
 
     // 🎉 Fire confetti on full consensus
     useEffect(() => {
         if (!isFullConsensus) return;
-        // Theme-matched colors from centralized palette
         const themeColors = [...celebrationColors];
         const end = Date.now() + 1500;
         const frame = () => {
@@ -918,7 +877,7 @@ function ResultsPanel({summary, participants}: {
             if (Date.now() < end) requestAnimationFrame(frame);
         };
         frame();
-    }, [isFullConsensus, summary.roundNumber]);
+    }, [isFullConsensus, summary?.roundNumber]);
 
     // Consensus label
     const consensusLabel = uniqueValues === 1
@@ -934,102 +893,158 @@ function ResultsPanel({summary, participants}: {
 
     // Group participants by their revealed vote
     const voteGroups: Record<string, PlanningPokerParticipant[]> = {};
-    for (const p of participants) {
-        const v = p.revealedVote ?? '—';
-        if (!voteGroups[v]) voteGroups[v] = [];
-        voteGroups[v].push(p);
+    if (hasResults) {
+        for (const p of activeParticipants) {
+            const v = p.revealedVote ?? '—';
+            if (!voteGroups[v]) voteGroups[v] = [];
+            voteGroups[v].push(p);
+        }
     }
 
-    return (
-        <div className={`rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden
-            transition-all duration-500 ease-out
-            ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    const progressBarColor = isRevealed ? 'bg-primary' : isArchived ? 'bg-warning' : allVoted ? 'bg-success' : 'bg-success';
 
-            {/* Header row — label + average + consensus inline */}
-            <div className={`flex items-center gap-4 px-5 py-3
-                transition-all duration-700 delay-150 ease-out
-                ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
-                <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400 shrink-0">
-                    Results — {summary.taskName ?? `Round ${summary.roundNumber}`}
-                </p>
-                <div className="flex-1"/>
-                {summary.numericAverageDisplay ? (
-                    <div className="flex items-center gap-2">
-                        <span className="text-3xl font-black tabular-nums text-warning leading-none">
-                            {summary.numericAverageDisplay}
-                        </span>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">Avg</span>
-                            <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+    return (
+        <div className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden">
+            {/* ── Header: task/round info + voting progress ── */}
+            <div className="px-5 py-4">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400 mb-0.5">
+                            Currently estimating
+                        </p>
+                        <h2 className="text-xl font-extrabold text-foreground-800 truncate">
+                            {hasTasks
+                                ? (room.currentTaskName ?? `Task ${room.roundNumber}`)
+                                : `Round ${room.roundNumber}`}
+                        </h2>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 mt-1">
+                        {hasTasks && (
+                            <Chip size="sm" variant="flat"
+                                  color={isRevealed ? 'primary' : isArchived ? 'warning' : 'success'}
+                                  className="font-semibold tabular-nums">
+                                {room.roundHistory.length}/{room.tasks!.length}
+                            </Chip>
+                        )}
+                        {totalActive > 0 && (
+                            <span className={`text-sm font-semibold tabular-nums ${allVoted ? 'text-success' : 'text-foreground-500'}`}>
+                                {votedCount}/{totalActive} voted
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Voting progress bar */}
+                {totalActive > 0 && (
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 rounded-full bg-content4 overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${progressBarColor}`}
+                                 style={{width: `${votePct}%`}}/>
+                        </div>
+                        {/* Voting dot indicators */}
+                        <div className="flex items-center gap-1 shrink-0">
+                            {activeParticipants.map(p => (
+                                <div key={p.participantId}
+                                     className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                                         p.hasVoted ? 'bg-success' : 'bg-default-300'}`}/>
+                            ))}
                         </div>
                     </div>
-                ) : (
-                    <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
                 )}
             </div>
 
-            <div className="h-px bg-content3 mx-5"/>
+            {/* ── Results section (revealed/archived) ── */}
+            {hasResults && (
+                <>
+                    <div className="h-px bg-content3"/>
 
-            {/* Distribution — compact card layout */}
-            <div className="px-5 py-3">
-                <div className="flex flex-wrap justify-center gap-3">
-                    {sorted.map(([value, count], index) => {
-                        const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-                        const isTop = count === maxCount;
-                        const voters = voteGroups[value] ?? [];
-
-                        return (
-                            <div key={value} className="flex flex-col items-center gap-1.5"
-                                 style={{
-                                     opacity: visible ? 1 : 0,
-                                     transform: visible ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)',
-                                     transition: `opacity 300ms ease-out ${200 + index * 80}ms, transform 300ms ease-out ${200 + index * 80}ms`,
-                                 }}>
-                                {/* Card */}
-                                <div className={`relative w-12 h-[68px] rounded-lg border-2 flex items-center justify-center
-                                    text-lg font-black transition-all duration-500
-                                    ${isTop
-                                    ? 'border-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105'
-                                    : 'border-content4 bg-content3/50 text-foreground-600'}`}>
-                                    {value}
-                                    {/* Vote count badge */}
-                                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center
-                                        text-[10px] font-bold shadow-sm
-                                        ${isTop
-                                        ? 'bg-primary text-white'
-                                        : 'bg-content4 text-foreground-600'}`}>
-                                        {count}
-                                    </div>
-                                </div>
-
-                                {/* Percentage */}
-                                <span className={`text-[10px] font-semibold tabular-nums
-                                    ${isTop ? 'text-primary' : 'text-foreground-400'}`}>
-                                    {pct}%
+                    {/* Average + Consensus */}
+                    <div className={`flex items-center gap-4 px-5 py-3
+                        transition-all duration-700 delay-150 ease-out
+                        ${resultsVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400 shrink-0">
+                            Results
+                        </p>
+                        <div className="flex-1"/>
+                        {summary!.numericAverageDisplay ? (
+                            <div className="flex items-center gap-2">
+                                <span className="text-3xl font-black tabular-nums text-warning leading-none">
+                                    {summary!.numericAverageDisplay}
                                 </span>
-
-                                {/* Voter avatars */}
-                                {voters.length > 0 && (
-                                    <div className="flex items-center justify-center -space-x-1.5">
-                                        {voters.map(p => (
-                                            <Tooltip key={p.participantId} content={p.displayName}>
-                                                <span className="inline-flex ring-2 ring-content2 rounded-full">
-                                                    <DiceBearAvatar
-                                                        userId={p.participantId}
-                                                        avatarJson={p.avatarUrl}
-                                                        name={p.displayName}
-                                                        className="h-5 w-5"
-                                                    />
-                                                </span>
-                                            </Tooltip>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">Avg</span>
+                                    <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+                                </div>
                             </div>
-                        );
-                    })}
-                </div>
-            </div>
+                        ) : (
+                            <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+                        )}
+                    </div>
+
+                    <div className="h-px bg-content3 mx-5"/>
+
+                    {/* Distribution — compact card layout */}
+                    <div className="px-5 py-3">
+                        <div className="flex flex-wrap justify-center gap-3">
+                            {sorted.map(([value, count], index) => {
+                                const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                                const isTop = count === maxCount;
+                                const voters = voteGroups[value] ?? [];
+
+                                return (
+                                    <div key={value} className="flex flex-col items-center gap-1.5"
+                                         style={{
+                                             opacity: resultsVisible ? 1 : 0,
+                                             transform: resultsVisible ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)',
+                                             transition: `opacity 300ms ease-out ${200 + index * 80}ms, transform 300ms ease-out ${200 + index * 80}ms`,
+                                         }}>
+                                        {/* Card */}
+                                        <div className={`relative w-12 h-[68px] rounded-lg border-2 flex items-center justify-center
+                                            text-lg font-black transition-all duration-500
+                                            ${isTop
+                                            ? 'border-primary bg-primary/10 text-primary shadow-md shadow-primary/25 scale-105'
+                                            : 'border-content4 bg-content3/50 text-foreground-600'}`}>
+                                            {value}
+                                            {/* Vote count badge */}
+                                            <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center
+                                                text-[10px] font-bold shadow-sm
+                                                ${isTop
+                                                ? 'bg-primary text-white'
+                                                : 'bg-content4 text-foreground-600'}`}>
+                                                {count}
+                                            </div>
+                                        </div>
+
+                                        {/* Percentage */}
+                                        <span className={`text-[10px] font-semibold tabular-nums
+                                            ${isTop ? 'text-primary' : 'text-foreground-400'}`}>
+                                            {pct}%
+                                        </span>
+
+                                        {/* Voter avatars */}
+                                        {voters.length > 0 && (
+                                            <div className="flex items-center justify-center -space-x-1.5">
+                                                {voters.map(p => (
+                                                    <Tooltip key={p.participantId} content={p.displayName}>
+                                                        <span className="inline-flex ring-2 ring-content2 rounded-full">
+                                                            <DiceBearAvatar
+                                                                userId={p.participantId}
+                                                                avatarJson={p.avatarUrl}
+                                                                name={p.displayName}
+                                                                className="h-5 w-5"
+                                                            />
+                                                        </span>
+                                                    </Tooltip>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
@@ -1073,12 +1088,6 @@ function ParticipantSeat({participant: p, isVoting, isRevealed, side}: {
         </span>
     );
 
-    const statusLabel = isVoting ? (
-        <span className={`text-xs ${p.hasVoted ? 'text-success' : 'text-foreground-400'}`}>
-            {p.hasVoted ? 'Voted' : 'Thinking…'}
-        </span>
-    ) : null;
-
     // Top side: avatar → name → card (card nearest to center)
     // Bottom side: card → name → avatar (card nearest to center)
     return (
@@ -1087,13 +1096,11 @@ function ParticipantSeat({participant: p, isVoting, isRevealed, side}: {
                 <>
                     {avatar}
                     {nameLabel}
-                    {statusLabel}
                     {voteCard}
                 </>
             ) : (
                 <>
                     {voteCard}
-                    {statusLabel}
                     {nameLabel}
                     {avatar}
                 </>
