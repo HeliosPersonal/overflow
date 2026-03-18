@@ -6,11 +6,11 @@ import {
     Button, Input, Chip, Divider, Spinner, Tooltip, Switch, addToast,
 } from "@heroui/react";
 import {
-    ClipboardDocumentIcon, ArrowLeftOnRectangleIcon, EyeIcon, EyeSlashIcon,
-    ArchiveBoxIcon, ArrowPathIcon, ListBulletIcon, PlusIcon, PencilIcon,
-    TrashIcon, ChevronDownIcon, ChevronUpIcon, Bars3Icon,
-} from "@heroicons/react/24/outline";
-import {CheckCircleIcon, FlagIcon} from "@heroicons/react/24/solid";
+    ClipboardCopy, LogOut, Eye, EyeOff,
+    Archive, RefreshCw, List, Plus, Pencil,
+    Trash2, ChevronDown, ChevronUp, Menu,
+} from "lucide-react";
+import {CheckCircle, Flag} from "lucide-react";
 import {useRoomWebSocket} from "@/lib/hooks/useRoomWebSocket";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import {setActiveRoom} from "@/lib/hooks/useActiveRoom";
@@ -539,7 +539,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                 onClick={isModerator && !isArchived ? startEditingTitle : undefined}>
                                 <h1 className="text-lg font-bold truncate">{room.title}</h1>
                                 {isModerator && !isArchived && (
-                                    <PencilIcon
+                                    <Pencil
                                         className="h-3.5 w-3.5 text-foreground-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"/>
                                 )}
                             </div>
@@ -556,14 +556,14 @@ export default function RoomClient({roomId, isAuthenticated}: {
                         <Tooltip content="Copy room link">
                             <Button size="md" variant="flat" isIconOnly
                                     onPress={() => copyToClipboard(roomLink, 'Room link')}>
-                                <ClipboardDocumentIcon className="h-5 w-5"/>
+                                <ClipboardCopy className="h-5 w-5"/>
                             </Button>
                         </Tooltip>
                         {!isArchived && (
                             <Tooltip content={isSpectator ? 'Switch to Participant' : 'Switch to Spectator'}>
                                 <Button size="md" variant="flat" isIconOnly
                                         onPress={handleModeToggle} isLoading={actionLoading === 'Mode'}>
-                                    {isSpectator ? <EyeSlashIcon className="h-5 w-5"/> : <EyeIcon className="h-5 w-5"/>}
+                                    {isSpectator ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
                                 </Button>
                             </Tooltip>
                         )}
@@ -571,20 +571,20 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             <Tooltip content="Archive room">
                                 <Button size="md" variant="flat" color="danger" isIconOnly
                                         onPress={handleArchive} isLoading={actionLoading === 'Archive'}>
-                                    <ArchiveBoxIcon className="h-5 w-5"/>
+                                    <Archive className="h-5 w-5"/>
                                 </Button>
                             </Tooltip>
                         )}
                         <Tooltip content="Leave room">
                             <Button size="md" variant="flat" color="danger" isIconOnly onPress={handleLeave}>
-                                <ArrowLeftOnRectangleIcon className="h-5 w-5"/>
+                                <LogOut className="h-5 w-5"/>
                             </Button>
                         </Tooltip>
                         <div className="w-px h-7 bg-content3 mx-1"/>
                         <Tooltip content="Tasks & History">
                             <Button size="md" variant={sidebarOpen ? 'solid' : 'flat'} isIconOnly
                                     onPress={() => setSidebarOpen(o => !o)}>
-                                <Bars3Icon className="h-5 w-5"/>
+                                <Menu className="h-5 w-5"/>
                             </Button>
                         </Tooltip>
                     </div>
@@ -606,7 +606,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                 <div className="rounded-2xl bg-content2/80 backdrop-blur-sm border border-content3 shadow-raise-sm p-4 flex flex-col items-center gap-4 w-20">
                                     <Tooltip content="Spectators" placement="right">
                                         <div className="flex items-center gap-1.5 cursor-default">
-                                            <EyeIcon className="h-3.5 w-3.5 text-foreground-400"/>
+                                            <Eye className="h-3.5 w-3.5 text-foreground-400"/>
                                             <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-400">
                                                 {spectators.length}
                                             </span>
@@ -716,7 +716,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                                     <Button size="lg" color="primary" variant="solid"
                                                         onPress={handleReveal}
                                                         isLoading={actionLoading === 'Reveal'}
-                                                        startContent={!actionLoading ? <EyeIcon className="h-7 w-7"/> : undefined}
+                                                        startContent={!actionLoading ? <Eye className="h-7 w-7"/> : undefined}
                                                         className={`font-bold px-16 h-16 text-xl rounded-2xl
                                                             shadow-xl shadow-primary/30
                                                             hover:shadow-2xl hover:shadow-primary/40 hover:scale-105
@@ -730,14 +730,14 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                                         <Button size="lg" color="warning" variant="flat"
                                                             onPress={() => handleRevote()}
                                                             isLoading={actionLoading === 'Revote'}
-                                                            startContent={<ArrowPathIcon className="h-5 w-5"/>}
+                                                            startContent={<RefreshCw className="h-5 w-5"/>}
                                                             className="font-semibold px-8 h-12">
                                                             Revote
                                                         </Button>
                                                         <Button size="lg" color="secondary" variant="solid"
                                                             onPress={handleReset}
                                                             isLoading={actionLoading === 'Reset'}
-                                                            startContent={<ArrowPathIcon className="h-5 w-5"/>}
+                                                            startContent={<RefreshCw className="h-5 w-5"/>}
                                                             className="font-semibold px-8 h-12 shadow-lg shadow-secondary/20">
                                                             {hasTasks ? 'Next Task' : 'Next Round'}
                                                         </Button>
@@ -767,7 +767,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                         {/* Spectator notice */}
                         {isSpectator && !isArchived && (
                             <div className="flex items-center justify-center gap-2 text-foreground-400 text-sm py-2">
-                                <EyeIcon className="h-4 w-4"/>
+                                <Eye className="h-4 w-4"/>
                                 <span>You are spectating. Switch to Participant to vote.</span>
                             </div>
                         )}
@@ -775,7 +775,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                         {/* Archived notice */}
                         {isArchived && (
                             <div className="flex items-center justify-center gap-2 text-warning text-sm py-2">
-                                <ArchiveBoxIcon className="h-4 w-4"/>
+                                <Archive className="h-4 w-4"/>
                                 <span className="font-medium">This room has been archived and is read-only.</span>
                             </div>
                         )}
@@ -1036,7 +1036,7 @@ function ParticipantSeat({participant: p, isVoting, isRevealed, side}: {
             {isRevealed
                 ? (p.revealedVote ?? '—')
                 : (p.hasVoted
-                    ? <CheckCircleIcon className="h-6 w-6 text-success"/>
+                    ? <CheckCircle className="h-6 w-6 text-success"/>
                     : <span className="text-foreground-300 text-base">?</span>)
             }
         </div>
@@ -1048,7 +1048,7 @@ function ParticipantSeat({participant: p, isVoting, isRevealed, side}: {
                 name={p.displayName} className="h-16 w-16"/>
             {p.isModerator && (
                 <div className="absolute -bottom-0.5 -right-0.5 bg-warning rounded-full p-1 shadow-sm">
-                    <FlagIcon className="h-3 w-3 text-white"/>
+                    <Flag className="h-3 w-3 text-white"/>
                 </div>
             )}
         </div>
@@ -1195,7 +1195,7 @@ function SidebarPanel({
     if (rows.length === 0 && !hasTasks) {
         return (
             <div className="rounded-xl bg-content2 border border-content3 p-4 flex flex-col items-center gap-3">
-                <ListBulletIcon className="h-8 w-8 text-foreground-300"/>
+                <List className="h-8 w-8 text-foreground-300"/>
                 <p className="text-sm text-foreground-400 text-center">No rounds yet.</p>
                 {isModerator && !isArchived && (
                     <Switch
@@ -1216,7 +1216,7 @@ function SidebarPanel({
             {/* Header */}
             <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
-                    <ListBulletIcon className="h-4 w-4 text-foreground-500"/>
+                    <List className="h-4 w-4 text-foreground-500"/>
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-500">
                         {hasTasks ? `Tasks (${tasks.length})` : `Rounds (${rows.length})`}
                     </h3>
@@ -1312,7 +1312,7 @@ function SidebarPanel({
                                                     onRevoteTask(row.roundNum);
                                                 }}
                                                         className="p-0.5 text-foreground-400 hover:text-warning">
-                                                    <ArrowPathIcon className="h-3.5 w-3.5"/>
+                                                    <RefreshCw className="h-3.5 w-3.5"/>
                                                 </button>
                                             </Tooltip>
                                         )}
@@ -1323,7 +1323,7 @@ function SidebarPanel({
                                                     startEdit(row.taskIndex!, row.label);
                                                 }}
                                                         className="p-0.5 text-foreground-400 hover:text-primary">
-                                                    <PencilIcon className="h-3.5 w-3.5"/>
+                                                    <Pencil className="h-3.5 w-3.5"/>
                                                 </button>
                                             </Tooltip>
                                         )}
@@ -1334,7 +1334,7 @@ function SidebarPanel({
                                                     onDeleteTask(row.taskIndex!);
                                                 }}
                                                         className="p-0.5 text-foreground-400 hover:text-danger">
-                                                    <TrashIcon className="h-3.5 w-3.5"/>
+                                                    <Trash2 className="h-3.5 w-3.5"/>
                                                 </button>
                                             </Tooltip>
                                         )}
@@ -1377,7 +1377,7 @@ function SidebarPanel({
             {isModerator && !isArchived && hasTasks && (
                 <div className="flex items-center gap-2 px-1">
                     <Button size="sm" variant="flat" className="flex-1" onPress={onAddTask}
-                            isLoading={isLoading} startContent={<PlusIcon className="h-4 w-4"/>}>
+                            isLoading={isLoading} startContent={<Plus className="h-4 w-4"/>}>
                         Add Task
                     </Button>
                 </div>

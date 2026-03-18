@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {SparklesIcon} from "@heroicons/react/24/solid";
+import {Sparkles} from "@/components/animated-icons/Sparkles";
 import ThemeToggle from "@/components/nav/ThemeToggle";
 import LoginButton from "@/components/nav/LoginButton";
 import {getCurrentUser} from "@/lib/actions/auth-actions";
@@ -26,7 +26,7 @@ export default async function TopNav() {
             <div className='flex items-center h-full px-4 mx-auto'>
                 <div className='flex items-center gap-6'>
                     <Link href='/' className='flex items-center gap-3 max-h-16'>
-                        <SparklesIcon className='size-10 text-primary' />
+                        <Sparkles size={40} className='text-primary' />
                         <h3 className='text-xl font-semibold uppercase'>Overflow</h3>
                     </Link>
                 </div>

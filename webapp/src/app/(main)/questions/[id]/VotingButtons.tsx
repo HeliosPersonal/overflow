@@ -1,7 +1,7 @@
 'use client';
 
 import {Button} from "@heroui/button";
-import {ArrowDownIcon, ArrowUpIcon, CheckIcon} from "@heroicons/react/24/outline";
+import {ArrowDown, ArrowUp, Check} from "lucide-react";
 import {Answer, Question, Vote} from "@/lib/types";
 import {useState, useTransition} from "react";
 import {acceptAnswer, addVote} from "@/lib/actions/question-actions";
@@ -67,7 +67,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(1)}
             >
-                <ArrowUpIcon className='w-6' />
+                <ArrowUp className='w-6' />
             </Button>
             <span className='text-xl font-semibold'>{target.votes}</span>
             <Button
@@ -77,7 +77,7 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                 isDisabled={!canVote}
                 onPress={() => handleAddVote(-1)}
             >
-                <ArrowDownIcon className='w-6' />
+                <ArrowDown className='w-6' />
             </Button>
             {isAnswer && (
                 <Button
@@ -89,9 +89,9 @@ export default function VotingButtons({target, currentUserId, askerId}: Props) {
                     onPress={handleAcceptAnswer}
                 >
                     {target.accepted ? (
-                        <CheckIcon className='size-6 text-success' />
+                        <Check className='size-6 text-success' />
                     ) : (
-                        <CheckIcon className='size-6 text-default-500' />
+                        <Check className='size-6 text-default-500' />
                     )}
                     
                 </Button>

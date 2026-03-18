@@ -5,7 +5,7 @@ import {Button} from "@heroui/button";
 import {Input} from "@heroui/input";
 import {Divider} from "@heroui/react";
 import {useSearchParams, useRouter} from "next/navigation";
-import {UserIcon} from "@heroicons/react/24/outline";
+import {User} from "lucide-react";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import AvatarPicker from "@/components/AvatarPicker";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
@@ -83,7 +83,7 @@ export default function AuthGatePage() {
                     {/* Header */}
                     <div className="px-5 pt-5 pb-3">
                         <div className="flex items-center gap-2">
-                            <UserIcon className="h-5 w-5 text-foreground-500"/>
+                            <User className="h-5 w-5 text-foreground-500"/>
                             <h2 className="text-lg font-semibold text-foreground-700">Create your profile</h2>
                         </div>
                         <p className="text-sm text-foreground-500 mt-1">

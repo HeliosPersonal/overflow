@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 import {Button, Divider, Input, Switch, Tooltip, addToast} from "@heroui/react";
-import {ArrowLeftIcon, ListBulletIcon} from "@heroicons/react/24/outline";
+import {ArrowLeft, List} from "lucide-react";
 import {Textarea} from "@heroui/input";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import {useRouter} from "next/navigation";
@@ -85,7 +85,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                     onClick={() => router.push('/planning-poker')}
                     className="flex items-center gap-1.5 text-sm text-foreground-400 hover:text-foreground-600 mb-8 transition-colors"
                 >
-                    <ArrowLeftIcon className="h-4 w-4"/>
+                    <ArrowLeft className="h-4 w-4"/>
                     Back to Planning Poker
                 </button>
 
@@ -198,7 +198,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <label className="text-sm font-semibold uppercase tracking-wide text-foreground-400 flex items-center gap-1.5">
-                                <ListBulletIcon className="h-4 w-4"/>
+                                <List className="h-4 w-4"/>
                                 Task list
                             </label>
                             <Switch

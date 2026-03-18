@@ -1,6 +1,6 @@
 import {Editor} from "@tiptap/core";
 import {useEditorState} from "@tiptap/react";
-import {BoldIcon, CodeBracketIcon, ItalicIcon, LinkIcon, StrikethroughIcon} from "@heroicons/react/20/solid";
+import {Bold, Code, Italic, Link as LinkIcon, Strikethrough} from "lucide-react";
 import {Button} from "@heroui/button";
 
 type Props = {
@@ -27,22 +27,22 @@ export default function MenuBar({editor}: Props) {
 
     const options = [
         {
-            icon: <BoldIcon className='w-5 h-5' />,
+            icon: <Bold className='w-5 h-5' />,
             onClick: () => editor.chain().focus().toggleBold().run(),
             pressed: editorState.isBold
         },
         {
-            icon: <ItalicIcon className='w-5 h-5' />,
+            icon: <Italic className='w-5 h-5' />,
             onClick: () => editor.chain().focus().toggleItalic().run(),
             pressed: editorState.isItalic
         },
         {
-            icon: <StrikethroughIcon className='w-5 h-5' />,
+            icon: <Strikethrough className='w-5 h-5' />,
             onClick: () => editor.chain().focus().toggleStrike().run(),
             pressed: editorState.isStrike
         },
         {
-            icon: <CodeBracketIcon className='w-5 h-5' />,
+            icon: <Code className='w-5 h-5' />,
             onClick: () => editor.chain().focus().toggleCodeBlock().run(),
             pressed: editorState.isCodeBlock
         },

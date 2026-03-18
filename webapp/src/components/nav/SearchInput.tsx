@@ -1,7 +1,7 @@
 'use client';
 
 import {Input} from "@heroui/input";
-import {MagnifyingGlassIcon} from "@heroicons/react/24/outline";
+import {Search} from "@/components/animated-icons/Search";
 import {useEffect, useRef, useState} from "react";
 import {Question} from "@/lib/types";
 import {searchQuestions} from "@/lib/actions/question-actions";
@@ -57,7 +57,7 @@ export default function SearchInput() {
     return (
         <div ref={containerRef} className='relative flex flex-col w-full' onBlur={handleBlur}>
             <Input
-                startContent={<MagnifyingGlassIcon className='size-6' />}
+                startContent={<Search size={24} />}
                 type='search'
                 placeholder='Search questions...'
                 value={query}

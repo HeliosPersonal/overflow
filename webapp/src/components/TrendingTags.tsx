@@ -4,7 +4,8 @@ import {getTrendingTags} from "@/lib/actions/tag-actions";
 import Link from "next/link";
 import {useEffect, useState} from "react";
 import {TrendingTag} from "@/lib/types";
-import {FireIcon, HashtagIcon} from "@heroicons/react/24/solid";
+import {Flame} from "@/components/animated-icons/Flame";
+import {Hash} from "lucide-react";
 import {motion} from "framer-motion";
 
 const BAR_COLORS = [
@@ -51,7 +52,7 @@ export default function TrendingTags() {
             <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-content3">
                 <span
                     className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100/60 dark:bg-orange-900/20">
-                    <FireIcon className="w-5 h-5 text-orange-300 dark:text-orange-400/70"/>
+                    <Flame size={20} className="text-orange-300 dark:text-orange-400/70"/>
                 </span>
                 <h3 className="text-base font-semibold text-foreground tracking-wide">Trending this week</h3>
             </div>
@@ -82,7 +83,7 @@ export default function TrendingTags() {
                                             href={`/questions?tag=${tag.tag}`}
                                             className="flex items-center gap-1 text-sm font-semibold text-foreground-600 hover:text-primary transition-colors truncate"
                                         >
-                                            <HashtagIcon className="w-3.5 h-3.5 opacity-50 shrink-0"/>
+                                            <Hash className="w-3.5 h-3.5 opacity-50 shrink-0"/>
                                             <span className="truncate">{tag.tag}</span>
                                         </Link>
                                         <span

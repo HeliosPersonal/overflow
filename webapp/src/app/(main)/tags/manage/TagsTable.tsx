@@ -13,7 +13,7 @@ import {Chip} from "@heroui/chip";
 import {
     Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, useDisclosure
 } from "@heroui/modal";
-import {PencilIcon, TrashIcon, PlusIcon, CheckIcon, XMarkIcon} from "@heroicons/react/24/outline";
+import {Pencil, Trash2, Plus, Check, X} from "lucide-react";
 import {handleError} from "@/lib/util";
 
 type Props = { tags: Tag[] }
@@ -120,7 +120,7 @@ export default function TagsTable({tags: initialTags}: Props) {
                     <Button
                         type='submit'
                         color='primary'
-                        startContent={<PlusIcon className='h-4 w-4'/>}
+                        startContent={<Plus className='h-4 w-4'/>}
                         isLoading={isPending}
                         isDisabled={!addForm.formState.isValid}
                     >
@@ -193,13 +193,13 @@ export default function TagsTable({tags: initialTags}: Props) {
                                                     variant='flat'
                                                     isLoading={isPending}
                                                 >
-                                                    <CheckIcon className='h-4 w-4'/>
+                                                    <Check className='h-4 w-4'/>
                                                 </Button>
                                                 <Button
                                                     isIconOnly size='sm' variant='flat'
                                                     onPress={cancelEdit}
                                                 >
-                                                    <XMarkIcon className='h-4 w-4'/>
+                                                    <X className='h-4 w-4'/>
                                                 </Button>
                                             </>
                                         ) : (
@@ -208,13 +208,13 @@ export default function TagsTable({tags: initialTags}: Props) {
                                                     isIconOnly size='sm' variant='flat'
                                                     onPress={() => startEdit(tag)}
                                                 >
-                                                    <PencilIcon className='h-4 w-4'/>
+                                                    <Pencil className='h-4 w-4'/>
                                                 </Button>
                                                 <Button
                                                     isIconOnly size='sm' variant='flat' color='danger'
                                                     onPress={() => confirmDelete(tag)}
                                                 >
-                                                    <TrashIcon className='h-4 w-4'/>
+                                                    <Trash2 className='h-4 w-4'/>
                                                 </Button>
                                             </>
                                         )}

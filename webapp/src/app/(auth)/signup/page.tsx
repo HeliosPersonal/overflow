@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupFormData } from '@/lib/validators/auth';
 import Link from 'next/link';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import { GraduationCap } from '@/components/animated-icons';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function SignupPage() {
@@ -70,7 +70,7 @@ export default function SignupPage() {
                     {/* Logo Header */}
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <AcademicCapIcon className="size-12 text-primary" />
+                            <GraduationCap size={48} className="text-primary" />
                             <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -107,7 +107,7 @@ export default function SignupPage() {
                 {/* Logo Header */}
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <AcademicCapIcon className="size-12 text-primary" />
+                        <GraduationCap size={48} className="text-primary" />
                         <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>

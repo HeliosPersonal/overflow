@@ -13,8 +13,8 @@ import {
     Spinner,
     Tooltip,
 } from "@heroui/react";
-import {SparklesIcon} from "@heroicons/react/24/outline";
-import {EllipsisVerticalIcon, ArchiveBoxIcon, TrashIcon} from "@heroicons/react/24/solid";
+import {Sparkles} from "@/components/animated-icons";
+import {MoreVertical, Archive, Trash2} from "lucide-react";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 import {timeAgo} from "@/lib/util";
 import {differenceInDays} from "date-fns";
@@ -91,7 +91,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                 <Button
                     color="primary"
                     size="lg"
-                    startContent={<SparklesIcon className="h-5 w-5"/>}
+                    startContent={<Sparkles size={20}/>}
                     onPress={() => router.push('/planning-poker/new')}
                     className="shrink-0 font-semibold"
                 >
@@ -190,13 +190,13 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                                 <Dropdown placement="bottom-end">
                                                     <DropdownTrigger>
                                                         <Button isIconOnly size="sm" variant="light" aria-label="Room actions">
-                                                            <EllipsisVerticalIcon className="h-4 w-4 text-foreground-400"/>
+                                                            <MoreVertical className="h-4 w-4 text-foreground-400"/>
                                                         </Button>
                                                     </DropdownTrigger>
                                                     <DropdownMenu aria-label="Room actions">
                                                         <DropdownItem
                                                             key="archive"
-                                                            startContent={<ArchiveBoxIcon className="h-4 w-4"/>}
+                                                            startContent={<Archive className="h-4 w-4"/>}
                                                             isDisabled={r.status === 'Archived'}
                                                             onPress={() => handleArchive(r.roomId)}
                                                         >
@@ -204,7 +204,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                                         </DropdownItem>
                                                         <DropdownItem
                                                             key="delete"
-                                                            startContent={<TrashIcon className="h-4 w-4"/>}
+                                                            startContent={<Trash2 className="h-4 w-4"/>}
                                                             className="text-danger"
                                                             color="danger"
                                                             onPress={() => handleDelete(r.roomId)}

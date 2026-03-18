@@ -2,7 +2,8 @@
 
 import {Button} from "@heroui/button";
 import {useTheme} from "next-themes";
-import {MoonIcon, SunIcon} from "@heroicons/react/24/outline";
+import {Sun} from "@/components/animated-icons/Sun";
+import {Moon} from "@/components/animated-icons/Moon";
 import {useEffect, useState} from "react";
 
 export default function ThemeToggle() {
@@ -25,9 +26,9 @@ export default function ThemeToggle() {
             onPress={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         >
             {theme === 'light' ? (
-                <MoonIcon className='h-6' />
+                <Moon size={24} />
             ) : (
-                <SunIcon className='h-8 ' />
+                <Sun size={28} />
             )}
         </Button>
     );

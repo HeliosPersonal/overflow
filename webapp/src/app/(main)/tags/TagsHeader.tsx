@@ -1,6 +1,6 @@
 'use client'
 
-import {MagnifyingGlassIcon} from '@heroicons/react/24/outline'
+import {Search} from '@/components/animated-icons'
 import {Input} from "@heroui/input";
 import {Tab, Tabs} from "@heroui/tabs";
 import {useRouter} from "next/navigation";
@@ -39,7 +39,7 @@ export default function TagHeader({isAdmin}: Props) {
                     className='w-fit'
                     required
                     placeholder="Search"
-                    startContent={<MagnifyingGlassIcon className='h-6 text-neutral-500'/>}
+                    startContent={<Search size={24} className='text-neutral-500'/>}
                 />
 
                 <Tabs

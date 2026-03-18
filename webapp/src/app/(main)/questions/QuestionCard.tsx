@@ -3,7 +3,7 @@ import Link from "next/link";
 import {Chip} from "@heroui/chip";
 import DiceBearAvatar from "@/components/DiceBearAvatar";
 import clsx from "clsx";
-import {CheckIcon, HandThumbUpIcon, EyeIcon} from "@heroicons/react/24/outline";
+import {Check, ThumbsUp, Eye} from "lucide-react";
 import {htmlToExcerpt, timeAgo} from "@/lib/util";
 
 type Props = {
@@ -15,11 +15,11 @@ export default function QuestionCard({question}: Props) {
         <div className='flex gap-0 w-full rounded-xl overflow-hidden'>
             <div className='flex flex-col items-end justify-start text-sm gap-3 min-w-16 bg-content3 px-4 py-4 text-foreground-500'>
                 <div className='flex items-center gap-1'>
-                    <HandThumbUpIcon className='h-4 w-4' />
+                    <ThumbsUp className='h-4 w-4' />
                     <span>{question.votes}</span>
                 </div>
                 <div className='flex items-center gap-1'>
-                    <CheckIcon
+                    <Check
                         className={clsx('h-4 w-4', {
                             'text-success': question.hasAcceptedAnswer,
                             'text-foreground-300': !question.hasAcceptedAnswer
@@ -29,7 +29,7 @@ export default function QuestionCard({question}: Props) {
                     <span>{question.answerCount}</span>
                 </div>
                 <div className='flex items-center gap-1'>
-                    <EyeIcon className='h-4 w-4' />
+                    <Eye className='h-4 w-4' />
                     <span>{question.viewCount}</span>
                 </div>
             </div>
