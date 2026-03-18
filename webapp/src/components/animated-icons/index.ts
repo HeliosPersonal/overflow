@@ -8,4 +8,6 @@ export {GraduationCap} from "./GraduationCap";
 export {LayoutGrid} from "./LayoutGrid";
 export {Tag} from "./Tag";
 export {TrendingUp} from "./TrendingUp";
+export {Layers} from "./Layers";
+export {Dices} from "./Dices";
 

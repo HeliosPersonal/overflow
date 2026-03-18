@@ -13,7 +13,7 @@ import {
     Spinner,
     Tooltip,
 } from "@heroui/react";
-import {Sparkles} from "@/components/animated-icons";
+import {Dices} from "@/components/animated-icons";
 import {MoreVertical, Archive, Trash2} from "lucide-react";
 import type {PlanningPokerRoomSummary} from "@/lib/types";
 import {timeAgo} from "@/lib/util";
@@ -91,7 +91,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                 <Button
                     color="primary"
                     size="lg"
-                    startContent={<Sparkles size={20}/>}
+                    startContent={<Dices size={20}/>}
                     onPress={() => router.push('/planning-poker/new')}
                     className="shrink-0 font-semibold"
                 >

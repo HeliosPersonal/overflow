@@ -5,7 +5,7 @@ import { Button } from '@heroui/button';
 import { Spinner } from '@heroui/spinner';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles } from '@/components/animated-icons';
+import { Layers } from '@/components/animated-icons';
 import { useSearchParams } from 'next/navigation';
 
 export default function VerifyEmailPage() {
@@ -48,7 +48,7 @@ export default function VerifyEmailPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <Sparkles size={48} className="text-primary" />
+                        <Layers size={48} className="text-primary" />
                         <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>

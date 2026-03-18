@@ -3,6 +3,7 @@
 import {useState} from "react";
 import {Button, Divider, Input, Switch, Tooltip, addToast} from "@heroui/react";
 import {ArrowLeft, List} from "lucide-react";
+import {Dices} from "@/components/animated-icons";
 import {Textarea} from "@heroui/input";
 import {createGuestAndSignIn} from "@/lib/auth/create-guest";
 import {useRouter} from "next/navigation";
@@ -153,7 +154,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                         errorMessage={`Room name must be ${MAX_TITLE_LENGTH} characters or fewer`}
                         description={
                             <span className={title.length >= MAX_TITLE_LENGTH ? 'text-danger' : ''}>
-                                {title.length}/{MAX_TITLE_LENGTH}{title.length < MAX_TITLE_LENGTH && ' · No ideas? Hit 🎲 to generate a funny name.'}
+                                {title.length}/{MAX_TITLE_LENGTH}{title.length < MAX_TITLE_LENGTH && ' · No ideas? Hit the dice to generate a funny name.'}
                             </span>
                         }
                         endContent={
@@ -161,10 +162,10 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                                 <button
                                     type="button"
                                     onClick={rollName}
-                                    className="text-xl text-foreground-400 hover:text-primary transition-colors focus:outline-none"
+                                    className="text-foreground-400 hover:text-primary transition-colors focus:outline-none"
                                     aria-label="Generate random room name"
                                 >
-                                    🎲
+                                    <Dices size={28} />
                                 </button>
                             </Tooltip>
                         }

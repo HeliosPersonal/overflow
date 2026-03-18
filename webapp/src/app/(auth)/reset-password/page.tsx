@@ -5,7 +5,7 @@ import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { useState } from 'react';
 import Link from 'next/link';
-import { GraduationCap } from '@/components/animated-icons';
+import { Layers } from '@/components/animated-icons';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <GraduationCap size={48} className="text-primary" />
+                            <Layers size={48} className="text-primary" />
                             <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <GraduationCap size={48} className="text-primary" />
+                            <Layers size={48} className="text-primary" />
                             <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <GraduationCap size={48} className="text-primary" />
+                        <Layers size={48} className="text-primary" />
                         <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>

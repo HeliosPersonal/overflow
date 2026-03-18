@@ -1,6 +1,6 @@
 'use client';
 
-import {GraduationCap, Tag, Trophy, LayoutGrid} from "@/components/animated-icons";
+import {GraduationCap, Tag, Trophy, Dices} from "@/components/animated-icons";
 import {ChevronsRight, ChevronsLeft} from "lucide-react";
 import {Tooltip} from "@heroui/react";
 import {usePathname} from "next/navigation";
@@ -14,7 +14,7 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle 
     const pathname = usePathname();
 
     const navLinks = [
-        {key: 'poker', icon: LayoutGrid, text: 'Planning Poker', href: '/'},
+        {key: 'poker', icon: Dices, text: 'Planning Poker', href: '/'},
         {key: 'home', icon: GraduationCap, text: 'Questions', href: '/questions'},
         ...(isAdmin ? [{key: 'tags', icon: Tag, text: 'Tags', href: '/tags'}] : []),
         {key: 'leaderboard', icon: Trophy, text: 'Leaderboard', href: '/profiles'},

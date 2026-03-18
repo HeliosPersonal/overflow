@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormData } from '@/lib/validators/auth';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { GraduationCap } from '@/components/animated-icons';
+import { Layers } from '@/components/animated-icons';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function LoginPage() {
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 {/* Logo Header */}
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <GraduationCap size={48} className="text-primary" />
+                        <Layers size={48} className="text-primary" />
                         <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>

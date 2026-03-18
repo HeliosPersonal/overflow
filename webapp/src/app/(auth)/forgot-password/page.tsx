@@ -5,7 +5,7 @@ import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { useState } from 'react';
 import Link from 'next/link';
-import { GraduationCap } from '@/components/animated-icons';
+import { Layers } from '@/components/animated-icons';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                            <GraduationCap size={48} className="text-primary" />
+                            <Layers size={48} className="text-primary" />
                             <h1 className="uppercase">Overflow</h1>
                         </Link>
                     </div>
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <GraduationCap size={48} className="text-primary" />
+                        <Layers size={48} className="text-primary" />
                         <h1 className="uppercase">Overflow</h1>
                     </Link>
                 </div>
