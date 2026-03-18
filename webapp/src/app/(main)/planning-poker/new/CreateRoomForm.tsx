@@ -86,7 +86,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                     className="flex items-center gap-1.5 text-sm text-foreground-400 hover:text-foreground-600 mb-8 transition-colors"
                 >
                     <ArrowLeftIcon className="h-4 w-4"/>
-                    Back to Dashboard
+                    Back to Planning Poker
                 </button>
 
                 {/* Header */}

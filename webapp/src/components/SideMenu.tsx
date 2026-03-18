@@ -13,7 +13,7 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle 
     const pathname = usePathname();
 
     const navLinks = [
-        {key: 'poker', icon: Squares2X2Icon, text: 'Dashboard', href: '/'},
+        {key: 'poker', icon: Squares2X2Icon, text: 'Planning Poker', href: '/'},
         {key: 'home', icon: AcademicCapIcon, text: 'Questions', href: '/questions'},
         ...(isAdmin ? [{key: 'tags', icon: TagIcon, text: 'Tags', href: '/tags'}] : []),
         {key: 'leaderboard', icon: TrophyIcon, text: 'Leaderboard', href: '/profiles'},

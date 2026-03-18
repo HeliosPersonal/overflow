@@ -73,7 +73,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             {/* ── Page header ───────────────────────────────────────── */}
             <div className="flex items-center gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground-600">Dashboard</h1>
+                    <h1 className="text-3xl font-bold text-foreground-600">Planning Poker</h1>
                     <p className="text-foreground-500 text-sm">
                         Estimate as a team using Planning Poker — Fibonacci cards, live voting, instant results.
                     </p>
