@@ -969,9 +969,6 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
             {/* Single-line header */}
             <div className="px-6 py-4 flex items-center gap-4">
                 <div className="min-w-0 flex items-center gap-3 flex-1">
-                    <span className="text-sm font-semibold uppercase tracking-wider text-foreground-400 shrink-0">
-                        Estimating
-                    </span>
                     <span className="text-lg font-bold text-foreground-600 truncate">
                         {roundLabel}
                     </span>
@@ -1430,8 +1427,8 @@ function FlipCard({hasVoted, isVoting, isRevealed, revealedVote, sizeClass}: {
                 <div
                     className={`absolute inset-0 rounded-xl border-2 flex items-center justify-center
                         ${isRevealed && revealedVote
-                            ? 'border-primary/50 bg-gradient-to-br from-primary/5 to-primary/15 shadow-sm'
-                            : 'border-content3 bg-content2'}`}
+                            ? 'border-primary/50 bg-content1 shadow-md'
+                            : 'border-content3 bg-content1'}`}
                     style={{backfaceVisibility: 'hidden'}}
                 >
                     <span className="text-xl font-black text-primary tabular-nums">
@@ -1443,8 +1440,8 @@ function FlipCard({hasVoted, isVoting, isRevealed, revealedVote, sizeClass}: {
                 <div
                     className={`absolute inset-0 rounded-xl border-2 flex items-center justify-center
                         ${hasVoted
-                            ? 'border-success/40 bg-gradient-to-br from-success/5 to-success/15 shadow-sm'
-                            : 'border-content3/60 bg-content2/50'}`}
+                            ? 'border-success/40 bg-content1 shadow-md'
+                            : 'border-content3 bg-content1'}`}
                     style={{backfaceVisibility: 'hidden', transform: 'rotateY(180deg)'}}
                 >
                     {hasVoted ? (
