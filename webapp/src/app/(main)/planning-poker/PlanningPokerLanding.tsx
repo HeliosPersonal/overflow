@@ -233,6 +233,6 @@ function RoomStatusChip({status}: {status: string}) {
         Revealed: 'secondary',
         Archived: 'warning',
     };
-    return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="flat">{status}</Chip>;
+    return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="bordered">{status}</Chip>;
 }
 

@@ -753,7 +753,7 @@ function StatusBadge({status}: { status: string }) {
     const colorMap: Record<string, 'success' | 'primary' | 'warning'> = {
         Voting: 'success', Revealed: 'primary', Archived: 'warning',
     };
-    return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="flat">{status}</Chip>;
+    return <Chip size="sm" color={colorMap[status] ?? 'default'} variant="bordered">{status}</Chip>;
 }
 
 /** Compact estimation strip — reduced visual weight, just essential info */
@@ -823,11 +823,11 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
                     <span className="text-sm font-semibold uppercase tracking-wider text-foreground-400 shrink-0">
                         Estimating
                     </span>
-                    <span className="text-lg font-bold text-foreground-800 truncate">
+                    <span className="text-lg font-bold text-foreground-600 truncate">
                         {hasTasks ? (room.currentTaskName ?? `Task ${room.roundNumber}`) : `Round ${room.roundNumber}`}
                     </span>
                     {hasTasks && (
-                        <Chip size="sm" variant="flat" color={isRevealed ? 'primary' : isArchived ? 'warning' : 'success'}
+                        <Chip size="sm" variant="bordered" color={isRevealed ? 'primary' : isArchived ? 'warning' : 'success'}
                               className="font-semibold tabular-nums text-xs h-6 shrink-0">
                             {room.roundHistory.length}/{room.tasks!.length}
                         </Chip>
