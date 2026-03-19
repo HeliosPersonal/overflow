@@ -441,23 +441,13 @@ sequenceDiagram
     participant WS as WebSocketBroadcaster
     actor Others as Other Participants
 
-    User->>GW: POST /estimation/refresh-profile<br/>(JWT Bearer)
+    User->>GW: DELETE /estimation/profile-cache<br/>(JWT Bearer)
     GW->>EC: Route (requires [Authorize])
     EC->>PC: InvalidateAsync(userId)<br/>evict stale profile from FusionCache
     PC->>FC: Remove cache key "profile:{userId}"
     FC-->>PC: Evicted (backplane → all pods)
 
-    EC->>IR: ResolveAsync(httpContext)
-    IR->>PS: GET /profiles/{userId}<br/>(fresh fetch, cache was just cleared)
-    PS-->>IR: { displayName, avatarUrl }
-    IR-->>EC: ParticipantIdentity (fresh)
-
-    EC->>SVC: RefreshParticipantProfileAsync(userId, displayName, avatarUrl)
-    SVC->>DB: UPDATE all participants WHERE userId<br/>SET displayName, avatarUrl
-    SVC->>FC: Invalidate room caches for affected rooms
-    SVC->>FC: Publish cross-pod broadcast (Redis pub/sub)
-    WS-->>Others: Updated snapshots (new name/avatar, all pods)
-    SVC-->>EC: updated count
+    EC-->>User: 204 No Content
     EC-->>GW: 200 OK { updated: N }
     GW-->>User: { updated: N }
 ```
@@ -580,23 +570,27 @@ stateDiagram-v2
 
 ## Endpoints
 
-| Method   | Route                             | Auth      | Description                                      |
-|----------|-----------------------------------|-----------|--------------------------------------------------|
-| `POST`   | `/estimation/rooms`               | Optional  | Create a new room (guests provide `displayName`) |
-| `POST`   | `/estimation/rooms/{id}/join`     | Optional  | Join a room (guests provide `displayName`)       |
-| `GET`    | `/estimation/rooms/{id}`          | None      | Get current room state                           |
-| `GET`    | `/estimation/rooms/my`            | Required  | List rooms for the authenticated user            |
-| `POST`   | `/estimation/rooms/{id}/votes`    | Required* | Submit or replace a vote                         |
-| `DELETE` | `/estimation/rooms/{id}/votes/me` | Required* | Clear your vote                                  |
-| `POST`   | `/estimation/rooms/{id}/reveal`   | Moderator | Reveal all votes                                 |
-| `POST`   | `/estimation/rooms/{id}/reset`    | Moderator | Start a new round                                |
-| `POST`   | `/estimation/rooms/{id}/archive`  | Moderator | Permanently close the room                       |
-| `POST`   | `/estimation/rooms/{id}/mode`     | Required* | Toggle spectator/voter                           |
-| `POST`   | `/estimation/rooms/{id}/leave`    | Required* | Leave the room                                   |
-| `POST`   | `/estimation/claim-guest`         | Required  | Migrate guest history to authenticated user      |
-| `POST`   | `/estimation/refresh-profile`     | Required  | Push latest profile (name + avatar) to all rooms |
-| `GET`    | `/estimation/decks`               | None      | List available card decks                        |
-| `WS`     | `/estimation/rooms/{id}/ws`       | Optional  | Real-time room state push                        |
+| Method   | Route                             | Auth      | Description                                           |
+|----------|-----------------------------------|-----------|-------------------------------------------------------|
+| `POST`   | `/estimation/rooms`               | Optional  | Create a new room (guests provide `displayName`)      |
+| `POST`   | `/estimation/rooms/{id}/join`     | Optional  | Join a room (guests provide `displayName`)            |
+| `GET`    | `/estimation/rooms/{id}`          | None      | Get current room state                                |
+| `GET`    | `/estimation/rooms/my`            | Required  | List rooms for the authenticated user                 |
+| `POST`   | `/estimation/rooms/{id}/votes`    | Required* | Submit or replace a vote                              |
+| `DELETE` | `/estimation/rooms/{id}/votes/me` | Required* | Clear your vote                                       |
+| `POST`   | `/estimation/rooms/{id}/reveal`   | Moderator | Reveal all votes                                      |
+| `POST`   | `/estimation/rooms/{id}/reset`    | Moderator | Start a new round                                     |
+| `POST`   | `/estimation/rooms/{id}/archive`  | Moderator | Permanently close the room                            |
+| `POST`   | `/estimation/rooms/{id}/revote`   | Moderator | Re-vote a specific round                              |
+| `PUT`    | `/estimation/rooms/{id}/tasks`    | Moderator | Update the task list for the room                     |
+| `PUT`    | `/estimation/rooms/{id}/title`    | Moderator | Rename the room                                       |
+| `DELETE` | `/estimation/rooms/{id}`          | Moderator | Permanently delete the room                           |
+| `POST`   | `/estimation/rooms/{id}/mode`     | Required* | Toggle spectator/voter                                |
+| `POST`   | `/estimation/rooms/{id}/leave`    | Required* | Leave the room                                        |
+| `POST`   | `/estimation/claim-guest`         | Required  | Migrate guest history to authenticated user           |
+| `DELETE` | `/estimation/profile-cache`       | Required  | Evict cached profile (call after profile/avatar edit) |
+| `GET`    | `/estimation/decks`               | None      | List available card decks                             |
+| `WS`     | `/estimation/rooms/{id}/ws`       | Optional  | Real-time room state push                             |
 
 *\* Authenticated users or identified guests (via cookie)*
 

@@ -9,7 +9,6 @@
 - [Google Authentication Setup](./GOOGLE_AUTH_SETUP.md) — Google OAuth via Keycloak Identity Brokering
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Terraform README](../terraform/README.md) — ConfigMap / connection string wiring
-- [Migration Guide](./INFISICAL_MIGRATION_A3.md) — How secrets were migrated from flat root to folders
 
 ---
 

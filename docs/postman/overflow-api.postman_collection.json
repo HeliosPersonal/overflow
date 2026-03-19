@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Overflow API",
-    "description": "Complete API collection for Overflow Q&A platform.\n\n## Setup\n1. Import this collection + both environment files\n2. Select an environment (Staging or Production)\n3. Set `username` and `password` to a valid Keycloak user\n4. Run **Auth → Get Token** first — it auto-sets `access_token`\n5. All authenticated requests use `{{access_token}}` automatically\n\nThe `overflow-postman` client is public (no secret needed).",
+    "description": "Complete API collection for Overflow Q&A platform.\n\n## Setup\n1. Import this collection + both environment files\n2. Select an environment (Staging or Production)\n3. Set `username` and `password` to a valid Keycloak user\n4. Run **Auth \u2192 Get Token** first \u2014 it auto-sets `access_token`\n5. All authenticated requests use `{{access_token}}` automatically\n\nThe `overflow-postman` client is public (no secret needed).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -770,7 +770,7 @@
     },
     {
       "name": "Planning Poker",
-      "description": "Estimation rooms for Planning Poker. All endpoints are under /estimation.\n\nRooms use Guid IDs (no short codes). Join via link only.\n\nTypical flow:\n1. Create Room (authenticated) → saves {{room_id}}\n2. Join Room (any participant)\n3. Submit Vote\n4. Reveal Votes (moderator only)\n5. Reset Round (moderator only)\n6. Archive Room (moderator only)\n\nWebSocket: connect to {{estimation_ws_url}}/estimation/rooms/{{room_id}}/ws for real-time updates.",
+      "description": "Estimation rooms for Planning Poker. All endpoints are under /estimation.\n\nRooms use Guid IDs (no short codes). Join via link only.\n\nTypical flow:\n1. Create Room (authenticated) \u2192 saves {{room_id}}\n2. Join Room (any participant)\n3. Submit Vote\n4. Reveal Votes (moderator only)\n5. Reset Round (moderator only)\n6. Archive Room (moderator only)\n\nWebSocket: connect to {{estimation_ws_url}}/estimation/rooms/{{room_id}}/ws for real-time updates.",
       "item": [
         {
           "name": "Get Available Decks",
@@ -948,20 +948,21 @@
           }
         },
         {
-          "name": "Refresh Profile in Rooms",
+          "name": "Evict Profile Cache",
           "description": "Invalidates the cached profile for the current user and pushes their latest display name + avatar to every room they participate in. Call this after a profile or avatar edit so changes appear instantly in open rooms.",
           "request": {
-            "method": "POST",
+            "method": "DELETE",
             "url": {
-              "raw": "{{base_url}}/estimation/refresh-profile",
+              "raw": "{{base_url}}/estimation/profile-cache",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "estimation",
-                "refresh-profile"
+                "profile-cache"
               ]
-            }
+            },
+            "description": "Evicts the cached profile for the authenticated user so subsequent reads fetch fresh data from ProfileService. Call after profile or avatar edits."
           }
         },
         {
@@ -1110,6 +1111,131 @@
               ]
             }
           }
+        },
+        {
+          "name": "Revote Round (moderator)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/revote",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "revote"
+              ]
+            },
+            "description": "Re-vote a specific round. Moderator only. Optionally specify roundNumber in body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roundNumber\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Tasks (moderator)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/tasks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "tasks"
+              ]
+            },
+            "description": "Update the task list for the room. Moderator only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tasks\": [\n    \"Task 1\",\n    \"Task 2\",\n    \"Task 3\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rename Room (moderator)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}/title",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}",
+                "title"
+              ]
+            },
+            "description": "Rename the room. Moderator only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sprint 42 Planning\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Room (moderator)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/estimation/rooms/{{room_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estimation",
+                "rooms",
+                "{{room_id}}"
+              ]
+            },
+            "description": "Permanently delete a room and all its data. Moderator only."
+          },
+          "response": []
         }
       ]
     },

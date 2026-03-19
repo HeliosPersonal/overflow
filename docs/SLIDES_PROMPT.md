@@ -11,7 +11,7 @@
 **Concepts:**
 - Project name, tagline, author
 - One-line value prop: "A Stack Overflow–inspired Q&A platform built as intentionally over-engineered microservices"
-- Key tech badges: .NET 10 · Next.js 15 · Kubernetes · RabbitMQ · PostgreSQL
+- Key tech badges: .NET 10 · Next.js 16 · Kubernetes · RabbitMQ · PostgreSQL
 - Live URL (devoverflow.org) — it's actually running in production on self-hosted infrastructure
 
 ---
@@ -54,7 +54,7 @@
 
 **Concepts:**
 - Two-column or layered layout:
-  - **Frontend:** Next.js 15 (App Router, React 19, Server Components), TypeScript, Tailwind CSS, HeroUI, NextAuth.js v5
+  - **Frontend:** Next.js 16 (App Router, React 19, Server Components), TypeScript, Tailwind CSS, HeroUI, NextAuth.js v5
   - **Backend:** .NET 10, ASP.NET Core (Controllers + Minimal APIs), Entity Framework Core, Wolverine (messaging framework)
   - **Data:** PostgreSQL (5 separate databases), Marten (event sourcing for StatsService), Typesense (search), Redis (caching + pub/sub)
   - **Messaging:** RabbitMQ with Wolverine (durable outbox, automatic routing, retries, dead-letter)

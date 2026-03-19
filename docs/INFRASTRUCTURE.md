@@ -196,7 +196,7 @@ Wolverine handles message routing, the durable outbox (question-svc), retries, a
 
 | Package | Description |
 |---|---|
-| Next.js 15 (React 19, App Router) | SSR/SSG frontend framework |
+| Next.js 16 (React 19, App Router) | SSR/SSG frontend framework |
 | TypeScript | Language |
 | Tailwind CSS + HeroUI | Styling and component library |
 | NextAuth.js | Session management, Keycloak Direct Access Grant |

@@ -21,7 +21,7 @@ Cloudflare (CDN · WAF · DDoS · DDNS)
   ▼
 NGINX Ingress (K3s on-prem · TLS termination · path routing)
   │
-  ├─ /                  →  webapp          (Next.js 15, App Router)
+  ├─ /                  →  webapp          (Next.js 16, App Router)
   ├─ /api/questions/*   →  question-svc    (.NET 10, PostgreSQL, Wolverine/RabbitMQ)
   ├─ /api/search/*      →  search-svc      (.NET 10, Typesense)
   ├─ /api/profiles/*    →  profile-svc     (.NET 10, PostgreSQL)
@@ -43,7 +43,7 @@ All services emit OpenTelemetry traces and metrics to Grafana Alloy → Grafana 
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS, HeroUI, NextAuth.js |
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS, HeroUI, NextAuth.js |
 | **Backend** | .NET 10, ASP.NET Core, Wolverine (messaging), Entity Framework Core |
 | **Databases** | PostgreSQL (per-service) |
 | **Messaging** | RabbitMQ |
@@ -143,7 +143,7 @@ vote-svc     ──► VoteCasted                       ──► question-svc (
 | [Network Architecture](docs/NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
 | [Keycloak Setup](docs/KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO, local dev |
 | [Google Auth Setup](docs/GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
-| [Infisical Setup](docs/INFISICAL_SETUP.md) | All 28 secrets, how they flow from Infisical to services |
+| [Infisical Setup](docs/INFISICAL_SETUP.md) | All 33 secrets, how they flow from Infisical to services |
 | [Kubernetes](k8s/README.md) | Kustomize structure, manifests, operations |
 | [Terraform](terraform/README.md) | Project-specific Terraform (DBs, vhosts, ConfigMaps) |
 
