@@ -2,10 +2,40 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
         <UserSecretsId>e7dd1df4-11fc-4d5f-8198-85226bad8737</UserSecretsId>
     </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Aspire.Hosting.AppHost"/>
+        <PackageReference Include="Aspire.Hosting.Keycloak"/>
+        <PackageReference Include="Aspire.Hosting.NodeJs"/>
+        <PackageReference Include="Aspire.Hosting.PostgreSQL"/>
+        <PackageReference Include="Aspire.Hosting.RabbitMQ"/>
+        <PackageReference Include="Aspire.Hosting.Redis"/>
+        <PackageReference Include="Aspire.Hosting.Yarp"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj" IsAspireProjectResource="false"/>
+        <ProjectReference Include="..\Overflow.DataSeederService\Overflow.DataSeederService.csproj" />
+        <ProjectReference Include="..\Overflow.EstimationService\Overflow.EstimationService.csproj"/>
+        <ProjectReference Include="..\Overflow.NotificationService\Overflow.NotificationService.csproj"/>
+        <ProjectReference Include="..\Overflow.ServiceDefaults\Overflow.ServiceDefaults.csproj" IsAspireProjectResource="false"/>
+        <ProjectReference Include="..\Overflow.ProfileService\Overflow.ProfileService.csproj"/>
+        <ProjectReference Include="..\Overflow.QuestionService\Overflow.QuestionService.csproj"/>
+        <ProjectReference Include="..\Overflow.SearchService\Overflow.SearchService.csproj"/>
+        <ProjectReference Include="..\Overflow.StatsService\Overflow.StatsService.csproj"/>
+        <ProjectReference Include="..\Overflow.VoteService\Overflow.VoteService.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="appsettings.*.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <DependentUpon>appsettings.json</DependentUpon>
+        </None>
+    </ItemGroup>
 
 </Project>

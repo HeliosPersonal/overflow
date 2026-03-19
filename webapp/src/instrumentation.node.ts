@@ -1,0 +1,134 @@
+/**
+ * Node.js-only Instrumentation
+ *
+ * This file is dynamically imported by instrumentation.ts ONLY when
+ * NEXT_RUNTIME === 'nodejs'. The Edge bundler never touches this file,
+ * so all Node.js-only APIs (process.cwd, path, process.on, etc.) are safe to use.
+ *
+ * Initializes:
+ * 1. Environment configuration (Infisical secrets / .env files)
+ * 2. OpenTelemetry (traces + metrics → Grafana Alloy via OTLP)
+ *
+ * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
+ */
+
+const PHASE_PRODUCTION_BUILD = 'phase-production-build';
+
+export async function register(): Promise<void> {
+    const currentPhase = process.env.NEXT_PHASE;
+
+    console.log('🚀 [Instrumentation/Node] Starting application bootstrap', {
+        phase: currentPhase,
+        nodeEnv: process.env.NODE_ENV,
+        appEnv: process.env.APP_ENV,
+    });
+
+    if (currentPhase === PHASE_PRODUCTION_BUILD) {
+        console.log('⏭️  [Instrumentation/Node] Skipped - Build phase');
+        return;
+    }
+
+    // Load secrets first so OTEL env vars are available
+    await initializeEnvironmentConfiguration();
+
+    // Then start OTEL (reads OTEL_EXPORTER_OTLP_* from process.env)
+    await initializeOpenTelemetry();
+}
+
+/**
+ * Load environment configuration — .env files + Infisical secrets (non-dev only).
+ */
+async function initializeEnvironmentConfiguration(): Promise<void> {
+    try {
+        console.log('🔧 [Instrumentation/Node] Loading environment configuration...');
+        const { loadEnvironmentConfiguration } = await import('./infisical');
+        const loadedVariables = await loadEnvironmentConfiguration();
+        const variableCount = Object.keys(loadedVariables).length;
+        console.log(`✅ [Instrumentation/Node] Configuration loaded (${variableCount} variables)`);
+    } catch (error) {
+        console.error('❌ [Instrumentation/Node] Failed to load configuration:', error);
+        console.warn('⚠️  [Instrumentation/Node] App will start with existing environment variables');
+    }
+}
+
+/**
+ * Initialize OpenTelemetry SDK — traces + metrics exported via OTLP to Grafana Alloy.
+ * Reads endpoint/headers from env vars set by Infisical:
+ *   OTEL_EXPORTER_OTLP_ENDPOINT  — e.g. http://grafana-alloy.monitoring.svc.cluster.local:4318
+ *   OTEL_EXPORTER_OTLP_HEADERS   — e.g. Authorization=Bearer xxx  (optional, for cloud Grafana)
+ */
+async function initializeOpenTelemetry(): Promise<void> {
+    const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+    if (!endpoint) {
+        console.log('⏭️  [OTEL] Skipped — OTEL_EXPORTER_OTLP_ENDPOINT not set');
+        return;
+    }
+
+    try {
+        const { NodeSDK } = await import('@opentelemetry/sdk-node');
+        const { getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node');
+        const { OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-http');
+        const { OTLPMetricExporter } = await import('@opentelemetry/exporter-metrics-otlp-http');
+        const { PeriodicExportingMetricReader } = await import('@opentelemetry/sdk-metrics');
+        const { resourceFromAttributes } = await import('@opentelemetry/resources');
+        const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import('@opentelemetry/semantic-conventions');
+
+        const appEnv = process.env.APP_ENV ?? 'development';
+        const headersRaw = process.env.OTEL_EXPORTER_OTLP_HEADERS ?? '';
+
+        // Parse "Key=Value,Key2=Value2" header string
+        const headers: Record<string, string> = {};
+        if (headersRaw) {
+            for (const part of headersRaw.split(',')) {
+                const [k, ...v] = part.split('=');
+                if (k && v.length) headers[k.trim()] = v.join('=').trim();
+            }
+        }
+
+        const sdk = new NodeSDK({
+            resource: resourceFromAttributes({
+                [ATTR_SERVICE_NAME]: 'overflow-webapp',
+                [ATTR_SERVICE_VERSION]: process.env.npm_package_version ?? '1.0.0',
+                'deployment.environment': appEnv,
+            }),
+            traceExporter: new OTLPTraceExporter({
+                url: `${endpoint}/v1/traces`,
+                headers,
+            }),
+            metricReader: new PeriodicExportingMetricReader({
+                exporter: new OTLPMetricExporter({
+                    url: `${endpoint}/v1/metrics`,
+                    headers,
+                }),
+                exportIntervalMillis: 60_000,
+            }),
+            instrumentations: [
+                getNodeAutoInstrumentations({
+                    // Next.js 16 + Node.js 20: instrumentation packages that patch the global
+                    // fetch / http / undici cause TransformStream corruption at runtime
+                    // ("controller[kState].transformAlgorithm is not a function").
+                    // Disable ALL network-layer instrumentations; Next.js has its own built-in
+                    // OTEL tracing for incoming requests via the register() hook.
+                    '@opentelemetry/instrumentation-http': { enabled: false },
+                    '@opentelemetry/instrumentation-undici': { enabled: false },
+                    '@opentelemetry/instrumentation-fs': { enabled: false },
+                    '@opentelemetry/instrumentation-net': { enabled: false },
+                    '@opentelemetry/instrumentation-dns': { enabled: false },
+                }),
+            ],
+        });
+
+        sdk.start();
+        console.log(`✅ [OTEL] SDK started — exporting to ${endpoint}`);
+
+        process.on('SIGTERM', () => {
+            sdk.shutdown()
+                .then(() => console.log('✅ [OTEL] SDK shut down gracefully'))
+                .catch((err) => console.error('❌ [OTEL] SDK shutdown error:', err));
+        });
+    } catch (error) {
+        console.error('❌ [OTEL] Failed to initialize OpenTelemetry:', error);
+        // Non-fatal
+    }
+}

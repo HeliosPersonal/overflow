@@ -1,0 +1,10 @@
+Verify your {{appName}} email address
+
+Thanks for signing up! Please confirm your email address by visiting the link below:
+
+{{verifyUrl}}
+
+This link will expire in 24 hours.
+
+If you didn't create an account, you can safely ignore this email.
+

@@ -1,0 +1,5 @@
+[*.cs]
+dotnet_diagnostic.CA1873.severity = none
+
+[*.{cs,vb}]
+dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none

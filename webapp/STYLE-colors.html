@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overflow — Colour Reference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      background: #0f0f11;
+      color: #e4e4e7;
+      padding: 40px 32px 80px;
+      min-height: 100vh;
+    }
+
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: #fafafa; }
+    .subtitle { color: #71717a; margin-bottom: 48px; font-size: 13px; }
+
+    section { margin-bottom: 52px; }
+    h2 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #71717a;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #27272a;
+    }
+
+    /* ── Swatch row ── */
+    .ramp {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .swatch-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 36px;
+    }
+    .swatch {
+      width: 160px;
+      height: 100%;
+      border-radius: 6px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .badge {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      white-space: nowrap;
+    }
+    .swatch-step  { color: #71717a; width: 28px; text-align: right; flex-shrink: 0; }
+    .swatch-hex   { color: #a1a1aa; font-family: "SF Mono", "Fira Code", monospace; }
+    .swatch-label { color: #52525b; }
+    .swatch-row.featured .swatch-step,
+    .swatch-row.featured .swatch-hex { color: #fafafa; font-weight: 600; }
+
+    /* ── Surface grid ── */
+    .surface-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .surface-theme { }
+    .surface-theme h3 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #52525b;
+      margin-bottom: 10px;
+    }
+    .surface-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .surface-swatch {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+    .surface-swatch .token { font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; color: inherit; opacity: 0.9; }
+    .surface-swatch .hex   { font-family: "SF Mono", "Fira Code", monospace; font-size: 11px; opacity: 0.55; margin-left: auto; }
+
+    /* ── Semantic row ── */
+    .semantic-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .semantic-card {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .semantic-swatch {
+      height: 56px;
+    }
+    .semantic-info {
+      background: #18181b;
+      padding: 10px 12px;
+    }
+    .semantic-info .name  { font-weight: 600; color: #e4e4e7; margin-bottom: 2px; }
+    .semantic-info .hex   { font-family: "SF Mono", "Fira Code", monospace; font-size: 11px; color: #71717a; }
+    .semantic-info .usage { font-size: 11px; color: #52525b; margin-top: 4px; line-height: 1.4; }
+
+    /* ── Foreground scale ── */
+    .fg-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .fg-theme h3 {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #52525b; margin-bottom: 10px;
+    }
+    .fg-swatch {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid #1f1f22;
+    }
+    .fg-swatch:last-child { border-bottom: none; }
+    .fg-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+    .fg-token { font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; }
+    .fg-hex   { font-family: "SF Mono", "Fira Code", monospace; font-size: 11px; color: #52525b; margin-left: auto; }
+    .fg-use   { font-size: 11px; color: #52525b; }
+  </style>
+</head>
+<body>
+
+<h1>Overflow — Colour Reference</h1>
+<p class="subtitle">Generated from <code>src/app/hero.ts</code> · Do not edit hex values here; edit the source file.</p>
+
+<!-- ── Brand ─────────────────────────────────────────────────────────── -->
+<section>
+  <h2>Brand (Primary) — Purple</h2>
+  <div class="ramp">
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#f3eff8;"></div>
+      <span class="swatch-step">50</span>
+      <span class="swatch-hex">#f3eff8</span>
+      <span class="swatch-label">Tinted backgrounds, hover fills</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#e4daf0;"></div>
+      <span class="swatch-step">100</span>
+      <span class="swatch-hex">#e4daf0</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#c9b5e1;"></div>
+      <span class="swatch-step">200</span>
+      <span class="swatch-hex">#c9b5e1</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#a98bcb;">
+        <span class="badge">secondary</span>
+      </div>
+      <span class="swatch-step">300</span>
+      <span class="swatch-hex">#a98bcb</span>
+      <span class="swatch-label">secondary DEFAULT</span>
+    </div>
+
+    <div class="swatch-row featured">
+      <div class="swatch" style="background:#8a64b3;">
+        <span class="badge">dark ★</span>
+      </div>
+      <span class="swatch-step">400</span>
+      <span class="swatch-hex">#8a64b3</span>
+      <span class="swatch-label" style="color:#d4d4d8;font-weight:600;">primary DEFAULT — dark theme</span>
+    </div>
+
+    <div class="swatch-row featured">
+      <div class="swatch" style="background:#6b4899;">
+        <span class="badge">light ★</span>
+      </div>
+      <span class="swatch-step">500</span>
+      <span class="swatch-hex">#6b4899</span>
+      <span class="swatch-label" style="color:#d4d4d8;font-weight:600;">primary DEFAULT — light theme</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#543a7a;"></div>
+      <span class="swatch-step">600</span>
+      <span class="swatch-hex">#543a7a</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#3d2b5c;"></div>
+      <span class="swatch-step">700</span>
+      <span class="swatch-hex">#3d2b5c</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#271b3d;"></div>
+      <span class="swatch-step">800</span>
+      <span class="swatch-hex">#271b3d</span>
+    </div>
+
+    <div class="swatch-row">
+      <div class="swatch" style="background:#130d1f;"></div>
+      <span class="swatch-step">900</span>
+      <span class="swatch-hex">#130d1f</span>
+      <span class="swatch-label">Darkest tint</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Surfaces ───────────────────────────────────────────────────────── -->
+<section>
+  <h2>Surfaces (Elevation Palette)</h2>
+  <div class="surface-grid">
+
+    <div class="surface-theme">
+      <h3>Dark theme</h3>
+      <div class="surface-stack">
+
+        <div class="surface-swatch" style="background:#000000; color:#ecedee; border:1px solid #27272a;">
+          <span class="token">background</span>
+          <span class="hex">#000000</span>
+        </div>
+        <div class="surface-swatch" style="background:#18181b; color:#ecedee;">
+          <span class="token">content1</span>
+          <span class="hex">#18181b</span>
+        </div>
+        <div class="surface-swatch" style="background:#27272a; color:#d4d4d8;">
+          <span class="token">content2</span>
+          <span class="hex">#27272a</span>
+        </div>
+        <div class="surface-swatch" style="background:#3f3f46; color:#e4e4e7;">
+          <span class="token">content3</span>
+          <span class="hex">#3f3f46</span>
+        </div>
+        <div class="surface-swatch" style="background:#52525b; color:#f4f4f5;">
+          <span class="token">content4</span>
+          <span class="hex">#52525b</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="surface-theme">
+      <h3>Light theme</h3>
+      <div class="surface-stack">
+
+        <div class="surface-swatch" style="background:#FFFFFF; color:#11181c; border:1px solid #e4e4e7;">
+          <span class="token">background</span>
+          <span class="hex">#FFFFFF</span>
+        </div>
+        <div class="surface-swatch" style="background:#ffffff; color:#11181c; border:1px solid #e4e4e7;">
+          <span class="token">content1</span>
+          <span class="hex">#ffffff</span>
+        </div>
+        <div class="surface-swatch" style="background:#f4f4f5; color:#27272a;">
+          <span class="token">content2</span>
+          <span class="hex">#f4f4f5</span>
+        </div>
+        <div class="surface-swatch" style="background:#e4e4e7; color:#3f3f46;">
+          <span class="token">content3</span>
+          <span class="hex">#e4e4e7</span>
+        </div>
+        <div class="surface-swatch" style="background:#d4d4d8; color:#52525b;">
+          <span class="token">content4</span>
+          <span class="hex">#d4d4d8</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Foreground scale ────────────────────────────────────────────────── -->
+<section>
+  <h2>Foreground (Text) Scale</h2>
+  <div class="fg-grid">
+
+    <div class="fg-theme">
+      <h3>Dark theme</h3>
+
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#52525b;"></div>
+        <span class="fg-token" style="color:#52525b;">foreground-300</span>
+        <span class="fg-hex">#52525b</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#71717a;"></div>
+        <span class="fg-token" style="color:#71717a;">foreground-400</span>
+        <span class="fg-hex">#71717a</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#a1a1aa;"></div>
+        <span class="fg-token" style="color:#a1a1aa;">foreground-500</span>
+        <span class="fg-hex">#a1a1aa</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#d4d4d8;"></div>
+        <span class="fg-token" style="color:#d4d4d8;">foreground-600</span>
+        <span class="fg-hex">#d4d4d8</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#e4e4e7;"></div>
+        <span class="fg-token" style="color:#e4e4e7;">foreground-700</span>
+        <span class="fg-hex">#e4e4e7</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#f4f4f5;"></div>
+        <span class="fg-token" style="color:#f4f4f5;">foreground-800</span>
+        <span class="fg-hex">#f4f4f5</span>
+      </div>
+      <div class="fg-swatch">
+        <div class="fg-dot" style="background:#fafafa;"></div>
+        <span class="fg-token" style="color:#fafafa;">foreground-900</span>
+        <span class="fg-hex">#fafafa</span>
+      </div>
+    </div>
+
+    <div class="fg-theme">
+      <h3>Light theme</h3>
+      <div style="background:#f4f4f5; border-radius:10px; padding:12px 14px;">
+
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#d4d4d8;"></div>
+          <span class="fg-token" style="color:#d4d4d8;">foreground-300</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#d4d4d8</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#a1a1aa;"></div>
+          <span class="fg-token" style="color:#a1a1aa;">foreground-400</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#a1a1aa</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#71717a;"></div>
+          <span class="fg-token" style="color:#71717a;">foreground-500</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#71717a</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#52525b;"></div>
+          <span class="fg-token" style="color:#52525b;">foreground-600</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#52525b</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#3f3f46;"></div>
+          <span class="fg-token" style="color:#3f3f46;">foreground-700</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#3f3f46</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#27272a;"></div>
+          <span class="fg-token" style="color:#27272a;">foreground-800</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#27272a</span>
+        </div>
+        <div class="fg-swatch" style="border-bottom-color:#d4d4d8;">
+          <div class="fg-dot" style="background:#18181b;"></div>
+          <span class="fg-token" style="color:#18181b;">foreground-900</span>
+          <span class="fg-hex" style="color:#a1a1aa;">#18181b</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Semantic ───────────────────────────────────────────────────────── -->
+<section>
+  <h2>Semantic Colours</h2>
+  <div class="semantic-grid">
+
+    <div class="semantic-card">
+      <div class="semantic-swatch" style="background:#f31260;"></div>
+      <div class="semantic-info">
+        <div class="name">Danger</div>
+        <div class="hex">#f31260</div>
+        <div class="usage">Errors, destructive actions, delete buttons</div>
+      </div>
+    </div>
+
+    <div class="semantic-card">
+      <div class="semantic-swatch" style="background:#17c964;"></div>
+      <div class="semantic-info">
+        <div class="name">Success</div>
+        <div class="hex">#17c964</div>
+        <div class="usage">Confirmations, positive states, online indicators</div>
+      </div>
+    </div>
+
+    <div class="semantic-card">
+      <div class="semantic-swatch" style="background:#f5a524;"></div>
+      <div class="semantic-info">
+        <div class="name">Warning</div>
+        <div class="hex">#f5a524</div>
+        <div class="usage">Caution states, guest badges, archived rooms</div>
+      </div>
+    </div>
+
+    <div class="semantic-card">
+      <div class="semantic-swatch" style="background: linear-gradient(135deg, #c4adee 0%, #9573da 45%, #7b55c4 100%); position: relative; overflow: hidden;">
+        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,0.18) 0%,transparent 55%);"></div>
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(255,255,255,0.10) 0%,transparent 70%);"></div>
+        <div style="position:absolute;bottom:8px;right:10px;font-size:9px;font-weight:700;letter-spacing:0.06em;color:rgba(255,255,255,0.65);">#9573da</div>
+      </div>
+      <div class="semantic-info">
+        <div class="name">Secondary</div>
+        <div class="hex" style="display:flex;gap:8px;align-items:center;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c4adee;flex-shrink:0;"></span>#c4adee
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9573da;flex-shrink:0;"></span><strong style="color:#b89fe8;">#9573da</strong>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7b55c4;flex-shrink:0;"></span>#7b55c4
+        </div>
+        <div class="usage">Supporting accent, rarely needed</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
+

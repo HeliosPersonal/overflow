@@ -1,0 +1,25 @@
+# ====================================================================================
+# OVERFLOW TERRAFORM - VARIABLES EXAMPLE
+# ====================================================================================
+# Copy to terraform.tfvars / terraform.secret.tfvars and fill in real values.
+# terraform.tfvars is safe to commit. terraform.secret.tfvars is gitignored.
+# ====================================================================================
+
+# ====================================================================================
+# terraform.tfvars  (commit this)
+# ====================================================================================
+
+kubeconfig_path = "~/.kube/config"
+
+# ====================================================================================
+# terraform.secret.tfvars  (DO NOT commit — gitignored)
+# ====================================================================================
+
+# PostgreSQL admin password — must match the value set in infrastructure-helios
+# pg_password = "your-postgres-admin-password"
+
+# RabbitMQ admin password — must match the value set in infrastructure-helios
+# rabbit_password = "your-rabbitmq-admin-password"
+
+# Typesense API key — must match the value set in infrastructure-helios
+# typesense_api_key = "your-typesense-api-key"

@@ -1,0 +1,27 @@
+﻿# ====================================================================================
+# SEARCH SERVICE - Kustomization
+# ====================================================================================
+# Base kustomization for the Search Service microservice
+#
+# This service provides:
+# - Full-text search powered by Typesense
+# - Question/Answer content indexing
+# - Real-time search suggestions
+# - Faceted search with tag filtering
+#
+# Dependencies:
+# - Typesense (infra-{env} namespace) for search index
+# - RabbitMQ for receiving indexing events (QuestionCreated, etc.)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: search-svc
+      app.kubernetes.io/part-of: overflow

@@ -1,18 +1,21 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
+using Overflow.Common;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Text.Json;
+using Npgsql;
 
-namespace Microsoft.Extensions.Hosting;
+namespace Overflow.ServiceDefaults;
 
-// Adds common Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
-// This project should be referenced by each service project in your solution.
-// To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
@@ -20,6 +23,9 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        // Project OTLP environment variables from config to top-level for OpenTelemetry SDK
+        builder.ProjectOtlpEnvironmentVariables();
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -28,18 +34,9 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
             http.AddStandardResilienceHandler();
-
-            // Turn on service discovery by default
             http.AddServiceDiscovery();
         });
-
-        // Uncomment the following to restrict the allowed schemes for service discovery.
-        // builder.Services.Configure<ServiceDiscoveryOptions>(options =>
-        // {
-        //     options.AllowedSchemes = ["https"];
-        // });
 
         return builder;
     }
@@ -53,48 +50,83 @@ public static class Extensions
             logging.IncludeScopes = true;
         });
 
+        // Add TraceId, SpanId, and ParentId to all log entries for distributed tracing
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                                              | ActivityTrackingOptions.SpanId
+                                              | ActivityTrackingOptions.ParentId;
+        });
+
         builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource =>
+            {
+                var serviceVersion = typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+                var serviceName = builder.Configuration[ConfigurationKeys.OtelServiceName] ??
+                                  builder.Environment.ApplicationName;
+
+                resource.AddService(
+                    serviceName: serviceName,
+                    serviceVersion: serviceVersion);
+
+                // Add standard resource attributes
+                var attributes = new Dictionary<string, object>
+                {
+                    ["host.name"] = Environment.MachineName,
+                    ["deployment.environment"] = builder.Environment.EnvironmentName
+                };
+
+                resource.AddAttributes(attributes);
+            })
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddNpgsqlInstrumentation();
             })
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
-                    .AddAspNetCoreInstrumentation(tracing =>
+                    .AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.RecordException = true;
+                        options.EnrichWithHttpRequest = (activity, httpRequest) =>
+                        {
+                            activity.SetTag("http.client_ip", httpRequest.HttpContext.Connection.RemoteIpAddress);
+                            activity.SetTag("http.request_content_length", httpRequest.ContentLength);
+                        };
+                        options.EnrichWithHttpResponse = (activity, httpResponse) =>
+                        {
+                            activity.SetTag("http.response_content_length", httpResponse.ContentLength);
+                        };
                         // Exclude health check requests from tracing
-                        tracing.Filter = context =>
+                        options.Filter = context =>
                             !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
-                    )
-                    // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
-                    //.AddGrpcClientInstrumentation()
-                    .AddHttpClientInstrumentation();
-            });
-
-        builder.AddOpenTelemetryExporters();
-
-        return builder;
-    }
-
-    private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder)
-        where TBuilder : IHostApplicationBuilder
-    {
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-
-        if (useOtlpExporter)
-        {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
-        }
-
-        // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
-        //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
-        //{
-        //    builder.Services.AddOpenTelemetry()
-        //       .UseAzureMonitor();
-        //}
+                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath);
+                    })
+                    .AddHttpClientInstrumentation(options =>
+                    {
+                        options.RecordException = true;
+                        options.EnrichWithHttpRequestMessage = (activity, httpRequestMessage) =>
+                        {
+                            activity.SetTag("http.request.method", httpRequestMessage.Method.Method);
+                        };
+                        options.EnrichWithHttpResponseMessage = (activity, httpResponseMessage) =>
+                        {
+                            activity.SetTag("http.response.status_code", (int)httpResponseMessage.StatusCode);
+                        };
+                    })
+                    .AddEntityFrameworkCoreInstrumentation(options =>
+                    {
+                        options.EnrichWithIDbCommand = (activity, command) =>
+                        {
+                            activity.SetTag("db.statement", command.CommandText);
+                            activity.SetTag("db.operation", command.CommandType.ToString());
+                        };
+                    });
+            })
+            .UseOtlpExporter(); // This reads OTEL_EXPORTER_OTLP_* from configuration
 
         return builder;
     }
@@ -111,20 +143,121 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
+        var jsonOptions = new JsonSerializerOptions
         {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+            WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        // Liveness probe - K8s uses this to determine if pod should be restarted
+        // Fast check, no dependencies, just validates app is responsive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("live"),
+            AllowCachingResponses = false
+        });
+
+        // Readiness probe - K8s uses this to determine if pod should receive traffic
+        // Checks all critical dependencies (DB, messaging, cache, etc.)
+        app.MapHealthChecks("/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready"),
+            AllowCachingResponses = false,
+            ResponseWriter = async (context, report) =>
             {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+                context.Response.ContentType = "application/json";
+
+                var result = new
+                {
+                    status = report.Status.ToString(),
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        duration = e.Value.Duration.TotalMilliseconds,
+                        exception = e.Value.Exception?.Message
+                    }),
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+
+                context.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result, jsonOptions));
+            }
+        });
+
+        // Full health status - For monitoring, debugging, and comprehensive health view
+        // Includes all registered health checks with detailed information
+        app.MapHealthChecks(HealthEndpointPath, new HealthCheckOptions
+        {
+            AllowCachingResponses = false,
+            ResponseWriter = async (context, report) =>
+            {
+                context.Response.ContentType = "application/json";
+
+                var result = new
+                {
+                    status = report.Status.ToString(),
+                    timestamp = DateTime.UtcNow,
+                    service = context.Request.Host.Host,
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        duration = e.Value.Duration.TotalMilliseconds,
+                        tags = e.Value.Tags.ToArray(),
+                        data = e.Value.Data,
+                        exception = e.Value.Exception?.Message
+                    }),
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+
+                context.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result, jsonOptions));
+            }
+        });
 
         return app;
+    }
+
+    /// <summary>
+    /// Projects environment variables from appsettings EnvironmentVariables:Values section to top-level configuration.
+    /// This is required for OpenTelemetry's UseOtlpExporter() which reads OTEL_EXPORTER_OTLP_* from top-level config.
+    /// 
+    /// Note: Values already present at top-level (e.g., from actual environment variables or Infisical secrets)
+    /// take precedence and will NOT be overridden by appsettings values.
+    /// This allows Infisical to inject sensitive values like OTEL_EXPORTER_OTLP_HEADERS.
+    /// </summary>
+    private static void ProjectOtlpEnvironmentVariables(this IHostApplicationBuilder builder)
+    {
+        // Source: appsettings EnvironmentVariables:Values:{KEY} = {VALUE}
+        // Target: top-level config {KEY} = {VALUE} (e.g., OTEL_EXPORTER_OTLP_ENDPOINT)
+        // Priority: Actual env vars / Infisical secrets > appsettings values
+
+        var pairs = builder.Configuration
+            .GetSection("EnvironmentVariables:Values")
+            .GetChildren();
+
+        var overlay = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in pairs)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key) || kv.Value is null)
+            {
+                continue;
+            }
+
+            // Only add if not already present at top-level
+            // This ensures environment variables and Infisical secrets take precedence over appsettings
+            if (string.IsNullOrEmpty(builder.Configuration[kv.Key]))
+            {
+                overlay[kv.Key] = kv.Value;
+            }
+        }
+
+        if (overlay.Count > 0)
+        {
+            builder.Configuration.AddInMemoryCollection(overlay);
+        }
     }
 }

@@ -1,0 +1,34 @@
+# ====================================================================================
+# OVERFLOW WEB APPLICATION - ClusterIP Service
+# ====================================================================================
+# Exposes the Next.js web application internally within the cluster
+#
+# This service handles:
+# - Server-side rendered pages (SSR)
+# - Static assets (JS, CSS, images)
+# - NextAuth.js authentication endpoints (/api/auth/*)
+# - API proxy routes to backend services
+#
+# Traffic Flow:
+# 1. Ingress receives request at staging.devoverflow.org/*
+# 2. For /api/auth/* - routes to webapp (NextAuth handles auth)
+# 3. For /api/{service}/* - routes to respective backend service
+# 4. For /* - routes to webapp for SSR pages
+# ====================================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: overflow-webapp
+  labels:
+    app: overflow-webapp
+spec:
+  type: ClusterIP          # Internal-only service (no external IP)
+  ports:
+    - port: 3000           # Next.js default port
+      targetPort: http     # Named port from deployment
+      protocol: TCP
+      name: http           # Named port for ingress reference
+  selector:
+    app: overflow-webapp   # Selects pods with this label
+

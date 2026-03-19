@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin './hero.ts';
+@source '../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
+@custom-variant dark (&:is(.dark *));
+
+.ProseMirror:focus {
+    outline: none
+}
+
+/* ── Heading overrides ───────────────────────────────────────────────────────
+   Tailwind resets all headings to unstyled by default.
+   Add any utility classes or raw CSS here.                                   */
+h1 { @apply text-4xl font-bold tracking-tight text-foreground-600; }
+h2 { @apply text-3xl font-semibold tracking-tight text-foreground-600; }
+h3 { @apply text-2xl font-semibold text-foreground-600; }
+h4 { @apply text-xl  font-semibold text-foreground-600; }
+h5 { @apply text-lg  font-medium text-foreground-600; }
+h6 { @apply text-base font-medium text-foreground-600; }
+
+/* ── Prose code block overrides ─────────────────────────────────────────────
+   Default prose uses near-black backgrounds which are too harsh.
+   Light theme: soft warm grey. Dark theme: slightly lifted dark surface.     */
+.prose pre {
+    background-color: #f3f4f6 !important; /* gray-100 */
+    color: #1f2937 !important;            /* gray-800 */
+    border: 1px solid #e5e7eb;            /* gray-200 */
+}
+.dark .prose pre {
+    background-color: #1e2433 !important; /* lifted dark, not pitch black */
+    color: #e2e8f0 !important;            /* slate-200 */
+    border: 1px solid #2d3748;
+}
+.prose code:not(pre code) {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    border-radius: 0.25rem;
+    padding: 0.1em 0.35em;
+}
+.dark .prose code:not(pre code) {
+    background-color: #2d3748;
+    color: #e2e8f0;
+}
+
+/* ── Depth / Elevation Utilities ─────────────────────────────────────────────
+   Light-first. Dark overrides use .dark parent — matching next-themes + Tailwind v4.
+   Raised  : light inset top  + soft drop   → element appears elevated.
+   Recessed: dark inset top   + faint lift  → element appears sunken.          */
+
+@layer utilities {
+
+  /* Raised — light base */
+  .shadow-raise-sm {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.80), 0 2px 6px rgba(0,0,0,0.10);
+  }
+  .shadow-raise-md {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.90), 0 4px 12px rgba(0,0,0,0.14);
+  }
+  .shadow-raise-lg {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.90), 0 8px 28px rgba(0,0,0,0.18);
+  }
+
+  /* Raised — dark overrides */
+  .dark .shadow-raise-sm {
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.06), 0 2px 4px rgba(0,0,0,0.25);
+  }
+  .dark .shadow-raise-md {
+    box-shadow: inset 0 -2px 0 rgba(255,255,255,0.08), 0 4px 8px rgba(0,0,0,0.30);
+  }
+  .dark .shadow-raise-lg {
+    box-shadow: inset 0 -2px 0 rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  /* Recessed — light base */
+  .shadow-inset-sm {
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.10), inset 0 -1px 0 rgba(255,255,255,0.60);
+  }
+  .shadow-inset-md {
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.13), inset 0 -1px 0 rgba(255,255,255,0.70);
+  }
+
+  /* Recessed — dark overrides */
+  .dark .shadow-inset-sm {
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.04);
+  }
+  .dark .shadow-inset-md {
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.06);
+  }
+}
+

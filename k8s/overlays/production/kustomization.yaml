@@ -1,0 +1,153 @@
+# ====================================================================================
+# PRODUCTION ENVIRONMENT - Kustomization Overlay
+# ====================================================================================
+# Environment: Production (apps-production namespace)
+# Domain: devoverflow.org / www.devoverflow.org
+# Purpose: Live production workloads
+#
+# Connected Infrastructure (infra-production namespace — single shared instance):
+# - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: production_*)
+# - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-production)
+# - Typesense:  typesense.infra-production.svc.cluster.local:8108
+# - Keycloak:   keycloak.infra-production.svc.cluster.local:8080  (realm: overflow)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apps-production
+
+resources:
+  - ../../base/infisical
+  - ../../base/question-svc
+  - ../../base/search-svc
+  - ../../base/profile-svc
+  - ../../base/stats-svc
+  - ../../base/vote-svc
+  - ../../base/estimation-svc
+  - ../../base/notification-svc
+  - ../../base/overflow-webapp
+  - ingress.yaml
+
+# Image tags set to latest for production (built from main branch)
+images:
+  - name: ghcr.io/placeholder/overflow-question
+    newName: ghcr.io/GITHUB_USERNAME/overflow-question
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-search
+    newName: ghcr.io/GITHUB_USERNAME/overflow-search
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-profile
+    newName: ghcr.io/GITHUB_USERNAME/overflow-profile
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-stats
+    newName: ghcr.io/GITHUB_USERNAME/overflow-stats
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-vote
+    newName: ghcr.io/GITHUB_USERNAME/overflow-vote
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-estimation
+    newName: ghcr.io/GITHUB_USERNAME/overflow-estimation
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-notification
+    newName: ghcr.io/GITHUB_USERNAME/overflow-notification
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-webapp
+    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
+    newTag: latest
+
+configMapGenerator:
+  - name: app-config
+    behavior: create
+    literals:
+      - aspnetcore-environment=Production
+
+labels:
+  - pairs:
+      environment: production
+      managed-by: kustomize
+
+replicas:
+  - name: question-svc
+    count: 1
+  - name: search-svc
+    count: 1
+  - name: profile-svc
+    count: 1
+  - name: stats-svc
+    count: 1
+  - name: vote-svc
+    count: 1
+  - name: estimation-svc
+    count: 1
+  - name: notification-svc
+    count: 1
+  - name: overflow-webapp
+    count: 1
+
+# ====================================================================================
+# PATCHES — imagePullPolicy: Always
+# ====================================================================================
+# Production uses the 'latest' tag. With the default IfNotPresent policy, Kubernetes
+# skips pulling when a locally-cached image with the same tag exists, so pods may run
+# stale code after a new image is pushed.  Setting Always ensures every (re)start
+# pulls the newest image for the tag.
+# ====================================================================================
+patches:
+  - target:
+      kind: Deployment
+      name: question-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: search-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: profile-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: stats-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: vote-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: estimation-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: notification-svc
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: overflow-webapp
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+

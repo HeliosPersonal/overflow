@@ -1,0 +1,31 @@
+﻿# ====================================================================================
+# QUESTION SERVICE - ClusterIP Service
+# ====================================================================================
+# Exposes the Question Service internally within the cluster
+#
+# Service Discovery:
+# - Other pods can reach this service at: question-svc.{namespace}.svc.cluster.local:8080
+# - Or simply: question-svc:8080 (within same namespace)
+#
+# Traffic Flow:
+# 1. Ingress receives external request at /api/questions/*
+# 2. Ingress routes to this service on port 8080
+# 3. Service load-balances across healthy pods
+# 4. Pods selected via label selector: app=question-svc
+# ====================================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: question-svc
+  labels:
+    app: question-svc
+spec:
+  type: ClusterIP          # Internal-only service (no external IP)
+  ports:
+    - port: 8080           # Port the service listens on
+      targetPort: http     # Named port from deployment (container port 8080)
+      protocol: TCP
+      name: http           # Named port for ingress reference
+  selector:
+    app: question-svc      # Selects pods with this label

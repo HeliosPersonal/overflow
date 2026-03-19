@@ -1,0 +1,319 @@
+# ====================================================================================
+# STAGING INGRESS - Traffic Routing Configuration
+# ====================================================================================
+# Domain: staging.devoverflow.org (external)
+# Namespace: apps-staging
+#
+# SSL/TLS: Cloudflare Full (Strict) mode.
+#   - Cloudflare ↔ browser:  HTTPS (Cloudflare Universal SSL)
+#   - Cloudflare ↔ origin:   HTTPS using Cloudflare Origin Certificate
+#   The 'cloudflare-origin' TLS secret is copied here by overflow/terraform.
+#
+# PATH REWRITING:
+#   /api/questions/*  → question-svc:8080/questions/*
+#   /api/tags/*       → question-svc:8080/tags/*
+#   /api/search/*     → search-svc:8080/search/*
+#   /api/stats/*      → stats-svc:8080/stats/*
+#   /api/votes/*      → vote-svc:8080/votes/*
+#   /api/notifications/* → notification-svc:8080/notifications/*
+#   /api/auth/*       → overflow-webapp:3000/api/auth/* (no rewrite)
+#   /*                → overflow-webapp:3000/*
+# ====================================================================================
+
+# ------------------------------------------------------------------------------
+# QUESTION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: question-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/questions(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# TAGS INGRESS (via Question Service)
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tags-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /tags$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/tags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# SEARCH SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: search-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /search$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/search(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: search-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# STATS SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stats-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /stats$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/stats(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# VOTE SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vote-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /votes$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# PROFILE SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: profile-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /profiles$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/profiles(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# ESTIMATION SERVICE INGRESS
+# Only the WebSocket endpoint routes directly to estimation-svc.
+# All HTTP API calls (/api/estimation/rooms, etc.) fall through to the webapp
+# catch-all ingress so the Next.js BFF proxy can attach the Bearer token before
+# forwarding to estimation-svc via the internal cluster DNS.
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: estimation-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /estimation/rooms/$1/ws
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/websocket-services: "estimation-svc"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/estimation/rooms/([^/]+)/ws
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: estimation-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# NOTIFICATION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notification-svc-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /notifications$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# NEXTAUTH API ROUTES INGRESS
+# NO REWRITE - NextAuth expects /api/auth/* paths as-is
+# Extended timeouts for OAuth callbacks
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-auth-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+---
+# ------------------------------------------------------------------------------
+# WEBAPP INGRESS (Catch-All)
+# SSR pages, static assets, client-side navigation
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: overflow-webapp-ingress
+  namespace: apps-staging
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: staging.devoverflow.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+

@@ -1,0 +1,143 @@
+# ====================================================================================
+# STAGING ENVIRONMENT - Kustomization Overlay
+# ====================================================================================
+# Environment: Staging (apps-staging namespace)
+# Domain: staging.devoverflow.org
+# Purpose: Pre-production testing and validation
+#
+# This overlay customizes the base manifests for staging by:
+# 1. Setting namespace to apps-staging
+# 2. Updating container images with commit SHA tags (set by CI/CD)
+# 3. Configuring replica counts (1 per service for cost efficiency)
+# 4. Adding environment-specific labels
+# 5. Including staging ingress rules
+#
+# Deployment Trigger:
+# - Automatic: Push to 'development' branch
+# - Manual: GitHub Actions workflow_dispatch
+#
+# Connected Infrastructure (infra-production namespace — single shared instance):
+# - PostgreSQL: postgres.infra-production.svc.cluster.local:5432  (dbs: staging_*)
+# - RabbitMQ:   rabbitmq.infra-production.svc.cluster.local:5672  (vhost: overflow-staging)
+# - Typesense:  typesense.infra-production.svc.cluster.local:8108
+#
+# Shared Infrastructure (infra-production namespace):
+# - Keycloak: keycloak.infra-production.svc.cluster.local:8080 (single instance)
+# ====================================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All resources will be created in the apps-staging namespace
+namespace: apps-staging
+
+# ====================================================================================
+# BASE RESOURCES
+# ====================================================================================
+# Include all base manifests from k8s/base/ directory
+# Each base contains: kustomization.yaml, deployment.yaml, service.yaml
+resources:
+  - ../../base/infisical         # Shared secret for Infisical credentials
+  - ../../base/question-svc      # Question/Answer/Tag management API
+  - ../../base/search-svc        # Full-text search via Typesense
+  - ../../base/profile-svc       # User profiles and reputation
+  - ../../base/stats-svc         # Statistics aggregation service
+  - ../../base/vote-svc          # Voting system for Q&A
+  - ../../base/estimation-svc    # Planning Poker estimation rooms
+  - ../../base/notification-svc  # Notification dispatch (email, Telegram, etc.)
+  - ../../base/data-seeder-svc   # AI-powered test data generation
+  - ../../base/overflow-webapp   # Next.js frontend application
+  - ingress.yaml                 # Staging-specific ingress rules
+
+# ====================================================================================
+# CONTAINER IMAGES
+# ====================================================================================
+# CI/CD replaces placeholder tags with actual commit SHA during deployment
+# Format: ghcr.io/{owner}/{image}:{commit-sha}
+# This ensures every deployment uses the exact version that was built and tested
+images:
+  - name: ghcr.io/placeholder/overflow-question
+    newName: ghcr.io/GITHUB_USERNAME/overflow-question
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-search
+    newName: ghcr.io/GITHUB_USERNAME/overflow-search
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-profile
+    newName: ghcr.io/GITHUB_USERNAME/overflow-profile
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-stats
+    newName: ghcr.io/GITHUB_USERNAME/overflow-stats
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-vote
+    newName: ghcr.io/GITHUB_USERNAME/overflow-vote
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-webapp
+    newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-data-seeder
+    newName: ghcr.io/GITHUB_USERNAME/overflow-data-seeder
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-estimation
+    newName: ghcr.io/GITHUB_USERNAME/overflow-estimation
+    newTag: SHA_REPLACED_BY_CICD
+  - name: ghcr.io/placeholder/overflow-notification
+    newName: ghcr.io/GITHUB_USERNAME/overflow-notification
+    newTag: SHA_REPLACED_BY_CICD
+
+# ====================================================================================
+# CONFIGMAP GENERATION
+# ====================================================================================
+# Generates ConfigMap with environment-specific settings
+# These are mounted as environment variables in .NET services
+configMapGenerator:
+  - name: app-config
+    behavior: create
+    literals:
+      - aspnetcore-environment=Staging  # Sets ASPNETCORE_ENVIRONMENT for .NET
+
+# ====================================================================================
+# LABELS
+# ====================================================================================
+# Applied to all resources for organization and selection
+# Useful for: kubectl get all -l environment=staging
+labels:
+  - pairs:
+      environment: staging       # Identifies staging resources
+      managed-by: kustomize      # Indicates deployment method
+
+# ====================================================================================
+# REPLICA COUNTS
+# ====================================================================================
+# Staging uses 1 replica per service
+replicas:
+  - name: question-svc
+    count: 1
+  - name: search-svc
+    count: 1
+  - name: profile-svc
+    count: 1
+  - name: stats-svc
+    count: 1
+  - name: vote-svc
+    count: 1
+  - name: estimation-svc
+    count: 1
+  - name: notification-svc
+    count: 1
+  - name: overflow-webapp
+    count: 1
+  - name: data-seeder-svc
+    count: 1
+
+# ====================================================================================
+# PATCHES
+# ====================================================================================
+patches:
+  # Set APP_ENV=staging for webapp (NODE_ENV stays "production" for Next.js build)
+  - target:
+      kind: Deployment
+      name: overflow-webapp
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "staging"

@@ -1,0 +1,418 @@
+# ====================================================================================
+# PRODUCTION INGRESS - Traffic Routing
+# ====================================================================================
+# Domains: devoverflow.org, www.devoverflow.org
+# Namespace: apps-production
+#
+# SSL/TLS: Cloudflare Full (Strict) mode.
+#   - Cloudflare ↔ browser:  HTTPS (Cloudflare Universal SSL)
+#   - Cloudflare ↔ origin:   HTTPS using Cloudflare Origin Certificate
+#   The 'cloudflare-origin' TLS secret is copied here by overflow/terraform.
+# ====================================================================================
+
+# ------------------------------------------------------------------------------
+# QUESTION SERVICE
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: question-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /questions$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/questions(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/questions(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# TAGS (via Question Service)
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tags-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /tags$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/tags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/tags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: question-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# SEARCH SERVICE
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: search-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /search$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/search(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: search-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/search(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: search-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# STATS SERVICE
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stats-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /stats$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/stats(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/stats(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: stats-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# VOTE SERVICE
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vote-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /votes$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/votes(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: vote-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# PROFILE SERVICE
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: profile-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /profiles$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/profiles(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/profiles(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: profile-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# ESTIMATION SERVICE
+# Only the WebSocket endpoint routes directly to estimation-svc.
+# All HTTP API calls fall through to the webapp catch-all ingress so the
+# Next.js BFF proxy can attach the Bearer token before forwarding internally.
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: estimation-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /estimation/rooms/$1/ws
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/websocket-services: "estimation-svc"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/estimation/rooms/([^/]+)/ws
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: estimation-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/estimation/rooms/([^/]+)/ws
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: estimation-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# NOTIFICATION SERVICE INGRESS
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notification-svc-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /notifications$1$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
+                port:
+                  number: 8080
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-svc
+                port:
+                  number: 8080
+---
+# ------------------------------------------------------------------------------
+# NEXTAUTH API ROUTES
+# NO REWRITE — NextAuth expects /api/auth/* as-is
+# Extended timeouts for OAuth callbacks
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-auth-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+---
+# ------------------------------------------------------------------------------
+# WEBAPP (Catch-All)
+# SSR pages, static assets, client-side navigation
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: overflow-webapp-ingress
+  namespace: apps-production
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - devoverflow.org
+        - www.devoverflow.org
+      secretName: cloudflare-origin
+  rules:
+    - host: devoverflow.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+    - host: www.devoverflow.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: overflow-webapp
+                port:
+                  number: 3000
+
