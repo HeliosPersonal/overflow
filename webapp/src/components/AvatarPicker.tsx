@@ -16,8 +16,11 @@ type Props = {
 };
 
 const BG_COLORS = [
+    // Light pastels
     'b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf',
-    'f9e8d9', 'a3d9a5', 'f5c6aa', 'cce2cb', 'e2cfc4',
+    'f9e8d9', 'a3d9a5', 'f5c6aa', 'e2cfc4', 'f0e6c8',
+    // Dark tones
+    '2e1f3b', '1f2e3b', '1e3333', '2a2a3d', '2f332b',
 ];
 
 const COLOR_FEATURES = new Set(['skinColor', 'clothesColor', 'hairColor', 'facialHairColor', 'accessoriesColor']);
