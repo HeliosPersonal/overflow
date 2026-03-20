@@ -4,7 +4,7 @@
 # Base kustomization for the Next.js frontend application
 #
 # This application provides:
-# - Server-side rendered React pages (Next.js 15)
+# - Server-side rendered React pages (Next.js 16)
 # - User authentication via NextAuth.js + Keycloak
 # - API route handlers for auth callbacks
 # - Static asset serving

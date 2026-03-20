@@ -9,7 +9,9 @@ This directory contains Kubernetes manifests for deploying the Overflow applicat
 k8s/
 ├── base/                      # Base manifests for all services
 │   ├── data-seeder-svc/      # Data seeding service
+│   ├── estimation-svc/        # Planning Poker estimation rooms
 │   ├── infisical/             # Infisical secret credentials
+│   ├── notification-svc/      # Notification dispatch service
 │   ├── overflow-webapp/       # Next.js web application
 │   ├── profile-svc/           # User profile service
 │   ├── question-svc/          # Question management service
@@ -21,7 +23,8 @@ k8s/
 │   └── production/            # Production environment (apps-production namespace)
 └── scripts/                   # Utility scripts
     ├── cleanup-k8s-resources.sh  # Automated cleanup of old resources
-    └── reset-staging.sh          # Full staging data reset (drops all DBs + Typesense collection)
+    ├── reset-staging.sh          # Full staging data reset (drops all DBs + Typesense collection)
+    └── reset-production.sh       # Full production data reset (drops all DBs + Typesense collection)
 ```
 
 ## Deployment
@@ -81,6 +84,8 @@ All application secrets (database passwords, API keys, RabbitMQ credentials, etc
 
 **Services using Infisical:**
 - ✅ data-seeder-svc
+- ✅ estimation-svc
+- ✅ notification-svc
 - ✅ profile-svc
 - ✅ question-svc
 - ✅ search-svc
@@ -93,7 +98,7 @@ All application secrets (database passwords, API keys, RabbitMQ credentials, etc
 ### Backend Services (.NET)
 All backend services are built with .NET and follow the same pattern:
 - **Port:** 8080
-- **Health checks:** `/health` and `/alive` endpoints
+- **Health checks:** `/ready` and `/alive` endpoints
 - **Secrets:** Loaded from Infisical at startup
 - **Replicas:** 2 for high availability
 
@@ -105,9 +110,9 @@ All backend services are built with .NET and follow the same pattern:
 ## Resource Cleanup
 
 The `cleanup-k8s-resources.sh` script automatically removes old Kubernetes resources:
-- **ReplicaSets:** Older than 3 days (keeps recent versions)
-- **ConfigMaps:** Older than 7 days (keeps last 3 versions)
-- **Secrets:** Older than 14 days (keeps last 3 versions)
+- **ReplicaSets:** With 0 desired replicas (not backing any live pod)
+- **Pods:** Failed or Evicted pods
+- **Jobs:** Completed Jobs older than 1 hour
 
 **When it runs:**
 - After every deployment in CI/CD
@@ -123,9 +128,10 @@ The `cleanup-k8s-resources.sh` script automatically removes old Kubernetes resou
 The `reset-staging.sh` script wipes all staging data for a clean slate:
 
 - Scales down all deployments in `apps-staging` to 0
-- Drops and recreates all 4 PostgreSQL databases: `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`
+- Drops and recreates all 5 PostgreSQL databases: `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `staging_estimations`
 - Drops the Typesense collection `staging_questions` (auto-recreated by search-svc on startup)
 - Scales all deployments back up to 1
+- Pulls the Ollama model so the DataSeeder can generate content
 
 **Usage:**
 ```bash
@@ -138,6 +144,27 @@ export TYPESENSE_API_KEY=<typesense-api-key>
 ```
 
 > ⚠️ **Destructive** — all staging data will be permanently deleted. Never run against production.
+
+## Production Reset
+
+The `reset-production.sh` script wipes all production data for a clean slate:
+
+- Scales down all deployments in `apps-production` to 0
+- Drops and recreates all 5 PostgreSQL databases: `production_questions`, `production_profiles`, `production_votes`, `production_stats`, `production_estimations`
+- Drops the Typesense collection `production_questions` (auto-recreated by search-svc on startup)
+- Scales all deployments back up to 1
+
+**Usage:**
+```bash
+export PGPASSWORD=<postgres-password>
+export TYPESENSE_API_KEY=<typesense-api-key>
+./k8s/scripts/reset-production.sh
+
+# Preview without making changes
+./k8s/scripts/reset-production.sh --dry-run
+```
+
+> ⚠️ **IRREVERSIBLE** — destroys ALL production data. Use with extreme caution.
 
 ## Common Operations
 
@@ -207,8 +234,9 @@ Ingresses are defined in overlays and route traffic:
 ## Health Checks
 
 All services implement:
-- **Liveness probe:** Ensures container is alive (restarts if fails)
-- **Readiness probe:** Ensures service is ready for traffic
+- **Liveness probe** (`/alive`): Ensures container is alive (restarts if fails)
+- **Readiness probe** (`/ready`): Ensures service is ready for traffic
+- **Startup probe** (`/ready`): Prevents premature liveness kills during boot
 
 ## Troubleshooting
 
@@ -289,4 +317,4 @@ For comprehensive infrastructure documentation, see:
 
 ---
 
-**Last Updated:** February 11, 2026
+**Last Updated:** March 20, 2026
