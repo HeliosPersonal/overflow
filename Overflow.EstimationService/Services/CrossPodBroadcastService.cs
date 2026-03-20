@@ -12,10 +12,13 @@ namespace Overflow.EstimationService.Services;
 ///   Mutation on Pod A → InvalidateCache → PublishRoomUpdate(roomId)
 ///   Redis pub/sub → All pods receive notification
 ///   Each pod → WebSocketBroadcaster.BroadcastRoomUpdateAsync(roomId) for LOCAL connections only
+///
+/// The channel name is prefixed with the environment name (e.g. "staging:", "production:")
+/// so that multiple environments sharing the same Redis instance are fully isolated.
 /// </summary>
 public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
 {
-    private const string Channel = "estimation:room-updates";
+    private readonly string _channel;
 
     private readonly IConnectionMultiplexer _redis;
     private readonly WebSocketBroadcaster _broadcaster;
@@ -25,20 +28,22 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
     public CrossPodBroadcastService(
         IConnectionMultiplexer redis,
         WebSocketBroadcaster broadcaster,
+        IHostEnvironment environment,
         ILogger<CrossPodBroadcastService> logger)
     {
         _redis = redis;
         _broadcaster = broadcaster;
         _logger = logger;
+        _channel = $"{environment.EnvironmentName.ToLowerInvariant()}:estimation:room-updates";
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _subscriber = _redis.GetSubscriber();
-        var queue = await _subscriber.SubscribeAsync(RedisChannel.Literal(Channel));
+        var queue = await _subscriber.SubscribeAsync(RedisChannel.Literal(_channel));
         queue.OnMessage(channelMessage => { _ = HandleBroadcastAsync(channelMessage.Message); });
 
-        _logger.LogInformation("Cross-pod broadcast subscriber started on channel '{Channel}'", Channel);
+        _logger.LogInformation("Cross-pod broadcast subscriber started on channel '{Channel}'", _channel);
     }
 
     private async Task HandleBroadcastAsync(string? message)
@@ -61,7 +66,7 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
     {
         if (_subscriber is not null)
         {
-            await _subscriber.UnsubscribeAsync(RedisChannel.Literal(Channel));
+            await _subscriber.UnsubscribeAsync(RedisChannel.Literal(_channel));
             _logger.LogInformation("Cross-pod broadcast subscriber stopped");
         }
     }
@@ -74,7 +79,7 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
         try
         {
             var subscriber = _redis.GetSubscriber();
-            await subscriber.PublishAsync(RedisChannel.Literal(Channel), roomId.ToString());
+            await subscriber.PublishAsync(RedisChannel.Literal(_channel), roomId.ToString());
             _logger.LogDebug("Published cross-pod broadcast for room {RoomId}", roomId);
         }
         catch (Exception ex)
