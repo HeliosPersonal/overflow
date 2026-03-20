@@ -9,6 +9,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.AddKeyCloakAuthentication();
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
 builder.Services.AddHealthChecks()
     .AddDatabaseHealthCheck<VoteDbContext>()
@@ -19,7 +20,7 @@ builder.AddNpgsqlDbContext<VoteDbContext>("voteDb");
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
 }

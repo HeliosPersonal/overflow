@@ -1,6 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project>
   <ItemGroup>
+    <PackageVersion Include="CommandFlow" Version="1.0.3" />
+    <PackageVersion Include="CommandFlow.DependencyInjection" Version="1.0.3" />
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.1.2" />
     <PackageVersion Include="Aspire.Hosting.Keycloak" Version="13.0.2-preview.1.25603.5" />
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.5.2" />

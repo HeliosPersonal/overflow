@@ -1,3 +1,4 @@
+using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 using Overflow.Common.CommonExtensions;
 using Overflow.Contracts;
@@ -17,6 +18,8 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.Services.AddScoped<TagService>();
+builder.Services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
 builder.AddKeyCloakAuthentication();
 
 var connString = builder.Configuration.GetConnectionString("questionDb");

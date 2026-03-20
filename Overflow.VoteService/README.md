@@ -18,7 +18,7 @@ Upvote and downvote system — publishes vote and reputation events.
 
 ## Endpoints
 
-Defined directly in `Program.cs` (minimal API, no controllers).
+Defined in `VotesController` using `[ApiController]` + CommandFlow CQRS.
 
 | Method | Route                 | Description                                                         |
 |--------|-----------------------|---------------------------------------------------------------------|

@@ -8,7 +8,7 @@ Questions, answers, and tags API — the core content service for Overflow.
 
 |               |                                                            |
 |---------------|------------------------------------------------------------|
-| **Type**      | .NET 10 ASP.NET Core (Controllers)                         |
+| **Type**      | .NET 10 ASP.NET Core (Controllers + CommandFlow CQRS)      |
 | **Database**  | PostgreSQL via EF Core (`questionDb`)                      |
 | **Messaging** | Wolverine — publishes events via RabbitMQ (durable outbox) |
 | **Auth**      | Keycloak JWT                                               |
@@ -60,10 +60,14 @@ User-generated content (question/answer bodies) is sanitized with `HtmlSanitizer
 
 ```
 Overflow.QuestionService/
-├── Program.cs                  # DI, EF Core, Wolverine setup
+├── Program.cs                  # DI, EF Core, Wolverine, CommandFlow setup
 ├── Controllers/
-│   ├── QuestionsController.cs  # Questions + answers CRUD
+│   ├── QuestionsController.cs  # Thin controller — delegates to CQRS handlers via ISender
 │   └── TagsController.cs       # Tag management (admin-gated writes)
+├── Features/
+│   └── Questions/
+│       ├── Commands/            # CreateQuestion, UpdateQuestion, DeleteQuestion, PostAnswer, etc.
+│       └── Queries/             # GetQuestions, GetQuestionById
 ├── Data/
 │   └── QuestionDbContext.cs    # EF Core DbContext
 ├── DTOs/                       # Request/response DTOs
@@ -79,6 +83,10 @@ Overflow.QuestionService/
 ├── appsettings.Production.json # K8s production overrides
 └── Dockerfile
 ```
+
+**CQRS pattern**: Controllers are thin HTTP-to-domain mappers. All business logic lives in CommandFlow handlers (
+`ICommand<Result<T>>` / `IQuery<T>`) under `Features/`. Handlers use `CSharpFunctionalExtensions.Result<T>` to signal
+business failures without exceptions.
 
 ---
 

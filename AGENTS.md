@@ -7,14 +7,14 @@ Stack Overflow–inspired Q&A platform built as intentionally over-engineered mi
 ```
 webapp (Next.js 16)
   └─ API_URL ──► YARP gateway (port 8001 locally, NGINX in k8s)
-                   ├── /questions/*      → QuestionService      (EF Core + PostgreSQL + Wolverine)
+                   ├── /questions/*      → QuestionService      (EF Core + PostgreSQL + Wolverine + CommandFlow CQRS)
                    ├── /tags/*           → QuestionService
-                   ├── /search/*         → SearchService        (Wolverine + Typesense, minimal API)
-                   ├── /profiles/*       → ProfileService       (EF Core + PostgreSQL + Wolverine)
-                   ├── /stats/*          → StatsService         (Marten event-sourcing + PostgreSQL + Wolverine, minimal API)
-                   ├── /votes/*          → VoteService          (EF Core + PostgreSQL + Wolverine, minimal API)
-                   ├── /estimation/*     → EstimationService    (EF Core + PostgreSQL + Redis + WebSockets)
-                   └── /notifications/*  → NotificationService  (Wolverine + RabbitMQ + FluentEmail.Mailgun)
+                   ├── /search/*         → SearchService        (Wolverine + Typesense + CommandFlow CQRS)
+                   ├── /profiles/*       → ProfileService       (EF Core + PostgreSQL + Wolverine + CommandFlow CQRS)
+                   ├── /stats/*          → StatsService         (Marten event-sourcing + PostgreSQL + Wolverine + CommandFlow CQRS)
+                   ├── /votes/*          → VoteService          (EF Core + PostgreSQL + Wolverine + CommandFlow CQRS)
+                   ├── /estimation/*     → EstimationService    (EF Core + PostgreSQL + Redis + WebSockets + CommandFlow CQRS)
+                   └── /notifications/*  → NotificationService  (Wolverine + RabbitMQ + FluentEmail.Mailgun + CommandFlow CQRS)
 ```
 
 **Inter-service messaging** uses RabbitMQ via Wolverine (durable outbox). Contracts are plain C# `record` types in `Overflow.Contracts`.  
@@ -43,7 +43,7 @@ cd webapp && npm install && npm run dev
 | Project | Purpose |
 |---|---|
 | `Overflow.Common` | Shared extensions: Infisical secrets, Keycloak auth, Wolverine+RabbitMQ setup, DB migrations, health checks |
-| `Overflow.Contracts` | RabbitMQ message contracts — `record` types and `enum` types; also `ReputationHelper` for delta calculations |
+| `Overflow.Contracts` | RabbitMQ message contracts — `record` types and `enum` types; `ReputationHelper` for delta calculations; `VoteTargetType` constants |
 | `Overflow.ServiceDefaults` | OpenTelemetry, health endpoints, service discovery, HTTP resilience defaults |
 
 Every service `Program.cs` begins with this pattern:
@@ -90,6 +90,49 @@ public class QuestionCreatedHandler(ITypesenseClient client, ...)
 ```
 
 Handler classes live in `<Service>/MessageHandlers/`. No registration needed — Wolverine discovers them by convention.
+
+---
+
+## CQRS with CommandFlow
+
+**All services** use the [CommandFlow](https://www.nuget.org/packages/CommandFlow) library for CQRS — separating read/write operations into distinct query/command handlers.
+
+**Registration** (in `Program.cs`):
+```csharp
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
+```
+
+**Command example** (`Features/Questions/Commands/CreateQuestion.cs`):
+```csharp
+public record CreateQuestionCommand(string Title, string Content, List<string> Tags, string UserId)
+    : ICommand<Result<Question>>;
+
+public class CreateQuestionHandler(QuestionDbContext db, IHtmlSanitizer sanitizer, IMessageBus bus)
+    : IRequestHandler<CreateQuestionCommand, Result<Question>>
+{
+    public async Task<Result<Question>> Handle(CreateQuestionCommand request) { ... }
+}
+```
+
+**Query example** (`Features/Questions/Queries/GetQuestions.cs`):
+```csharp
+public record GetQuestionsQuery(QuestionsQuery Params) : IQuery<PaginationResult<Question>>;
+```
+
+**Controller** delegates all logic to `ISender`:
+```csharp
+public class QuestionsController(ISender sender) : ControllerBase
+{
+    [HttpPost]
+    public async Task<ActionResult<Question>> CreateQuestion(CreateQuestionDto dto)
+    {
+        var result = await sender.Send(new CreateQuestionCommand(...));
+        return result.IsSuccess ? Created(...) : BadRequest(result.Error);
+    }
+}
+```
+
+Handlers use `CSharpFunctionalExtensions.Result<T>` to signal business failures without exceptions. Handler files live in `Features/<Entity>/Commands/` and `Features/<Entity>/Queries/`.
 
 ---
 
@@ -201,8 +244,7 @@ Guests get **real Keycloak accounts** with random credentials so they participat
 
 ## Project Conventions
 
-- **VoteService**, **SearchService**, and **StatsService** use minimal APIs (no controllers) — endpoints defined directly in `Program.cs` with `app.MapPost/Get`.
-- **QuestionService**, **ProfileService**, **EstimationService**, and **NotificationService** use `[ApiController]` + `[Route("[controller]")]` convention.
+- **All services** use `[ApiController]` + `[Route("[controller]")]` convention with CommandFlow CQRS (`ISender`, `ICommand<T>`, `IQuery<T>`, `IRequestHandler<,>`).
 - **Pagination** via `PaginationResult<T>` / `PaginationRequest` from `Overflow.Common` — max page size capped at 50.
 - **HTML sanitization**: user-generated content (question/answer bodies) is sanitized with `HtmlSanitizer` before persisting.
 - `OTEL_SERVICE_NAME` is set per-service in `appsettings.json` under `EnvironmentVariables:Values`.

@@ -1,15 +1,13 @@
 using System.Text.Json;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Models;
+using Overflow.EstimationService.Services;
 
 namespace Overflow.EstimationService.Mapping;
 
 /// <summary>
-/// Maps the EF Core <see cref="EstimationRoom"/> entity to a viewer-scoped <see cref="RoomResponse"/>.
-/// Handles vote visibility rules: before reveal only the viewer sees their own vote;
-/// after reveal all votes are visible.
-/// Avatar URLs are resolved from ProfileService at read time (passed in as a lookup dictionary)
-/// rather than stored in the participant entity.
+/// Maps EF Core room entities to viewer-scoped <see cref="RoomResponse"/> DTOs.
+/// Vote visibility: before reveal only the viewer sees their own vote; after reveal all votes visible.
 /// </summary>
 public static class RoomResponseMapper
 {
@@ -94,26 +92,11 @@ public static class RoomResponseMapper
             );
         }).ToList();
 
-        var deck = new DeckResponse(room.DeckType, Decks.GetOrDefault(room.DeckType).Name,
-            Decks.GetOrDefault(room.DeckType).Values);
+        var deckDef = Decks.GetOrDefault(room.DeckType);
+        var deck = new DeckResponse(room.DeckType, deckDef.Name, deckDef.Values);
 
-        // Parse optional task list
-        List<string>? tasks = null;
-        if (!string.IsNullOrWhiteSpace(room.TasksJson))
-        {
-            try
-            {
-                tasks = JsonSerializer.Deserialize<List<string>>(room.TasksJson);
-            }
-            catch
-            {
-                /* ignore malformed JSON */
-            }
-        }
-
-        string? currentTaskName = tasks is { Count: > 0 } && room.RoundNumber <= tasks.Count
-            ? tasks[room.RoundNumber - 1]
-            : null;
+        var tasks = TaskListHelper.ParseTasks(room.TasksJson);
+        var currentTaskName = TaskListHelper.GetTaskName(room.TasksJson, room.RoundNumber);
 
         var roundHistory = room.RoundHistory
             .OrderBy(h => h.RoundNumber)

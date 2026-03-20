@@ -20,6 +20,7 @@ builder.Services
     .AddControllers()
     .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddOpenApi();
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
 // Template renderer
 builder.Services.AddSingleton<ITemplateRenderer, TemplateRenderer>();
@@ -44,8 +45,6 @@ builder.Services
 // Channels
 builder.Services.AddTransient<INotificationChannel, MailgunEmailChannel>();
 
-// To add a new channel (e.g. Telegram):
-// builder.Services.AddTransient<INotificationChannel, TelegramChannel>();
 
 // Health checks
 builder.Services.AddHealthChecks()
@@ -56,7 +55,7 @@ await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly =
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
 }

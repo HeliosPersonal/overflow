@@ -12,6 +12,7 @@ builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.AddKeyCloakAuthentication();
 builder.AddNpgsqlDbContext<ProfileDbContext>("profileDb");
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
 builder.Services.AddHealthChecks()
     .AddDatabaseHealthCheck<ProfileDbContext>()

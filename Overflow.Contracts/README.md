@@ -27,15 +27,25 @@ Shared RabbitMQ message contracts — all `record` types used for inter-service 
 
 | Reason              | Delta |
 |---------------------|-------|
-| `QuestionUpvoted`   | +10   |
-| `QuestionDownvoted` | -2    |
-| `AnswerUpvoted`     | +10   |
-| `AnswerDownvoted`   | -2    |
+| `QuestionUpvoted`   | +5    |
+| `QuestionDownvoted` | −2    |
+| `AnswerUpvoted`     | +5    |
+| `AnswerDownvoted`   | −2    |
 | `AnswerAccepted`    | +15   |
 
 ### `ReputationReason`
 
 Enum defining all possible reputation change reasons.
+
+### `VoteTargetType`
+
+String constants for vote target types — use these instead of hardcoded `"Question"` / `"Answer"` strings:
+
+```csharp
+VoteTargetType.Question  // "Question"
+VoteTargetType.Answer    // "Answer"
+VoteTargetType.IsValid(targetType)  // validates input
+```
 
 ---
 
@@ -55,13 +65,14 @@ Enum defining all possible reputation change reasons.
 Reference this project from any service that publishes or consumes events:
 
 ```xml
-
 <ProjectReference Include="..\Overflow.Contracts\Overflow.Contracts.csproj"/>
 ```
 
-vote-svc ──► VoteCasted ──► question-svc (vote count)
-──► UserReputationChanged ──► profile-svc, stats-svc
+**Event flow example:**
 
+```
+vote-svc ──► VoteCasted ──► question-svc (vote count)
+         ──► UserReputationChanged ──► profile-svc, stats-svc
 ```
 
 ---

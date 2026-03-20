@@ -14,6 +14,7 @@ builder.AddEnvVariablesAndConfigureSecrets();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
 builder.Services.AddHealthChecks()
     .AddRabbitMqHealthCheck();
@@ -46,7 +47,7 @@ builder.AddFusionCacheWithRedis();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
 }

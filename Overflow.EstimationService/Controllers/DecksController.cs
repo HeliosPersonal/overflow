@@ -1,17 +1,17 @@
+using CommandFlow;
 using Microsoft.AspNetCore.Mvc;
-using Overflow.EstimationService.DTOs;
-using Overflow.EstimationService.Models;
+using Overflow.EstimationService.Features.Rooms.Queries;
 
 namespace Overflow.EstimationService.Controllers;
 
 [ApiController]
 [Route("estimation")]
-public class DecksController : ControllerBase
+public class DecksController(ISender sender) : ControllerBase
 {
     [HttpGet("decks")]
-    public IActionResult GetDecks()
+    public async Task<IActionResult> GetDecks()
     {
-        var decks = Decks.All.Values.Select(d => new DeckDefinitionResponse(d.Id, d.Name, d.Values));
+        var decks = await sender.Send(new GetDecksQuery());
         return Ok(decks);
     }
 }

@@ -7,57 +7,20 @@ namespace Overflow.Common.CommonExtensions;
 public static class KeycloakConfigurationExtensions
 {
     /// <summary>
-    /// Configures Keycloak options from configuration and applies them to the application builder.
-    /// This ensures that Keycloak configuration from appsettings.json is properly loaded.
+    /// Validates that the KeycloakOptions configuration section exists.
+    /// Called early in startup so misconfiguration fails fast.
     /// </summary>
     public static IHostApplicationBuilder ConfigureKeycloakFromSettings(
         this IHostApplicationBuilder builder)
     {
-        // Explicitly bind KeycloakOptions from configuration
-        var keycloakSection = builder.Configuration.GetSection("KeycloakOptions");
-        
-        if (keycloakSection.Exists())
+        var section = builder.Configuration.GetSection(KeycloakOptions.SectionName);
+        if (!section.Exists())
         {
-            var options = keycloakSection.Get<KeycloakOptions>();
-            
-            if (options != null)
-            {
-                // Re-apply configuration as environment variables to ensure proper binding
-                // This helps when configuration comes from appsettings.json files in Docker
-                builder.Configuration["KeycloakOptions:Url"] = options.Url;
-                builder.Configuration["KeycloakOptions:ServiceName"] = options.ServiceName;
-                builder.Configuration["KeycloakOptions:Realm"] = options.Realm;
-                builder.Configuration["KeycloakOptions:Audience"] = options.Audience;
-                
-                // Handle ValidIssuers array
-                for (var i = 0; i < options.ValidIssuers.Count; i++)
-                {
-                    builder.Configuration[$"KeycloakOptions:ValidIssuers:{i}"] = options.ValidIssuers[i];
-                }
-                
-                if (!string.IsNullOrEmpty(options.AdminClientId))
-                {
-                    builder.Configuration["KeycloakOptions:AdminClientId"] = options.AdminClientId;
-                }
-                
-                if (!string.IsNullOrEmpty(options.AdminClientSecret))
-                {
-                    builder.Configuration["KeycloakOptions:AdminClientSecret"] = options.AdminClientSecret;
-                }
-                
-                if (!string.IsNullOrEmpty(options.NextJsClientId))
-                {
-                    builder.Configuration["KeycloakOptions:NextJsClientId"] = options.NextJsClientId;
-                }
-                
-                if (!string.IsNullOrEmpty(options.NextJsClientSecret))
-                {
-                    builder.Configuration["KeycloakOptions:NextJsClientSecret"] = options.NextJsClientSecret;
-                }
-            }
+            throw new InvalidOperationException(
+                $"Configuration section '{KeycloakOptions.SectionName}' is missing. " +
+                "Ensure KeycloakOptions is configured in appsettings.json or environment variables.");
         }
-        
+
         return builder;
     }
 }
-

@@ -11,22 +11,21 @@ public static class HostExtensions
         where TContext : DbContext
     {
         using var scope = host.Services.CreateScope();
-        var services = scope.ServiceProvider;
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        var logger = loggerFactory.CreateLogger(typeof(HostExtensions));
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(typeof(HostExtensions));
 
-        logger.LogInformation("Migration started for {Name}", typeof(TContext).Name);
+        var contextName = typeof(TContext).Name;
+        logger.LogInformation("Starting migration for {ContextName}", contextName);
 
         try
         {
-            var context = services.GetRequiredService<TContext>();
+            var context = scope.ServiceProvider.GetRequiredService<TContext>();
             await context.Database.MigrateAsync();
+            logger.LogInformation("Migration complete for {ContextName}", contextName);
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            logger.LogError(e, "An error occurred while migrating or seeding the database.");
+            logger.LogError(ex, "Migration failed for {ContextName}", contextName);
         }
-
-        logger.LogInformation("✅ Migration complete for {Name}", typeof(TContext).Name);
     }
 }

@@ -51,6 +51,9 @@ builder.Services.AddHttpClient<ProfileServiceClient>(client =>
 });
 builder.Services.AddScoped<IdentityResolver>();
 
+// ── CommandFlow CQRS ─────────────────────────────────────────────────────
+builder.Services.AddCommandFlow(typeof(Program).Assembly);
+
 // ── Archived room cleanup ────────────────────────────────────────────────
 builder.Services
     .AddOptions<RoomCleanupOptions>()

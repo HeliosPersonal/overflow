@@ -1,7 +1,8 @@
 using System.Security.Claims;
+using CommandFlow;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Overflow.EstimationService.Clients;
+using Overflow.EstimationService.Features.Rooms.Commands;
 
 namespace Overflow.EstimationService.Controllers;
 
@@ -15,7 +16,7 @@ namespace Overflow.EstimationService.Controllers;
 [ApiController]
 [Route("estimation")]
 [Authorize]
-public class ProfileCacheController(ProfileServiceClient profileClient) : ControllerBase
+public class ProfileCacheController(ISender sender) : ControllerBase
 {
     /// <summary>
     /// Evicts the cached profile for the current user so subsequent reads
@@ -28,7 +29,7 @@ public class ProfileCacheController(ProfileServiceClient profileClient) : Contro
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
-        await profileClient.InvalidateAsync(userId);
+        await sender.Send(new InvalidateProfileCacheCommand(userId));
         return Ok(new { invalidated = true });
     }
 }
