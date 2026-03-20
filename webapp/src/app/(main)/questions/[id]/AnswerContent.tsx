@@ -1,15 +1,15 @@
 import {Answer} from "@/lib/types";
 import VotingButtons from "@/app/(main)/questions/[id]/VotingButtons";
 import AnswerFooter from "@/app/(main)/questions/[id]/AnswerFooter";
-import {getCurrentUser} from "@/lib/actions/auth-actions";
+import {User} from "next-auth";
 
 type Props = {
     answer: Answer;
     askerId: string;
+    currentUser?: User | null;
 }
 
-export default async function AnswerContent({answer, askerId}: Props) {
-    const currentUser = await getCurrentUser();
+export default function AnswerContent({answer, askerId, currentUser}: Props) {
     return (
         <div className='flex border-b border-content3 pb-4 pt-4 px-6'>
             <VotingButtons

@@ -1,14 +1,11 @@
-'use client';
-
 import {Button} from "@heroui/button";
-import {useRouter} from "next/navigation";
+import Link from "next/link";
 
 export default function RegisterButton() {
-    const router = useRouter();
-    
     return (
-        <Button 
-            onPress={() => router.push('/signup?callbackUrl=/')}
+        <Button
+            as={Link}
+            href='/signup?callbackUrl=/'
             color='primary'
         >
             Register

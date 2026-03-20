@@ -1,8 +1,7 @@
 import {Question} from "@/lib/types";
 import {Chip} from "@heroui/chip";
 import Link from "next/link";
-import DiceBearAvatar from "@/components/DiceBearAvatar";
-import {timeAgo} from "@/lib/util";
+import AuthorBadge from "@/components/AuthorBadge";
 
 type Props = {
     question: Question
@@ -23,19 +22,12 @@ export default function QuestionFooter({question}: Props) {
                 </div>
             </div>
 
-            <div className='flex items-center gap-2 bg-content4 px-3 py-2 rounded-lg text-sm'>
-                <DiceBearAvatar className='h-8 w-8 shrink-0' color='primary'
-                        userId={question.askerId}
-                        avatarJson={question.author?.avatarUrl}
-                        name={question.author?.displayName.charAt(0)}/>
-                <div className='flex flex-col'>
-                    <span className='font-extralight text-xs'>asked {timeAgo(question.createdAt)}</span>
-                    <div className='flex items-center gap-1'>
-                        <span className='font-medium text-sm'>{question.author?.displayName}</span>
-                        <span className='text-xs text-default-400 font-semibold'>{question.author?.reputation}</span>
-                    </div>
-                </div>
-            </div>
+            <AuthorBadge
+                userId={question.askerId}
+                author={question.author}
+                verb="asked"
+                createdAt={question.createdAt}
+            />
         </div>
     );
 }

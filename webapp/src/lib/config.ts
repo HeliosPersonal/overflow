@@ -1,21 +1,15 @@
-// Check if we're in a build environment (during next build)
 const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
 const isServer = typeof window === 'undefined';
 
 function getEnv(name: keyof NodeJS.ProcessEnv, fallback: string = ''): string {
     const value = process.env[name];
     
-    // During build, return fallback to prevent errors
-    // The actual values will be available at runtime
-    if (isBuild && !value) {
-        console.log(`⚙️  [Config] Build phase - using fallback for ${name}`);
-        return fallback;
-    }
+    // During build, return fallback — actual values are available at runtime
+    if (isBuild && !value) return fallback;
     
-    // At runtime, throw an error if missing (strict validation)
     if (!value) {
         const context = isServer ? 'server' : 'client';
-        console.error(`❌ [Config] Missing required environment variable: ${name} (${context}-side)`);
+        console.error(`[Config] Missing required env var: ${name} (${context}-side)`);
         throw new Error(`Could not find env: ${name}`);
     }
     

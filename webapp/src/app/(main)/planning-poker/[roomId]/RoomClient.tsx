@@ -1567,7 +1567,7 @@ function SidebarPanel({room, isModerator, isArchived, hasTasks, actionLoading, o
 // ── Timeline row data ────────────────────────────────────────────────────────
 
 type TimelineRowData = {
-    key: number;
+    key: string;
     roundNum: number;
     label: string;
     isCurrent: boolean;
@@ -1589,19 +1589,19 @@ function buildTimelineRows(
             const historyEntry = room.roundHistory.find(h => h.roundNumber === roundNum) ?? null;
             const isDone = !!historyEntry && !isCurrent;
             const isFuture = !isCurrent && !isDone;
-            rows.push({key: roundNum, roundNum, label: task, isCurrent, isDone, isFuture, taskIndex: i, history: historyEntry});
+            rows.push({key: `task-${i}`, roundNum, label: task, isCurrent, isDone, isFuture, taskIndex: i, history: historyEntry});
         });
     } else {
         room.roundHistory.forEach(h => {
             rows.push({
-                key: h.roundNumber, roundNum: h.roundNumber,
+                key: `done-${h.roundNumber}`, roundNum: h.roundNumber,
                 label: h.taskName ?? `Round ${h.roundNumber}`,
                 isCurrent: false, isDone: true, isFuture: false, taskIndex: null, history: h,
             });
         });
         if (!isArchived) {
             rows.push({
-                key: room.roundNumber, roundNum: room.roundNumber,
+                key: `current-${room.roundNumber}`, roundNum: room.roundNumber,
                 label: `Round ${room.roundNumber}`,
                 isCurrent: true, isDone: false, isFuture: false, taskIndex: null, history: null,
             });

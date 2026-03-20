@@ -1,13 +1,12 @@
 import {getProfileById} from "@/lib/actions/profile-actions";
 import {notFound} from "next/navigation";
 import ProfileDetailed from "@/app/(main)/profiles/[id]/ProfileDetailed";
-import {getCurrentUser} from "@/lib/actions/auth-actions";
 import {auth} from "@/auth";
 
 type Params = Promise<{id: string}>
 export default async function Page({params}: {params: Params}) {
-    const [currentUser, session] = await Promise.all([getCurrentUser(), auth()]);
-    const {id} = await params;
+    const [session, {id}] = await Promise.all([auth(), params]);
+    const currentUser = session?.user ?? null;
     const {data: profile, error} = await getProfileById(id);
     const currentUserProfile = currentUser?.id === id;
 

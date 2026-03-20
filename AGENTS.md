@@ -233,6 +233,113 @@ Guests get **real Keycloak accounts** with random credentials so they participat
 
 ---
 
+## Webapp (Next.js Frontend)
+
+### Stack & Key Dependencies
+
+Next.js 16 (App Router) with React 19, TypeScript, Tailwind CSS 4, and [HeroUI](https://heroui.com/) component library. Forms use `react-hook-form` + `zod` for validation. Client state uses `zustand`. Rich text editing via TipTap. Auth via `next-auth` v5 (beta).
+
+### Project Structure
+
+```
+webapp/src/
+  app/
+    (auth)/          # Auth pages (login, signup, forgot-password, etc.) — no shell/sidebar
+    (main)/          # Main app pages — wrapped in LayoutShell (TopNav + SideMenu + RightSidebar)
+      planning-poker/  # Planning Poker feature pages
+      profiles/        # Profile pages
+      questions/       # Q&A feature pages
+      tags/            # Tag management
+      auth-gate/       # "Continue as Guest" page for protected routes
+    api/             # Next.js Route Handlers (auth, estimation proxy, profile avatar)
+  auth.ts            # NextAuth config (Keycloak + Credentials providers)
+  middleware.ts      # Auth middleware for protected routes
+  lib/
+    actions/         # Server Actions (one file per domain: question-actions, profile-actions, etc.)
+    auth/            # Client-side auth helpers (create-guest.ts)
+    config.ts        # Typed env var access (authConfig, apiConfig)
+    fetchClient.ts   # Server-side HTTP client — auto-attaches JWT, handles errors
+    profiles.ts      # fetchProfileMap() — shared profile batch-fetch + map builder
+    toast.ts         # errorToast, successToast, handleError (toast helpers)
+    format.ts        # fuzzyTimeAgo, timeAgo (date formatting)
+    html.ts          # stripHtmlTags, htmlToExcerpt, extractPublicIdsFromHtml
+    util.ts          # Re-export barrel for toast/format/html (backwards compat)
+    hooks/           # Zustand stores + React hooks (useTagStore, useAnswerStore, useRoomWebSocket, etc.)
+    keycloak-admin.ts  # KeycloakAdminClient class for user management via Admin API
+    schemas/         # Zod schemas for form validation (questionSchema, editProfileSchema, etc.)
+    types/           # TypeScript types (domain models, next-auth extensions)
+    theme/           # Color tokens (colors.ts) — single source for all brand/surface colors
+    validators/      # Auth validators
+  components/
+    AuthorBadge.tsx  # Shared author attribution badge (avatar + time + name + reputation)
+    nav/             # TopNav, UserMenu, SearchInput, ThemeToggle
+    rte/             # TipTap Rich Text Editor
+    auth/            # Auth-related components (GoogleSignInButton)
+    cookie/          # Cookie consent banner + preferences
+```
+
+### Conventions
+
+**Server Actions** (`'use server'` in `src/lib/actions/`) are the primary data layer. Each action file maps to a backend service domain. Actions call `fetchClient()` for all backend HTTP requests.
+
+**`fetchClient<T>(url, method, options)`** — the single point of backend communication. It:
+- Prepends `API_URL` to all requests
+- Auto-attaches the session JWT as `Authorization: Bearer`
+- Returns `FetchResponse<T>` (`{ data, error }`) — never throws on HTTP errors
+- Calls `notFound()` on 404 responses (Next.js navigation redirect)
+- Gracefully handles stale session cookies (`JWTSessionError`)
+
+**Profile enrichment pattern** — Questions/answers store only user IDs. Server actions use `fetchProfileMap()` from `lib/profiles.ts` to batch-fetch profiles and merge them before returning to components:
+```typescript
+import {fetchProfileMap} from "@/lib/profiles";
+const profileMap = await fetchProfileMap(questions.items.map(q => q.askerId));
+const enriched = questions.items.map(q => ({ ...q, author: profileMap.get(q.askerId) }));
+```
+
+**Zod schemas** in `src/lib/schemas/` are used for both client-side form validation (via `@hookform/resolvers`) and type inference (`z.infer<typeof schema>`).
+
+**Zustand stores** in `src/lib/hooks/` for lightweight client state:
+- `useTagStore` — global tag list, loaded once in `Providers.tsx`
+- `useAnswerStore` — tracks answer being edited
+- `useCookieConsentStore` — cookie consent state (persisted via `zustand/middleware/persist`)
+- `useActiveRoom` — tracks current planning poker room for leave-on-signout
+
+**WebSocket** — Planning poker uses a raw `WebSocket` hook (`useRoomWebSocket.ts`). In dev, connects directly to `ws://localhost:8001`; in prod, uses `wss://<host>/api/estimation/...`. WebSocket is read-only (server → client snapshots); all mutations go through server actions.
+
+**Route groups:**
+- `(auth)` — minimal layout (no shell), used for login/signup/password-reset pages
+- `(main)` — full layout with `LayoutShell` (TopNav, SideMenu, RightSidebar)
+
+**Middleware** (`src/middleware.ts`) protects specific routes (e.g. `/questions/ask`, `/tags/manage`) by redirecting unauthenticated users to `/auth-gate`.
+
+### Styling
+
+- **HeroUI** components everywhere — use `<Button>`, `<Input>`, `<Card>`, etc. from `@heroui/react`
+- **Tailwind CSS 4** with HeroUI token classes (`bg-primary`, `bg-content1`, `text-foreground`, etc.)
+- **Color tokens** defined in `src/lib/theme/colors.ts` → wired into HeroUI/Tailwind via `src/app/hero.ts`
+- **Dark/light themes** — use `next-themes` (`ThemeProvider`). Never hardcode hex values; always use semantic tokens.
+- See `webapp/STYLE.md` for the full frontend style guide (elevation system, shadows, typography, component patterns)
+
+### Environment Variables
+
+- `webapp/.env.development` — committed, works out of the box for local dev
+- `webapp/.env.staging` / `.env.production` — committed with placeholder structure; real values come from Infisical at runtime (loaded in `src/infisical.ts`)
+- Key variables: `API_URL`, `AUTH_KEYCLOAK_*`, `AUTH_SECRET`, `AUTH_URL`, `KEYCLOAK_OPTIONS_ADMIN_*`, `NOTIFICATION_INTERNAL_API_KEY`
+- `NEXT_PUBLIC_COMMIT_SHA` — shown in UI footer via `BuildVersion` component
+- `next.config.ts` uses `serverExternalPackages` to keep OTEL and Infisical out of webpack bundling
+
+### API Route Handlers
+
+Route handlers in `src/app/api/` handle server-side operations that can't be server actions:
+- `api/auth/[...nextauth]` — NextAuth route handler
+- `api/auth/anonymous` — Creates anonymous Keycloak user (guest flow)
+- `api/auth/upgrade` — Upgrades anonymous account to full account
+- `api/auth/signup`, `login`, `forgot-password`, `reset-password`, `verify-email` — Auth lifecycle
+- `api/estimation/` — Proxy for EstimationService WebSocket and HTTP calls
+- `api/profile/avatar` — Avatar upload proxy
+
+---
+
 ## CI/CD & Deployment
 
 - `development` branch → staging (`apps-staging` namespace); `main` → production (`apps-production` namespace).
