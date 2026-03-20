@@ -16,7 +16,7 @@ export default function AuthorBadge({userId, author, verb, createdAt}: Props) {
         <div className='flex items-center gap-2 bg-content4 px-3 py-2 rounded-lg text-sm'>
             <DiceBearAvatar
                 className='h-8 w-8 shrink-0'
-                color='primary'
+                borderClass='border-2 border-primary'
                 userId={userId}
                 avatarJson={author?.avatarUrl}
                 name={author?.displayName?.charAt(0)}

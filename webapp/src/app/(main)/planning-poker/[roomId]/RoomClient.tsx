@@ -654,7 +654,7 @@ function GuestNameGate({roomId, guestName, onGuestNameChange, avatarJson, onAvat
                                 <div className="flex flex-col items-center gap-2">
                                     <button type="button" onClick={onOpen} className="group relative">
                                         <img src={avatarSrc} alt="Avatar"
-                                             className="h-20 w-20 rounded-full ring-2 ring-foreground-200 group-hover:ring-primary transition-all"/>
+                                             className="h-20 w-20 rounded-full border-2 border-foreground-200 group-hover:border-primary transition-all"/>
                                         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
                                             Edit
                                         </span>
@@ -815,11 +815,10 @@ function SpectatorPanel({spectators}: { spectators: PlanningPokerParticipant[] }
                     {spectators.map(p => (
                         <Tooltip key={p.participantId} content={p.displayName} placement="right">
                             <div className="flex flex-col items-center gap-0.5 group cursor-default">
-                                <div className="rounded-full ring-1 ring-content3 group-hover:ring-primary/40 transition-all">
                                     <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
                                         name={p.displayName}
-                                        className="h-10 w-10 opacity-60 group-hover:opacity-100 transition-opacity"/>
-                                </div>
+                                        className="h-10 w-10 opacity-60 group-hover:opacity-100 transition-opacity"
+                                        borderClass="border border-content3 group-hover:border-primary/40 transition-all"/>
                                 <span className="text-[10px] text-foreground-500 truncate w-16 text-center leading-tight">
                                     {p.displayName}
                                 </span>
@@ -1099,9 +1098,10 @@ function VoterAvatars({voters}: { voters: PlanningPokerParticipant[] }) {
         <div className="flex -space-x-1">
             {visible.map(p => (
                 <Tooltip key={p.participantId} content={p.displayName}>
-                    <span className="inline-flex ring-1 ring-content2 rounded-full">
+                    <span className="inline-flex">
                         <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
-                            name={p.displayName} className="h-5 w-5"/>
+                            name={p.displayName} className="h-5 w-5"
+                            borderClass="border border-content2"/>
                     </span>
                 </Tooltip>
             ))}
@@ -1360,18 +1360,16 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
                 }}
             >
                 <div className="relative">
-                    <div className={`rounded-full transition-all duration-300
-                        ${isViewer
-                            ? 'ring-2 ring-primary/60 ring-offset-2 ring-offset-content1'
-                            : 'ring-1 ring-content3/60'}`}>
                         <DiceBearAvatar
                             userId={p.participantId}
                             avatarJson={p.avatarUrl}
                             name={p.displayName}
                             className="h-12 w-12"
                             size="sm"
+                            borderClass={`transition-all duration-300 ${isViewer
+                                ? 'border-2 border-primary/60'
+                                : 'border border-content3/60'}`}
                         />
-                    </div>
                     {p.isModerator && (
                         <div className="absolute -top-1 -right-1 bg-warning rounded-full p-[3px] shadow-sm">
                             <Crown className="h-3 w-3 text-white"/>

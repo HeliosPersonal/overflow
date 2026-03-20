@@ -75,7 +75,7 @@ export default function ProfileDetailed({
                     <img
                       src={avatarSrc}
                       alt="Avatar"
-                      className="h-16 w-16 rounded-full ring-2 ring-primary/40 group-hover:ring-primary transition-all"
+                      className="h-16 w-16 rounded-full border-2 border-primary/40 group-hover:border-primary transition-all"
                     />
                     <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
                       {avatarSaving ? "…" : "Edit"}
@@ -86,7 +86,7 @@ export default function ProfileDetailed({
             ) : (
               <DiceBearAvatar
                 className="h-16 w-16"
-                color="primary"
+                borderClass="border-2 border-primary"
                 userId={profile.userId}
                 avatarJson={profile.avatarUrl}
                 name={profile.displayName?.charAt(0)}

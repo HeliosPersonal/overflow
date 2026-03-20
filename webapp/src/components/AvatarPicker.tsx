@@ -132,7 +132,7 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
                             <img
                                 src={previewSrc}
                                 alt="Avatar preview"
-                                className="h-28 w-28 rounded-full ring-3 ring-primary/40 shrink-0"
+                                className="h-28 w-28 rounded-full border-3 border-primary/40 shrink-0"
                             />
                             <div className="flex flex-col gap-2">
                                 <p className="text-sm text-foreground-500">

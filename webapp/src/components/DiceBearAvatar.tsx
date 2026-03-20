@@ -13,26 +13,35 @@ type Props = {
     size?: 'sm' | 'md' | 'lg';
     /** Extra Tailwind classes applied to the root `<Avatar>`. */
     className?: string;
-    /** HeroUI color ring. */
-    color?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+    /**
+     * Single, continuous border around the avatar.
+     * Pass any Tailwind `border-*` classes (e.g. `"border-2 border-primary"`).
+     * Rendered as a real CSS border — no ring-offset gaps or background bleed.
+     * Defaults to no border.
+     */
+    borderClass?: string;
     /** Fallback initial character (display name first letter). */
     name?: string;
 };
 
 /**
- * Drop-in replacement for `<Avatar>` that renders a DiceBear fun-emoji face.
+ * Drop-in replacement for `<Avatar>` that renders a DiceBear avataaars face.
+ *
+ * Uses a single CSS `border` for the colored ring — avoids HeroUI's `color`
+ * prop (which sets `bg-primary` that bleeds through as a sub-pixel gap) and
+ * Tailwind `ring`/`ring-offset` (which create multi-layered, gapped borders).
  *
  * Priority:
  * 1. If `avatarJson` is a valid options object → render customized avatar.
  * 2. If `userId` is provided → deterministic avatar from seed.
- * 3. Falls back to HeroUI default (initial letter).
+ * 3. Falls back to HeroUI default (initial letter via `name`).
  */
 export default function DiceBearAvatar({
     userId,
     avatarJson,
     size,
     className,
-    color = 'primary',
+    borderClass,
     name,
 }: Props) {
     const src = useMemo(() => {
@@ -46,10 +55,9 @@ export default function DiceBearAvatar({
             src={src}
             size={size}
             className={className}
-            color={color}
+            classNames={{ base: `bg-transparent ${borderClass ?? ''}` }}
             name={name}
             showFallback={false}
         />
     );
 }
-

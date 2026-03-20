@@ -46,7 +46,7 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
           <DiceBearAvatar
             userId={user.id}
             avatarJson={avatarUrl}
-            color={isAnonymous ? "default" : "primary"}
+            borderClass={isAnonymous ? "border-2 border-default" : "border-2 border-primary"}
             size="md"
             name={displayName?.charAt(0)}
           />
