@@ -4,6 +4,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CommandFlow"/>
+        <PackageReference Include="CommandFlow.DependencyInjection"/>
         <PackageReference Include="FluentEmail.Core"/>
         <PackageReference Include="FluentEmail.Mailgun"/>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>

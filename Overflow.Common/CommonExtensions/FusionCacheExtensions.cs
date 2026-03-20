@@ -18,6 +18,11 @@ public static class FusionCacheExtensions
     /// (L1 in-memory + L2 Redis + backplane for cross-pod invalidation).
     /// Configuration is read from the <c>FusionCache</c> section of appsettings
     /// and validated at startup via <see cref="IOptions{TOptions}"/>.
+    /// <para>
+    /// All cache keys and backplane channels are automatically prefixed with the
+    /// environment name (e.g. <c>staging:</c>, <c>production:</c>) so that multiple
+    /// environments sharing the same Redis instance are fully isolated.
+    /// </para>
     /// </summary>
     public static IHostApplicationBuilder AddFusionCacheWithRedis(this IHostApplicationBuilder builder)
     {
@@ -38,6 +43,10 @@ public static class FusionCacheExtensions
 
         var redisConnectionString = builder.Configuration.GetConnectionString(options.ConnectionStringName)!;
 
+        // Environment prefix ensures staging and production never share cache keys
+        // when they connect to the same Redis instance (single shared infra).
+        var envPrefix = builder.Environment.EnvironmentName.ToLowerInvariant() + ":";
+
         builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
             var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
@@ -46,6 +55,8 @@ public static class FusionCacheExtensions
         });
 
         builder.Services.AddFusionCache()
+            .WithCacheKeyPrefix(envPrefix)
+            .WithOptions(opts => { opts.BackplaneChannelPrefix = envPrefix; })
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromSeconds(options.DurationSeconds),
@@ -65,7 +76,8 @@ public static class FusionCacheExtensions
                     Microsoft.Extensions.Options.Options.Create(
                         new Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions
                         {
-                            ConnectionMultiplexerFactory = () => Task.FromResult(redis)
+                            ConnectionMultiplexerFactory = () => Task.FromResult(redis),
+                            InstanceName = envPrefix
                         }));
             })
             .WithBackplane(sp =>

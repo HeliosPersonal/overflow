@@ -18,7 +18,7 @@ Aggregate platform statistics — trending tags and top users, built from event-
 
 ## Endpoints
 
-Defined directly in `Program.cs` (minimal API, no controllers).
+Defined in `StatsController` using `[ApiController]` + CommandFlow CQRS.
 
 | Method | Route                  | Description                                       |
 |--------|------------------------|---------------------------------------------------|

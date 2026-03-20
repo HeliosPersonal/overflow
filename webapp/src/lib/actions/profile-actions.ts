@@ -5,6 +5,7 @@ import {FetchResponse, Profile, TopUser, TopUserWithProfile} from "@/lib/types";
 import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 import {auth} from "@/auth";
+import {fetchProfileMap} from "@/lib/profiles";
 
 export async function getUserProfiles(sortBy?: string) {
     const effectiveSort = sortBy ?? 'reputation';
@@ -48,23 +49,18 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
 
 export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>> {
     const {data: users, error} = await fetchClient<TopUser[]>('/stats/top-users', 'GET');
-    if (error) return {data: null, error: 
-            {message: 'Problem getting users', status: 500}}
+    if (error) return {data: null, error: {message: 'Problem getting users', status: 500}};
     
-    const ids = Array.isArray(users) ? [...new Set(users.map(u => u.userId))] : [];
-    const qs = encodeURIComponent(ids.join(','));
-    
-    const {data: profiles, error: profilesError} = await fetchClient<Profile[]>(
-        `/profiles/batch?ids=${qs}`, 'GET', {cache: 'force-cache', next: {revalidate: 60}}
-    );
+    if (!Array.isArray(users) || users.length === 0) return {data: []};
 
-    if (profilesError) return {data: null, error:
-            {message: 'Problem getting profiles', status: 500}}
+    let profileMap: Map<string, Profile>;
+    try {
+        profileMap = await fetchProfileMap(users.map(u => u.userId));
+    } catch {
+        return {data: null, error: {message: 'Problem getting profiles', status: 500}};
+    }
     
-    const byId = new Map((profiles ?? []).map(p => [p.userId, p]));
-    
-    return {data: Array.isArray(users) ? users.map(u => ({
-            ...u,
-            profile: byId.get(u.userId)
-        })) as TopUserWithProfile[] : null}
+    return {
+        data: users.map(u => ({...u, profile: profileMap.get(u.userId)})),
+    };
 }

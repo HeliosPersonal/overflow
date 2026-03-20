@@ -10,7 +10,7 @@ state and provisions Overflow's own slice of each shared service.
 
 | Resource | What gets created |
 |---|---|
-| **PostgreSQL databases** | `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `production_*` variants |
+| **PostgreSQL databases** | `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `staging_estimations`, `production_*` variants |
 | **RabbitMQ vhosts** | `overflow-staging`, `overflow-production` |
 | **TLS Secret** | Copies `cloudflare-origin` from `infra-production` → `apps-staging` + `apps-production` |
 | **ConfigMaps** | `overflow-infra-config` in `apps-staging` and `apps-production` with all connection strings pre-assembled |
@@ -18,22 +18,25 @@ state and provisions Overflow's own slice of each shared service.
 ### ConfigMap keys injected into pods
 
 All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core maps
-`__`-delimited keys to nested config (e.g. `ConnectionStrings__questionDb` → `ConnectionStrings:questionDb`).
+`__`-delimited keys to nested config (e.g. `CONNECTION_STRINGS__QUESTION_DB` → `ConnectionStrings:QuestionDb`).
+.NET config is case-insensitive.
 
 | Key | Description |
 |---|---|
-| `ConnectionStrings__questionDb` | Postgres — question-svc |
-| `ConnectionStrings__profileDb` | Postgres — profile-svc |
-| `ConnectionStrings__voteDb` | Postgres — vote-svc |
-| `ConnectionStrings__statDb` | Postgres — stats-svc (Marten) |
-| `ConnectionStrings__messaging` | RabbitMQ AMQP URL with overflow vhost |
-| `TypesenseOptions__ConnectionUrl` | Typesense URL |
-| `TypesenseOptions__ApiKey` | Typesense API key |
-| `KeycloakOptions__Url` | Keycloak internal URL |
-| `KeycloakOptions__Realm` | `overflow-staging` / `overflow` |
-| `KeycloakOptions__Audience` | `overflow-staging` / `overflow` |
+| `CONNECTION_STRINGS__QUESTION_DB` | Postgres — question-svc |
+| `CONNECTION_STRINGS__PROFILE_DB` | Postgres — profile-svc |
+| `CONNECTION_STRINGS__VOTE_DB` | Postgres — vote-svc |
+| `CONNECTION_STRINGS__STAT_DB` | Postgres — stats-svc (Marten) |
+| `CONNECTION_STRINGS__ESTIMATION_DB` | Postgres — estimation-svc |
+| `CONNECTION_STRINGS__MESSAGING` | RabbitMQ AMQP URL with overflow vhost |
+| `TYPESENSE_OPTIONS__CONNECTION_URL` | Typesense URL |
+| `TYPESENSE_OPTIONS__API_KEY` | Typesense API key |
+| `TYPESENSE_OPTIONS__COLLECTION_NAME` | Typesense collection (`staging_questions` / `production_questions`) |
+| `KEYCLOAK_OPTIONS__URL` | Keycloak internal URL |
+| `KEYCLOAK_OPTIONS__REALM` | `overflow-staging` / `overflow` |
+| `KEYCLOAK_OPTIONS__AUDIENCE` | `overflow-staging` / `overflow` |
 | `EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Alloy OTLP HTTP endpoint |
-| `SeederOptions__OllamaUrl` | Ollama URL *(staging only)* |
+| `EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
 
 ---
 
@@ -50,11 +53,11 @@ All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core ma
 ┌─────────────────────────────────────────────────────────────────────┐
 │  overflow/terraform  (this directory)                               │
 │                                                                     │
-│  kubernetes_job  create_postgres_databases                          │
+│  null_resource  create_postgres_databases                           │
 │    → staging_questions, staging_profiles, staging_votes,            │
-│      staging_stats, production_* variants                           │
+│      staging_stats, staging_estimations, production_* variants      │
 │                                                                     │
-│  kubernetes_job  create_rabbitmq_vhosts                             │
+│  null_resource  create_rabbitmq_vhosts                              │
 │    → overflow-staging, overflow-production                          │
 │                                                                     │
 │  kubernetes_config_map  overflow-infra-config  (apps-staging)       │
@@ -65,7 +68,8 @@ All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core ma
 ┌─────────────────────────────────────────────────────────────────────┐
 │  k8s/  (Kustomize)                                                  │
 │  question-svc · profile-svc · vote-svc · stats-svc                  │
-│  search-svc · data-seeder-svc · overflow-webapp                     │
+│  search-svc · estimation-svc · notification-svc                     │
+│  data-seeder-svc · overflow-webapp                                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -159,6 +163,6 @@ Set these on the **overflow** repository under `Settings → Secrets and variabl
 | `provider.tf` | Backend (azurerm), providers (kubernetes, null) |
 | `data.tf` | Remote state from infrastructure-helios + locals |
 | `variables.tf` | `pg_password`, `rabbit_password`, `typesense_api_key`, `kubeconfig_path` |
-| `main.tf` | Kubernetes Jobs (DB/vhost init) + ConfigMaps |
+| `main.tf` | TLS secret copies, null_resource DB/vhost init (local-exec), ConfigMaps |
 | `outputs.tf` | `staging_config`, `production_config`, domain outputs |
 | `terraform.tfvars.example` | Template — copy to `terraform.secret.tfvars` and fill in |

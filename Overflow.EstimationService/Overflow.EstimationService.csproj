@@ -4,6 +4,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CommandFlow"/>
+        <PackageReference Include="CommandFlow.DependencyInjection"/>
         <PackageReference Include="CSharpFunctionalExtensions"/>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design">

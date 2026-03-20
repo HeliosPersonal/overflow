@@ -8,32 +8,32 @@ import {searchQuestions} from "@/lib/actions/question-actions";
 import {Listbox, ListboxItem} from "@heroui/listbox";
 import {Spinner} from "@heroui/spinner";
 
+const DEBOUNCE_MS = 300;
+const BLUR_DELAY_MS = 150;
+
 export default function SearchInput() {
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<Question[] | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
         if (!query) {
-            timeoutRef.current = setTimeout(() => {
-                setResults(null);
-                setShowDropdown(false);
-            }, 0);
+            setResults(null);
+            setShowDropdown(false);
             return;
         }
 
-        timeoutRef.current = setTimeout(async () => {
+        const timer = setTimeout(async () => {
             setLoading(true);
             const {data: questions} = await searchQuestions(query);
             setResults(questions);
             setLoading(false);
             setShowDropdown(true);
-        }, 300);
+        }, DEBOUNCE_MS);
+
+        return () => clearTimeout(timer);
     }, [query]);
 
     const onAction = () => {
@@ -47,7 +47,7 @@ export default function SearchInput() {
             if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
                 setShowDropdown(false);
             }
-        }, 150);
+        }, BLUR_DELAY_MS);
     };
 
     const handleFocus = () => {

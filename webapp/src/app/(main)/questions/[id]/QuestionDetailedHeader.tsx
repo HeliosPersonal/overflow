@@ -2,15 +2,14 @@ import {Question} from "@/lib/types";
 import {Button} from "@heroui/button";
 import Link from "next/link";
 import {fuzzyTimeAgo} from "@/lib/util";
-import {getCurrentUser} from "@/lib/actions/auth-actions";
 import DeleteQuestionButton from "@/app/(main)/questions/[id]/DeleteQuestionButton";
 
 type Props = {
     question: Question;
+    currentUserId?: string;
 }
 
-export default async function QuestionDetailedHeader({question}: Props) {
-    const currentUser = await getCurrentUser();
+export default function QuestionDetailedHeader({question, currentUserId}: Props) {
 
     return (
         <div className='flex flex-col w-full border-b border-content3 gap-4 pb-4 px-6 pt-5'>
@@ -42,7 +41,7 @@ export default async function QuestionDetailedHeader({question}: Props) {
                     </div>
                 </div>
 
-                {currentUser?.id === question.askerId &&
+                {currentUserId === question.askerId &&
                     <div className='flex items-center gap-3'>
                         <Link href={`/questions/${question.id}/edit`}>
                             <Button

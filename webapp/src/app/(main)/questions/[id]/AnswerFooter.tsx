@@ -1,8 +1,8 @@
 'use client';
 
 import {Answer} from "@/lib/types";
-import DiceBearAvatar from "@/components/DiceBearAvatar";
-import {handleError, timeAgo} from "@/lib/util";
+import AuthorBadge from "@/components/AuthorBadge";
+import {handleError} from "@/lib/util";
 import { Button } from "@heroui/button";
 import {User} from "next-auth";
 import {useState, useTransition} from "react";
@@ -57,19 +57,12 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
                 </>}
             </div>
 
-            <div className='flex items-center gap-2 bg-content4 px-3 py-2 rounded-lg text-sm'>
-                <DiceBearAvatar className='h-8 w-8 shrink-0' color='primary'
-                        userId={answer.userId}
-                        avatarJson={answer.author?.avatarUrl}
-                        name={answer.author?.displayName.charAt(0)} />
-                <div className='flex flex-col'>
-                    <span className='font-extralight text-xs'>answered {timeAgo(answer.createdAt)}</span>
-                    <div className='flex items-center gap-1'>
-                        <span className='font-medium text-sm'>{answer.author?.displayName}</span>
-                        <span className='text-xs text-default-400 font-semibold'>{answer.author?.reputation}</span>
-                    </div>
-                </div>
-            </div>
+            <AuthorBadge
+                userId={answer.userId}
+                author={answer.author}
+                verb="answered"
+                createdAt={answer.createdAt}
+            />
         </div>
     );
 }

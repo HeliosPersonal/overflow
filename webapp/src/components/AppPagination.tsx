@@ -1,6 +1,5 @@
 'use client';
 
-import {useState} from "react";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Button} from "@heroui/button";
 import {Pagination} from "@heroui/pagination";
@@ -9,19 +8,16 @@ type Props = {
     totalCount: number;
 }
 
-const PAGE_SIZES = [2, 5, 10, 20]
+const PAGE_SIZES = [5, 10, 20];
+const DEFAULT_PAGE_SIZE = 5;
 
 export default function AppPagination({totalCount}: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    
-    // Initialize from URL params
-    const [currentPage, setCurrentPage] = useState(() => {
-        return Number(searchParams.get('page')) || 1;
-    });
-    const [pageSize, setPageSize] = useState(() => {
-        return Number(searchParams.get('pageSize')) || 5;
-    });
+
+    const currentPage = Number(searchParams.get('page')) || 1;
+    const pageSize = Number(searchParams.get('pageSize')) || DEFAULT_PAGE_SIZE;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     const updateURL = (page: number, size: number) => {
         const params = new URLSearchParams(searchParams);
@@ -35,19 +31,15 @@ export default function AppPagination({totalCount}: Props) {
             <div className='flex items-center gap-2'>
                 <span className='text-sm text-foreground-500'>Page size: </span>
                 <div className='flex items-center gap-1'>
-                    {PAGE_SIZES.map((size, i) => (
+                    {PAGE_SIZES.map(size => (
                         <Button
-                            key={i}
+                            key={size}
                             type='button'
                             variant={size === pageSize ? 'flat' : 'light'}
                             className={size === pageSize ? 'bg-content3 text-foreground-800' : 'text-foreground-500'}
                             isIconOnly
                             size='sm'
-                            onPress={() => {
-                                setCurrentPage(1);
-                                setPageSize(size);
-                                updateURL(1, size);
-                            }}
+                            onPress={() => updateURL(1, size)}
                         >
                             {size}
                         </Button>
@@ -56,14 +48,11 @@ export default function AppPagination({totalCount}: Props) {
             </div>
             <div className='flex items-center gap-3'>
                 <span className='text-sm text-default-500'>
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    Page {currentPage} of {totalPages}
                 </span>
                 <Pagination
-                    total={Math.ceil(totalCount / pageSize)}
-                    onChange={(page) => {
-                        setCurrentPage(page);
-                        updateURL(page, pageSize);
-                    }}
+                    total={totalPages}
+                    onChange={(page) => updateURL(page, pageSize)}
                     page={currentPage}
                     className='cursor-pointer'
                     classNames={{

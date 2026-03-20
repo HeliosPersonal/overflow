@@ -3,7 +3,7 @@
 # ====================================================================================
 # Creates Overflow's own resources inside the shared infrastructure-helios services:
 #
-#   PostgreSQL    → 8 databases (staging + production × 4 services)
+#   PostgreSQL    → 10 databases (staging + production × 5 services)
 #   RabbitMQ      → 2 vhosts (overflow-staging, overflow-production)
 #   TLS Secret    → copies cloudflare-origin cert to apps-staging / apps-production
 #   ConfigMaps    → Connection strings injected into apps-staging / apps-production

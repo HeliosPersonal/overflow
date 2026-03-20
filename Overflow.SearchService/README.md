@@ -18,7 +18,7 @@ Full-text search powered by Typesense — subscribes to question events and keep
 
 ## Endpoints
 
-Defined directly in `Program.cs` (minimal API, no controllers).
+Defined in `SearchController` using `[ApiController]` + CommandFlow CQRS.
 
 | Method | Route                              | Description                                                        |
 |--------|------------------------------------|--------------------------------------------------------------------|
@@ -67,16 +67,19 @@ e.g., `staging_questions`).
 
 ```
 Overflow.SearchService/
-├── Program.cs                  # Endpoints, DI, Typesense + Wolverine setup
+├── Program.cs                  # DI, Typesense + Wolverine setup
 ├── Extensions/                 # Typesense configuration extension
 ├── Options/
 │   └── TypesenseOptions.cs     # Connection URL, API key, collection name
 ├── Models/
 │   └── SearchQuestion.cs       # Typesense document model
+├── Features/
+│   └── Search/Queries/         # CommandFlow query handlers
 ├── Data/
 │   └── TypesenseInitializer.cs # Auto-creates collection on startup
 ├── MessageHandlers/            # Wolverine handlers for question events
-├── Controllers/                # (empty — minimal API used instead)
+├── Controllers/
+│   └── SearchController.cs     # API endpoints via ISender
 ├── appsettings.json            # Base config
 ├── appsettings.Staging.json
 ├── appsettings.Production.json

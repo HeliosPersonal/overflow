@@ -1,17 +1,13 @@
-'use client';
-
 import {Button} from "@heroui/button";
-import {useRouter} from "next/navigation";
+import Link from "next/link";
 
 export default function LoginButton() {
-    const router = useRouter();
-    
     return (
-        <Button 
+        <Button
+            as={Link}
+            href='/login?callbackUrl=/'
             color='primary'
             variant='bordered'
-            type='button'
-            onPress={() => router.push('/login?callbackUrl=/')}
         >
             Login
         </Button>

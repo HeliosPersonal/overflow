@@ -6,16 +6,16 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 
 ## Overview
 
-|               |                                                                          |
-|---------------|--------------------------------------------------------------------------|
-| **Type**      | .NET 10 ASP.NET Core (Controllers + WebSocket endpoint)                  |
-| **Database**  | PostgreSQL via EF Core (`estimationDb`)                                  |
-| **Cache**     | FusionCache (L1 in-memory + L2 Redis) with Redis backplane               |
-| **Real-time** | Raw WebSocket (server → client snapshots) + Redis pub/sub cross-pod sync |
-| **Auth**      | Keycloak JWT — guests get real Keycloak accounts automatically           |
-| **Port**      | 8080                                                                     |
-| **Messaging** | None — no Wolverine or RabbitMQ dependency                               |
-| **Scaling**   | Multi-pod safe via Redis-backed distributed cache + cross-pod broadcast  |
+|               |                                                                            |
+|---------------|----------------------------------------------------------------------------|
+| **Type**      | .NET 10 ASP.NET Core (Controllers + CommandFlow CQRS + WebSocket endpoint) |
+| **Database**  | PostgreSQL via EF Core (`estimationDb`)                                    |
+| **Cache**     | FusionCache (L1 in-memory + L2 Redis) with Redis backplane                 |
+| **Real-time** | Raw WebSocket (server → client snapshots) + Redis pub/sub cross-pod sync   |
+| **Auth**      | Keycloak JWT — guests get real Keycloak accounts automatically             |
+| **Port**      | 8080                                                                       |
+| **Messaging** | None — no Wolverine or RabbitMQ dependency                                 |
+| **Scaling**   | Multi-pod safe via Redis-backed distributed cache + cross-pod broadcast    |
 
 ---
 
