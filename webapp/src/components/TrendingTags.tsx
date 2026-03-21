@@ -49,16 +49,16 @@ export default function TrendingTags() {
     return (
         <div className="rounded-2xl bg-content2 border border-content3 shadow-raise-sm overflow-hidden">
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 flex items-center gap-2.5 border-b border-content3">
+            <div className="px-4 pt-4 pb-3 flex items-center gap-2.5 border-b border-content3">
                 <span
-                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100/60 dark:bg-orange-900/20">
-                    <Flame size={20} className="text-orange-300 dark:text-orange-400/70"/>
+                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-orange-100/60 dark:bg-orange-900/20">
+                    <Flame size={18} className="text-orange-300 dark:text-orange-400/70"/>
                 </span>
-                <h3 className="text-base font-semibold text-foreground tracking-wide">Trending this week</h3>
+                <h3 className="text-sm font-semibold text-foreground tracking-wide">Trending this week</h3>
             </div>
 
             {/* Body */}
-            <div className="px-6 py-5 flex flex-col gap-4">
+            <div className="px-4 py-4 flex flex-col gap-3.5">
                 {error ? (
                     <p className="text-sm text-default-400 text-center py-2">Could not load tags</p>
                 ) : !tags ? (

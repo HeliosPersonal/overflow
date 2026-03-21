@@ -92,7 +92,7 @@ export default function ProfileDetailed({
                 name={profile.displayName?.charAt(0)}
               />
             )}
-            <span className="text-4xl font-bold">{profile.displayName}</span>
+            <span className="text-2xl font-bold">{profile.displayName}</span>
           </div>
           {currentUserProfile && (
             <Button onPress={() => setEditMode((prev) => !prev)} variant="bordered">

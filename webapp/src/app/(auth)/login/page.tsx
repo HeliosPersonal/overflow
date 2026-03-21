@@ -96,7 +96,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center px-4 py-12">
+        <div className="flex min-h-full items-center justify-center px-4 py-8">
             <div className="w-full max-w-md">
                 {/* Logo Header */}
                 <div className="mb-8 text-center">

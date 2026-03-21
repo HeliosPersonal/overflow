@@ -14,8 +14,8 @@ export default function RightSidebar() {
     if (!show) return null;
 
     return (
-        <aside className='basis-1/5 shrink-0 px-6 pt-4 bg-content1 overflow-y-auto'>
-            <div className='flex flex-col gap-6'>
+        <aside className='basis-1/5 shrink-0 max-w-[280px] px-4 pt-4 bg-content1 overflow-y-auto'>
+            <div className='flex flex-col gap-5'>
                 <TrendingTags/>
                 <TopUsers/>
             </div>

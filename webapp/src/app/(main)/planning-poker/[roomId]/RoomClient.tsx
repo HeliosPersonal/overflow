@@ -39,24 +39,64 @@ const VOTER_AVATAR_PREVIEW_LIMIT = 3;
 const TITLE_MAX_LENGTH = 80;
 const NAME_LABEL_WIDTH = 96; // px — width of the name label below each avatar seat
 
-// PokerTableScene layout
-const SCENE_W = 900;
-const SCENE_H = 440;
-const CENTER_RX = 250;
-const CENTER_RY = 170;
-const ORBIT_R = 340;
-const CX = SCENE_W / 2;
-const CY = SCENE_H * 0.42;
-const CARD_W = 64;
-const CARD_H = 88;
-const AVATAR_SIZE = 48;
-const CARD_INWARD = 48;
+// PokerTableScene layout — responsive via useSceneSize()
+const BASE_SCENE_W = 900;
+const BASE_SCENE_H = 400;
+const BASE_CENTER_RX = 220;
+const BASE_CENTER_RY = 140;
+const BASE_ORBIT_R = 300;
+const BASE_CY_RATIO = 0.44;
+const BASE_CARD_W = 54;
+const BASE_CARD_H = 74;
+const BASE_AVATAR_SIZE = 44;
+const BASE_CARD_INWARD = 42;
 
 // Arc layout
 const ARC_START_DEG = 200;
 const ARC_END_DEG = 340;
 const ARC_MAX_SPAN = ARC_END_DEG - ARC_START_DEG;
 const ARC_MID_DEG = (ARC_START_DEG + ARC_END_DEG) / 2;
+
+/**
+ * Returns scene dimensions scaled to available container size.
+ * Scales proportionally based on whichever dimension (width or height) is tighter.
+ * On smaller viewports / laptop screens the table shrinks to fit.
+ */
+function useSceneSize(containerRef: React.RefObject<HTMLDivElement | null>) {
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const ro = new ResizeObserver(([entry]) => {
+            const w = entry.contentRect.width;
+            const h = entry.contentRect.height;
+            const scaleW = w / BASE_SCENE_W;
+            const scaleH = h > 0 ? h / BASE_SCENE_H : 1;
+            setScale(Math.min(1, scaleW, scaleH));
+        });
+        ro.observe(containerRef.current);
+        return () => ro.disconnect();
+    }, [containerRef]);
+
+    const s = scale;
+    return {
+        sceneW: BASE_SCENE_W * s,
+        sceneH: BASE_SCENE_H * s,
+        centerRx: BASE_CENTER_RX * s,
+        centerRy: BASE_CENTER_RY * s,
+        orbitR: BASE_ORBIT_R * s,
+        cx: (BASE_SCENE_W * s) / 2,
+        cy: (BASE_SCENE_H * s) * BASE_CY_RATIO,
+        cardW: BASE_CARD_W * s,
+        cardH: BASE_CARD_H * s,
+        avatarSize: BASE_AVATAR_SIZE * s,
+        cardInward: BASE_CARD_INWARD * s,
+        nameLabelWidth: NAME_LABEL_WIDTH * s,
+        scale: s,
+    };
+}
+
+type SceneDimensions = ReturnType<typeof useSceneSize>;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +166,9 @@ export default function RoomClient({roomId, isAuthenticated}: {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState('');
+
+    const sceneContainerRef = useRef<HTMLDivElement>(null);
+    const scene = useSceneSize(sceneContainerRef);
 
     const {room, status: wsStatus, updateRoom} = useRoomWebSocket(joinedOnce ? roomId : null);
 
@@ -500,8 +543,9 @@ export default function RoomClient({roomId, isAuthenticated}: {
     const allVoted = votedCount === activeParticipants.length && activeParticipants.length > 0;
     const showCardPicker = !isArchived && !isSpectator && (isVoting || isRevealed);
 
+
     return (
-        <div className="min-h-full bg-content1 flex flex-col">
+        <div className="h-full bg-content1 flex flex-col overflow-hidden">
 
             {/* ════════════ ROOM HEADER ════════════ */}
             <RoomHeader
@@ -526,33 +570,32 @@ export default function RoomClient({roomId, isAuthenticated}: {
             />
 
             {/* ════════════ MAIN CONTENT ════════════ */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden min-h-0">
 
                 {/* ── Center column ── */}
-                <div className="flex-1 flex flex-col transition-all duration-300 relative overflow-y-auto">
+                <div className="flex-1 flex flex-col transition-all duration-300 relative min-w-0">
 
-                    {/* ── Room scene: banner + table + participants ── */}
-                    <div className="flex-1 flex flex-col items-center px-6 pt-2">
+                    {/* ── Room scene: estimation strip (overlay) + table + participants ── */}
+                    <div className="flex-1 relative min-h-0 overflow-hidden">
 
-                        {/* ── Estimation strip ── */}
-                        <div className="w-full max-w-[860px] mb-1">
-                            <CompactEstimationStrip
-                                room={room}
-                                hasTasks={!!hasTasks}
-                                isVoting={isVoting}
-                                isRevealed={isRevealed}
-                                isArchived={isArchived}
-                                activeParticipants={activeParticipants}
-                                votedCount={votedCount}
-                                allVoted={allVoted}
-                            />
+                        {/* ── Estimation strip — overlaid at top so it doesn't shift the table ── */}
+                        <div className="absolute top-1 left-4 right-4 z-10 flex justify-center pointer-events-none">
+                            <div className="w-full max-w-[860px] pointer-events-auto">
+                                <CompactEstimationStrip
+                                    room={room}
+                                    hasTasks={!!hasTasks}
+                                    isVoting={isVoting}
+                                    isRevealed={isRevealed}
+                                    isArchived={isArchived}
+                                    activeParticipants={activeParticipants}
+                                    votedCount={votedCount}
+                                    allVoted={allVoted}
+                                />
+                            </div>
                         </div>
 
-                        {/* Spacer pushes table scene down toward the card deck */}
-                        <div className="flex-1 min-h-0"/>
-
-                        {/* ── The poker table scene ── */}
-                        <div className="relative w-full max-w-[960px]">
+                        {/* ── The poker table scene — always fills the full area, centered ── */}
+                        <div ref={sceneContainerRef} className="absolute inset-0 flex items-center justify-center">
 
                             {/* ── Spectators — floating left panel ── */}
                             {spectators.length > 0 && (
@@ -575,6 +618,7 @@ export default function RoomClient({roomId, isAuthenticated}: {
                                 onReset={handleReset}
                                 hasTasks={!!hasTasks}
                                 room={room}
+                                scene={scene}
                             />
 
                             {/* Spectator / archive notices */}
@@ -595,9 +639,9 @@ export default function RoomClient({roomId, isAuthenticated}: {
 
                 {/* ── Right sidebar (Tasks + History) ── */}
                 <div className={`border-l border-content3 bg-content2/50 backdrop-blur-sm transition-all duration-300 overflow-y-auto
-                ${sidebarOpen ? 'w-80 min-w-[320px]' : 'w-0 min-w-0 border-l-0'}`}>
+                ${sidebarOpen ? 'w-72 min-w-[280px]' : 'w-0 min-w-0 border-l-0'}`}>
                     {sidebarOpen && (
-                        <div className="p-4">
+                        <div className="p-3">
                             <SidebarPanel
                                 room={room} isModerator={isModerator} isArchived={isArchived}
                                 hasTasks={!!hasTasks} actionLoading={actionLoading}
@@ -713,10 +757,10 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
     const canEditTitle = isModerator && !isArchived;
 
     return (
-        <div className="border-b border-content3 bg-content2/80 backdrop-blur-md z-10">
-            <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="border-b border-content3 bg-content2/80 backdrop-blur-md z-10 shrink-0">
+            <div className="max-w-[1600px] mx-auto px-3 h-12 flex items-center gap-2">
                 {/* Left: title + status */}
-                <div className="flex items-center justify-center gap-2.5 min-w-0 flex-1">
+                <div className="flex items-center justify-center gap-2 min-w-0 flex-1">
                     {editingTitle ? (
                         <input
                             className="text-lg font-bold bg-content1 border border-primary rounded-md px-2 py-0.5 min-w-0 w-64 text-center
@@ -750,37 +794,37 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
                 </div>
 
                 {/* Right: actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                     <Tooltip content="Copy room link">
-                        <Button size="md" variant="flat" isIconOnly onPress={onCopyLink}>
-                            <ClipboardCopy className={ICON_MD}/>
+                        <Button size="sm" variant="flat" isIconOnly onPress={onCopyLink}>
+                            <ClipboardCopy className={ICON_SM}/>
                         </Button>
                     </Tooltip>
                     {!isArchived && (
                         <Tooltip content={isSpectator ? 'Switch to Participant' : 'Switch to Spectator'}>
-                            <Button size="md" variant="flat" isIconOnly
+                            <Button size="sm" variant="flat" isIconOnly
                                     onPress={onModeToggle} isLoading={actionLoading === 'Mode'}>
-                                {isSpectator ? <EyeOff className={ICON_MD}/> : <Eye className={ICON_MD}/>}
+                                {isSpectator ? <EyeOff className={ICON_SM}/> : <Eye className={ICON_SM}/>}
                             </Button>
                         </Tooltip>
                     )}
                     {canEditTitle && (
                         <Tooltip content="Archive room">
-                            <Button size="md" variant="flat" color="danger" isIconOnly
+                            <Button size="sm" variant="flat" color="danger" isIconOnly
                                     onPress={onArchive} isLoading={actionLoading === 'Archive'}>
-                                <Archive className={ICON_MD}/>
+                                <Archive className={ICON_SM}/>
                             </Button>
                         </Tooltip>
                     )}
                     <Tooltip content="Leave room">
-                        <Button size="md" variant="flat" color="danger" isIconOnly onPress={onLeave}>
-                            <LogOut className={ICON_MD}/>
+                        <Button size="sm" variant="flat" color="danger" isIconOnly onPress={onLeave}>
+                            <LogOut className={ICON_SM}/>
                         </Button>
                     </Tooltip>
-                    <div className="w-px h-7 bg-content3 mx-1"/>
+                    <div className="w-px h-6 bg-content3 mx-0.5"/>
                     <Tooltip content="Tasks & History">
-                        <Button size="md" variant={sidebarOpen ? 'solid' : 'flat'} isIconOnly onPress={onToggleSidebar}>
-                            <Menu className={ICON_MD}/>
+                        <Button size="sm" variant={sidebarOpen ? 'solid' : 'flat'} isIconOnly onPress={onToggleSidebar}>
+                            <Menu className={ICON_SM}/>
                         </Button>
                     </Tooltip>
                 </div>
@@ -803,23 +847,23 @@ function StatusBadge({status}: { status: string }) {
 
 function SpectatorPanel({spectators}: { spectators: PlanningPokerParticipant[] }) {
     return (
-        <div className="absolute -left-24 top-1/2 -translate-y-1/2 z-10 hidden xl:block">
-            <div className="rounded-2xl bg-content2/60 backdrop-blur-sm border border-content3/60 p-3 flex flex-col items-center gap-3 w-[80px]">
+        <div className="absolute -left-20 top-1/2 -translate-y-1/2 z-10 hidden xl:block">
+            <div className="rounded-xl bg-content2/60 backdrop-blur-sm border border-content3/60 p-2 flex flex-col items-center gap-2 w-[72px]">
                 <div className="flex items-center gap-1 cursor-default">
-                    <Eye className={`${ICON_SM} text-foreground-400`}/>
-                    <span className="text-[11px] font-semibold text-foreground-400">
+                    <Eye className="h-3 w-3 text-foreground-400"/>
+                    <span className="text-[10px] font-semibold text-foreground-400">
                         {spectators.length}
                     </span>
                 </div>
-                <div className="flex flex-col items-center gap-2.5">
+                <div className="flex flex-col items-center gap-2">
                     {spectators.map(p => (
                         <Tooltip key={p.participantId} content={p.displayName} placement="right">
                             <div className="flex flex-col items-center gap-0.5 group cursor-default">
                                     <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
                                         name={p.displayName}
-                                        className="h-10 w-10 opacity-60 group-hover:opacity-100 transition-opacity"
+                                        className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity"
                                         borderClass="border border-content3 group-hover:border-primary/40 transition-all"/>
-                                <span className="text-[10px] text-foreground-500 truncate w-16 text-center leading-tight">
+                                <span className="text-[10px] text-foreground-500 truncate w-14 text-center leading-tight">
                                     {p.displayName}
                                 </span>
                             </div>
@@ -836,7 +880,7 @@ function SpectatorPanel({spectators}: { spectators: PlanningPokerParticipant[] }
 function NoticeBar({isSpectator, isArchived}: { isSpectator: boolean; isArchived: boolean }) {
     if (isSpectator && !isArchived) {
         return (
-            <div className="flex items-center justify-center gap-2 text-foreground-400 text-xs mt-3">
+            <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-2 text-foreground-400 text-xs">
                 <Eye className={ICON_SM}/>
                 <span>You are spectating. Switch to Participant to vote.</span>
             </div>
@@ -844,7 +888,7 @@ function NoticeBar({isSpectator, isArchived}: { isSpectator: boolean; isArchived
     }
     if (isArchived) {
         return (
-            <div className="flex items-center justify-center gap-2 text-warning text-xs mt-3">
+            <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-2 text-warning text-xs">
                 <Archive className={ICON_SM}/>
                 <span className="font-medium">This room has been archived and is read-only.</span>
             </div>
@@ -864,13 +908,13 @@ function CardPicker({visible, deckValues, effectiveVote, isVoting, onVote, onCle
     onClearVote: () => void;
 }) {
     return (
-        <div className={`sticky bottom-0 z-20 pointer-events-none
+        <div className={`shrink-0 z-20 pointer-events-none
             transition-all duration-500 ease-out
             ${visible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-            <div className="flex justify-center px-2 pb-3 pt-1 pointer-events-auto">
+            <div className="flex justify-center px-2 pb-2 pt-1 pointer-events-auto">
                 <div className="bg-content2/95 backdrop-blur-xl border border-content3/80
-                    shadow-[0_-2px_32px_rgba(0,0,0,0.12)] rounded-2xl px-5 py-3.5 max-w-fit">
-                    <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                    shadow-[0_-2px_24px_rgba(0,0,0,0.10)] rounded-xl px-4 py-2.5 max-w-fit">
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
                         {deckValues.map(v => {
                             const isSelected = effectiveVote === v;
                             return (
@@ -878,12 +922,12 @@ function CardPicker({visible, deckValues, effectiveVote, isVoting, onVote, onCle
                                     key={v}
                                     onClick={isVoting ? () => isSelected ? onClearVote() : onVote(v) : undefined}
                                     disabled={!isVoting}
-                                    whileHover={isVoting && !isSelected ? {y: -4, scale: 1.05} : {}}
+                                    whileHover={isVoting && !isSelected ? {y: -3, scale: 1.05} : {}}
                                     whileTap={isVoting ? {scale: 0.92} : {}}
-                                    animate={isSelected ? {y: -8, scale: 1.1} : {y: 0, scale: 1}}
+                                    animate={isSelected ? {y: -6, scale: 1.08} : {y: 0, scale: 1}}
                                     transition={{type: 'spring', stiffness: 400, damping: 25}}
                                     className={`
-                                        w-[60px] h-[84px] rounded-xl border-2 text-lg font-bold
+                                        w-[50px] h-[70px] rounded-lg border-2 text-base font-bold
                                         flex items-center justify-center select-none
                                         ${isVoting ? 'cursor-pointer' : 'cursor-default opacity-40'}
                                         ${isSelected
@@ -964,11 +1008,11 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
     const roundLabel = getRoundLabel(room, hasTasks);
 
     return (
-        <div className="rounded-2xl bg-content2/80 border border-content3/60 overflow-hidden">
+        <div className="rounded-xl bg-content2/80 border border-content3/60 overflow-hidden">
             {/* Single-line header */}
-            <div className="px-6 py-4 flex items-center gap-4">
-                <div className="min-w-0 flex items-center gap-3 flex-1">
-                    <span className="text-lg font-bold text-foreground-600 truncate">
+            <div className="px-4 py-2.5 flex items-center gap-3">
+                <div className="min-w-0 flex items-center gap-2.5 flex-1">
+                    <span className="text-base font-bold text-foreground-600 truncate">
                         {roundLabel}
                     </span>
                     {hasTasks && (
@@ -998,9 +1042,9 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
 
             {/* Results (revealed) */}
             {hasResults && (
-                <div className="px-5 py-3 flex items-center gap-4 border-t border-content3/40">
+                <div className="px-4 py-2.5 flex items-center gap-3 border-t border-content3/40">
                     {/* Distribution cards */}
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2.5 flex-1">
                         {sorted.map(([value, count], index) => (
                             <DistributionCard
                                 key={value}
@@ -1017,7 +1061,7 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
                     {/* Average + consensus */}
                     <div className="flex items-center gap-2.5 shrink-0">
                         {summary!.numericAverageDisplay && (
-                            <span className="text-3xl font-black tabular-nums text-warning leading-none">
+                            <span className="text-2xl font-black tabular-nums text-warning leading-none">
                                 {summary!.numericAverageDisplay}
                             </span>
                         )}
@@ -1038,15 +1082,15 @@ function VoteProgressDots({participants, votedCount, totalActive, allVoted}: {
     allVoted: boolean;
 }) {
     return (
-        <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-1">
                 {participants.map(p => (
                     <div key={p.participantId}
-                         className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
+                         className={`w-2 h-2 rounded-full transition-colors duration-300 ${
                              p.hasVoted ? 'bg-success' : 'bg-default-300'}`}/>
                 ))}
             </div>
-            <span className={`text-base font-semibold tabular-nums ${allVoted ? 'text-success' : 'text-foreground-500'}`}>
+            <span className={`text-sm font-semibold tabular-nums ${allVoted ? 'text-success' : 'text-foreground-500'}`}>
                 {votedCount}/{totalActive}
             </span>
         </div>
@@ -1072,7 +1116,7 @@ function DistributionCard({value, count, totalVotes, isTop, voters, animationDel
                  opacity: visible ? 1 : 0,
                  transition: `opacity 250ms ease-out ${animationDelay}ms`,
              }}>
-            <div className={`w-10 h-14 rounded-lg border-2 flex items-center justify-center text-base font-black
+            <div className={`w-9 h-12 rounded-lg border-2 flex items-center justify-center text-sm font-black
                 ${isTop ? 'border-primary/60 bg-primary/10 text-primary' : 'border-content4 bg-content3/40 text-foreground-600'}`}>
                 {value}
             </div>
@@ -1114,7 +1158,7 @@ function VoterAvatars({voters}: { voters: PlanningPokerParticipant[] }) {
 
 // ── PokerTableScene ──────────────────────────────────────────────────────────
 
-function PokerTableScene({participants, viewerParticipantId, isVoting, isRevealed, isModerator, isArchived, hasAnyVotes, allVoted, actionLoading, onReveal, onRevote, onReset, hasTasks, room}: {
+function PokerTableScene({participants, viewerParticipantId, isVoting, isRevealed, isModerator, isArchived, hasAnyVotes, allVoted, actionLoading, onReveal, onRevote, onReset, hasTasks, room, scene}: {
     participants: PlanningPokerParticipant[];
     viewerParticipantId: string;
     isVoting: boolean;
@@ -1129,7 +1173,10 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
     onReset: () => void;
     hasTasks: boolean;
     room: PlanningPokerRoom;
+    scene: SceneDimensions;
 }) {
+    const {sceneW, sceneH, orbitR, cx, cy, cardW, cardH, avatarSize, cardInward, nameLabelWidth, scale} = scene;
+
     const seats = useMemo(() => {
         const count = participants.length;
         if (count === 0) return [];
@@ -1142,10 +1189,10 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
         const startDeg = ARC_MID_DEG - span / 2;
         const endDeg = ARC_MID_DEG + span / 2;
 
-        const orbitBase = count <= 2 ? ORBIT_R * 0.88
-            : count <= 3 ? ORBIT_R * 0.90
-            : count <= 5 ? ORBIT_R * 0.94
-            : ORBIT_R;
+        const orbitBase = count <= 2 ? orbitR * 0.88
+            : count <= 3 ? orbitR * 0.90
+            : count <= 5 ? orbitR * 0.94
+            : orbitR;
 
         const rx = orbitBase;
         const ry = orbitBase * 0.65;
@@ -1155,20 +1202,20 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
                 ? 270
                 : startDeg + (i / (count - 1)) * (endDeg - startDeg);
             const rad = (deg * Math.PI) / 180;
-            const x = CX + Math.cos(rad) * rx;
-            const y = CY - Math.sin(rad) * ry;
-            const dx = x - CX;
-            const dy = y - CY;
+            const x = cx + Math.cos(rad) * rx;
+            const y = cy - Math.sin(rad) * ry;
+            const dx = x - cx;
+            const dy = y - cy;
             const dist = Math.sqrt(dx * dx + dy * dy) || 1;
             const nx = dx / dist;
             const ny = dy / dist;
             return {participant: p, x, y, nx, ny, deg};
         });
-    }, [participants]);
+    }, [participants, orbitR, cx, cy]);
 
     if (participants.length === 0) {
         return (
-            <div className="flex flex-col items-center py-8">
+            <div className="flex flex-col items-center py-6">
                 <p className="text-sm text-foreground-400">No active voters yet</p>
             </div>
         );
@@ -1178,7 +1225,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
         <div className="flex justify-center w-full">
             <div
                 className="relative"
-                style={{width: `${SCENE_W}px`, height: `${SCENE_H}px`, maxWidth: '100%'}}
+                style={{width: `${sceneW}px`, height: `${sceneH}px`}}
             >
                 {/* ── Center table ── */}
                 <CenterTable
@@ -1194,6 +1241,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
                     onReveal={onReveal}
                     onRevote={onRevote}
                     onReset={onReset}
+                    scene={scene}
                 />
 
                 {/* ── Participant seats ── */}
@@ -1206,6 +1254,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
                         isViewer={p.participantId === viewerParticipantId}
                         isVoting={isVoting}
                         isRevealed={isRevealed}
+                        scene={scene}
                     />
                 ))}
             </div>
@@ -1215,7 +1264,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
 
 // ── CenterTable ──────────────────────────────────────────────────────────────
 
-function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevealed, hasAnyVotes, allVoted, actionLoading, onReveal, onRevote, onReset}: {
+function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevealed, hasAnyVotes, allVoted, actionLoading, onReveal, onRevote, onReset, scene}: {
     room: PlanningPokerRoom;
     hasTasks: boolean;
     isModerator: boolean;
@@ -1228,27 +1277,35 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
     onReveal: () => void;
     onRevote: () => void;
     onReset: () => void;
+    scene: SceneDimensions;
 }) {
+    const {cx, cy, centerRx, centerRy, scale} = scene;
     const showRevealButton = isModerator && !isArchived && isVoting;
     const showRevealedActions = isModerator && !isArchived && isRevealed;
     const showWaitingMessage = (!isModerator || isArchived) && isVoting;
+
+    // Scale button sizes for smaller viewports
+    const btnSize = scale >= 0.85 ? 'lg' as const : 'md' as const;
+    const revealClass = scale >= 0.85
+        ? 'font-bold px-8 h-12 text-base rounded-xl'
+        : 'font-bold px-6 h-10 text-sm rounded-lg';
 
     return (
         <div
             className="absolute bg-gradient-to-br from-content2 via-content2 to-content3/50
                 border border-content3/80
                 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_60px_rgba(0,0,0,0.12),0_2px_12px_rgba(0,0,0,0.06)]
-                flex flex-col items-center justify-center gap-4"
+                flex flex-col items-center justify-center gap-3"
             style={{
-                left: `${CX - CENTER_RX}px`,
-                top: `${CY - CENTER_RY}px`,
-                width: `${CENTER_RX * 2}px`,
-                height: `${CENTER_RY * 2}px`,
+                left: `${cx - centerRx}px`,
+                top: `${cy - centerRy}px`,
+                width: `${centerRx * 2}px`,
+                height: `${centerRy * 2}px`,
                 borderRadius: '50%',
             }}
         >
             {/* Task label */}
-            <div className="text-[13px] font-semibold uppercase tracking-wider text-foreground-400 text-center leading-snug max-w-[70%] break-words">
+            <div className="text-xs font-semibold uppercase tracking-wider text-foreground-400 text-center leading-snug max-w-[70%] break-words">
                 {getRoundLabel(room, hasTasks)}
             </div>
 
@@ -1261,12 +1318,12 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
                     delay={200}
                 >
                     <span className="inline-block">
-                        <Button size="lg" color="primary" variant="solid"
+                        <Button size={btnSize} color="primary" variant="solid"
                             onPress={onReveal}
                             isDisabled={!hasAnyVotes}
                             isLoading={actionLoading === 'Reveal'}
-                            startContent={!actionLoading ? <Eye className="h-6 w-6"/> : undefined}
-                            className={`font-bold px-10 h-14 text-lg rounded-xl
+                            startContent={!actionLoading ? <Eye className="h-5 w-5"/> : undefined}
+                            className={`${revealClass}
                                 shadow-lg shadow-primary/25
                                 hover:shadow-xl hover:shadow-primary/35 hover:scale-[1.02]
                                 active:scale-95 transition-all duration-200
@@ -1279,19 +1336,19 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
 
             {/* Revote / Next buttons */}
             {showRevealedActions && (
-                <div className="flex gap-3">
-                    <Button size="lg" color="warning" variant="flat"
+                <div className="flex gap-2">
+                    <Button size="md" color="warning" variant="flat"
                         onPress={onRevote}
                         isLoading={actionLoading === 'Revote'}
-                        startContent={<RefreshCw className={ICON_MD}/>}
-                        className="font-semibold px-6 h-12 text-sm">
+                        startContent={<RefreshCw className={ICON_SM}/>}
+                        className="font-semibold px-4 h-9 text-xs">
                         Revote
                     </Button>
-                    <Button size="lg" color="secondary" variant="solid"
+                    <Button size="md" color="secondary" variant="solid"
                         onPress={onReset}
                         isLoading={actionLoading === 'Reset'}
-                        startContent={<RefreshCw className={ICON_MD}/>}
-                        className="font-semibold px-6 h-12 text-sm shadow-md shadow-secondary/20">
+                        startContent={<RefreshCw className={ICON_SM}/>}
+                        className="font-semibold px-4 h-9 text-xs shadow-md shadow-secondary/20">
                         Next
                     </Button>
                 </div>
@@ -1299,7 +1356,7 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
 
             {/* Waiting message for non-moderators */}
             {showWaitingMessage && (
-                <span className="text-sm text-foreground-400">Waiting for reveal…</span>
+                <span className="text-xs text-foreground-400">Waiting for reveal…</span>
             )}
         </div>
     );
@@ -1307,23 +1364,26 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
 
 // ── ParticipantSeat ──────────────────────────────────────────────────────────
 
-function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVoting, isRevealed}: {
+function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVoting, isRevealed, scene}: {
     participant: PlanningPokerParticipant;
     x: number; y: number; nx: number; ny: number;
     index: number;
     isViewer: boolean;
     isVoting: boolean;
     isRevealed: boolean;
+    scene: SceneDimensions;
 }) {
-    const cardX = x - nx * CARD_INWARD - CARD_W / 2;
-    const cardY = y - ny * CARD_INWARD - CARD_H / 2;
-    const avatarX = x - AVATAR_SIZE / 2;
-    const avatarY = y - AVATAR_SIZE / 2;
+    const {sceneW, sceneH, cardW, cardH, avatarSize, cardInward, nameLabelWidth} = scene;
+
+    const cardX = x - nx * cardInward - cardW / 2;
+    const cardY = y - ny * cardInward - cardH / 2;
+    const avatarX = x - avatarSize / 2;
+    const avatarY = y - avatarSize / 2;
 
     return (
         <motion.div
             className="absolute"
-            style={{left: 0, top: 0, width: `${SCENE_W}px`, height: `${SCENE_H}px`, pointerEvents: 'none'}}
+            style={{left: 0, top: 0, width: `${sceneW}px`, height: `${sceneH}px`, pointerEvents: 'none'}}
             initial={{opacity: 0, scale: 0.92}}
             animate={{opacity: 1, scale: 1}}
             transition={{delay: index * 0.04, type: 'spring', stiffness: 340, damping: 26}}
@@ -1334,8 +1394,8 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
                 style={{
                     left: `${cardX}px`,
                     top: `${cardY}px`,
-                    width: `${CARD_W}px`,
-                    height: `${CARD_H}px`,
+                    width: `${cardW}px`,
+                    height: `${cardH}px`,
                     pointerEvents: 'auto',
                 }}
             >
@@ -1350,33 +1410,33 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
 
             {/* Avatar */}
             <div
-                className="absolute"
+                className="absolute flex items-center justify-center"
                 style={{
                     left: `${avatarX}px`,
                     top: `${avatarY}px`,
-                    width: `${AVATAR_SIZE}px`,
-                    height: `${AVATAR_SIZE}px`,
+                    width: `${avatarSize}px`,
+                    height: `${avatarSize}px`,
                     pointerEvents: 'auto',
                 }}
             >
-                <div className="relative">
+                <div className="relative w-full h-full">
                         <DiceBearAvatar
                             userId={p.participantId}
                             avatarJson={p.avatarUrl}
                             name={p.displayName}
-                            className="h-12 w-12"
+                            className="w-full h-full"
                             size="sm"
                             borderClass={`transition-all duration-300 ${isViewer
                                 ? 'border-2 border-primary/60'
                                 : 'border border-content3/60'}`}
                         />
                     {p.isModerator && (
-                        <div className="absolute -top-1 -right-1 bg-warning rounded-full p-[3px] shadow-sm">
-                            <Crown className="h-3 w-3 text-white"/>
+                        <div className="absolute -top-1 -right-1 bg-warning rounded-full p-[2px] shadow-sm">
+                            <Crown className="h-2.5 w-2.5 text-white"/>
                         </div>
                     )}
                     {!p.isPresent && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-foreground-300 border-2 border-content1"/>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-foreground-300 border-2 border-content1"/>
                     )}
                 </div>
             </div>
@@ -1386,13 +1446,13 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
                 <div
                     className="absolute flex items-start justify-center"
                     style={{
-                        left: `${x - NAME_LABEL_WIDTH / 2}px`,
-                        top: `${avatarY + AVATAR_SIZE + 4}px`,
-                        width: `${NAME_LABEL_WIDTH}px`,
+                        left: `${x - nameLabelWidth / 2}px`,
+                        top: `${avatarY + avatarSize + 3}px`,
+                        width: `${nameLabelWidth}px`,
                         pointerEvents: 'auto',
                     }}
                 >
-                    <span className={`text-xs leading-tight font-medium truncate text-center
+                    <span className={`text-[11px] leading-tight font-medium truncate text-center
                         ${isViewer ? 'text-primary' : 'text-foreground-500'}`}>
                         {p.displayName}
                     </span>
@@ -1414,7 +1474,7 @@ function FlipCard({hasVoted, isVoting, isRevealed, revealedVote, sizeClass}: {
     const showFront = isRevealed;
 
     return (
-        <div className={sizeClass ?? 'w-[64px] h-[88px]'} style={{perspective: '600px'}}>
+        <div className={sizeClass ?? 'w-[54px] h-[74px]'} style={{perspective: '600px'}}>
             <motion.div
                 className="relative w-full h-full"
                 style={{transformStyle: 'preserve-3d'}}
@@ -1423,29 +1483,29 @@ function FlipCard({hasVoted, isVoting, isRevealed, revealedVote, sizeClass}: {
             >
                 {/* Front face — revealed vote */}
                 <div
-                    className={`absolute inset-0 rounded-xl border-2 flex items-center justify-center
+                    className={`absolute inset-0 rounded-lg border-2 flex items-center justify-center
                         ${isRevealed && revealedVote
                             ? 'border-primary/50 bg-content1 shadow-md'
                             : 'border-content3 bg-content1'}`}
                     style={{backfaceVisibility: 'hidden'}}
                 >
-                    <span className="text-xl font-black text-primary tabular-nums">
+                    <span className="text-lg font-black text-primary tabular-nums">
                         {revealedVote ?? '—'}
                     </span>
                 </div>
 
                 {/* Back face — hidden card or empty */}
                 <div
-                    className={`absolute inset-0 rounded-xl border-2 flex items-center justify-center
+                    className={`absolute inset-0 rounded-lg border-2 flex items-center justify-center
                         ${hasVoted
                             ? 'border-success/40 bg-content1 shadow-md'
                             : 'border-content3 bg-content1'}`}
                     style={{backfaceVisibility: 'hidden', transform: 'rotateY(180deg)'}}
                 >
                     {hasVoted ? (
-                        <CheckCircle className="h-6 w-6 text-success"/>
+                        <CheckCircle className="h-5 w-5 text-success"/>
                     ) : (
-                        <span className="text-foreground-300/60 text-base font-medium">?</span>
+                        <span className="text-foreground-300/60 text-sm font-medium">?</span>
                     )}
                 </div>
             </motion.div>

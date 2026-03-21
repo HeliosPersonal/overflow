@@ -27,7 +27,7 @@ export default function AppPagination({totalCount}: Props) {
     };
 
     return (
-        <div className='bg-content1 border-t border-content2 flex justify-between items-center pt-3 pb-6 px-6'>
+        <div className='bg-content1 border-t border-content2 flex justify-between items-center pt-3 pb-4 px-6'>
             <div className='flex items-center gap-2'>
                 <span className='text-sm text-foreground-500'>Page size: </span>
                 <div className='flex items-center gap-1'>

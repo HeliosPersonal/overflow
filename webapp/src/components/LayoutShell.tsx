@@ -29,19 +29,21 @@ export default function LayoutShell({
             {topNav}
 
             <div className="flex flex-1 overflow-hidden mt-14">
-                {/* ── Collapsible Sidebar ── */}
-                <aside
-                    className={`shrink-0 bg-content1 border-r border-content3/50 py-4
-                        transition-all duration-300 ease-out overflow-hidden
-                        ${collapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
-                >
-                    {React.isValidElement<{ collapsed?: boolean; onToggle?: () => void }>(sideMenu)
-                        ? React.cloneElement(sideMenu, { collapsed, onToggle: () => setCollapsed(c => !c) })
-                        : sideMenu}
-                </aside>
+                {/* ── Collapsible Sidebar (hidden in poker rooms) ── */}
+                {!isPokerRoom && (
+                    <aside
+                        className={`shrink-0 bg-content1 border-r border-content3/50 py-4
+                            transition-all duration-300 ease-out overflow-hidden
+                            ${collapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
+                    >
+                        {React.isValidElement<{ collapsed?: boolean; onToggle?: () => void }>(sideMenu)
+                            ? React.cloneElement(sideMenu, { collapsed, onToggle: () => setCollapsed(c => !c) })
+                            : sideMenu}
+                    </aside>
+                )}
 
                 {/* ── Main content ── */}
-                <main className="flex-1 overflow-y-auto bg-background">
+                <main className={`flex-1 bg-background ${isPokerRoom ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                     {children}
                 </main>
 
