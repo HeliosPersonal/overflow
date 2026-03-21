@@ -2,18 +2,16 @@ using Overflow.Contracts;
 
 namespace Overflow.NotificationService.Templates;
 
-/// <summary>
-/// Rendered notification content returned by <see cref="ITemplateRenderer"/>.
-/// </summary>
-public record RenderedTemplate(string Subject, string HtmlBody, string TextBody);
+/// <summary>Rendered notification content (HTML + plaintext + inline images).</summary>
+public record RenderedTemplate(
+    string Subject,
+    string HtmlBody,
+    string TextBody,
+    IReadOnlyList<InlineImage> InlineImages);
 
-/// <summary>
-/// Resolves a template by enum and renders it with the given parameters.
-/// </summary>
+/// <summary>Renders notification templates from embedded resources.</summary>
 public interface ITemplateRenderer
 {
-    /// <summary>
-    /// Render a template. Returns null if the template is unknown.
-    /// </summary>
+    /// <summary>Render a template. Returns null if unknown.</summary>
     RenderedTemplate? Render(NotificationTemplate template, Dictionary<string, string> parameters);
 }
