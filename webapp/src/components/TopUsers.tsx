@@ -9,9 +9,9 @@ import Link from "next/link";
 import DiceBearAvatar from "@/components/DiceBearAvatar";
 
 const RANK_STYLES = [
-    {ring: 'ring-yellow-200', bg: 'bg-yellow-50/80 dark:bg-yellow-900/15', text: 'text-yellow-400 dark:text-yellow-300/70', medal: '🥇'},
-    {ring: 'ring-slate-200', bg: 'bg-slate-50/80 dark:bg-slate-800/20', text: 'text-slate-400/80', medal: '🥈'},
-    {ring: 'ring-amber-300/50', bg: 'bg-amber-50/70 dark:bg-amber-900/10', text: 'text-amber-500/70 dark:text-amber-400/60', medal: '🥉'},
+    {border: 'border-2 border-yellow-200', bg: 'bg-yellow-50/80 dark:bg-yellow-900/15', text: 'text-yellow-400 dark:text-yellow-300/70', medal: '🥇'},
+    {border: 'border-2 border-slate-200', bg: 'bg-slate-50/80 dark:bg-slate-800/20', text: 'text-slate-400/80', medal: '🥈'},
+    {border: 'border-2 border-amber-300/50', bg: 'bg-amber-50/70 dark:bg-amber-900/10', text: 'text-amber-500/70 dark:text-amber-400/60', medal: '🥉'},
 ];
 
 const BAR_COLORS = [
@@ -84,16 +84,12 @@ export default function TopUsers() {
                             <div key={u.userId} className="flex items-center gap-3 group">
                                 {/* Avatar */}
                                 <Link href={`/profiles/${u.userId}`} className="shrink-0">
-                                    <div className={`
-                                        relative w-10 h-10 rounded-full
-                                        ring-2 ring-offset-1 ring-offset-content2
-                                        ${rank ? `${rank.ring}` : 'ring-default-300'}
-                                        transition-transform group-hover:scale-105
-                                    `}>
+                                    <div className="relative w-10 h-10 transition-transform group-hover:scale-105">
                                         <DiceBearAvatar
                                             userId={u.userId}
                                             avatarJson={u.profile!.avatarUrl}
                                             className="w-10 h-10"
+                                            borderClass={rank ? rank.border : 'border-2 border-default-300'}
                                             name={initials}
                                         />
                                         {index < 3 && (

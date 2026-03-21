@@ -122,7 +122,7 @@ export default function AuthGatePage() {
                                         <img
                                             src={avatarSrc}
                                             alt="Avatar"
-                                            className="h-20 w-20 rounded-full ring-2 ring-foreground-200 group-hover:ring-primary transition-all"
+                                            className="h-20 w-20 rounded-full border-2 border-foreground-200 group-hover:border-primary transition-all"
                                         />
                                         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
                                             Edit

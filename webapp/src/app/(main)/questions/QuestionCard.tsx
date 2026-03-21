@@ -59,7 +59,7 @@ export default function QuestionCard({question}: Props) {
                         <div className='text-sm flex items-center gap-2'>
                             <DiceBearAvatar 
                                 className='h-6 w-6'
-                                color='primary'
+                                borderClass='border-2 border-primary'
                                 userId={question.askerId}
                                 avatarJson={question.author?.avatarUrl}
                                 name={question.author?.displayName?.charAt(0)}

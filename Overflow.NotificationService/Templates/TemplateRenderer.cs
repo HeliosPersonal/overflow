@@ -5,24 +5,16 @@ using Overflow.Contracts;
 namespace Overflow.NotificationService.Templates;
 
 /// <summary>
-/// Renders notification templates from embedded HTML/text resource files.
-///
-/// Template files live in Templates/Html/{TemplateName}.html and Templates/Text/{TemplateName}.txt.
-/// Placeholders use the {{key}} syntax and are replaced with values from the parameters dictionary.
-/// The built-in {{year}} placeholder is always available.
-///
-/// To add a new template:
-///   1. Add the enum value to <see cref="NotificationTemplate"/>
-///   2. Create Html/{EnumName}.html and Text/{EnumName}.txt
-///   3. Add a subject mapping in <see cref="Subjects"/>
+/// Renders templates from embedded HTML/text files. Placeholders use {{key}} syntax.
+/// To add a template: add enum → create Html/Text files → add subject in <see cref="Subjects"/>.
 /// </summary>
 public partial class TemplateRenderer : ITemplateRenderer
 {
     private static readonly Assembly Assembly = typeof(TemplateRenderer).Assembly;
 
-    /// <summary>
-    /// Subject line per template. Supports {{key}} placeholders.
-    /// </summary>
+    private const string LogoContentId = "overflow-logo";
+    private static readonly Lazy<InlineImage?> LogoImage = new(LoadLogoImage);
+
     private static readonly Dictionary<NotificationTemplate, string> Subjects = new()
     {
         [NotificationTemplate.PasswordReset] = "Reset your {{appName}} password",
@@ -41,7 +33,6 @@ public partial class TemplateRenderer : ITemplateRenderer
         if (htmlRaw is null || textRaw is null)
             return null;
 
-        // Add built-in placeholders
         var allParams = new Dictionary<string, string>(parameters, StringComparer.OrdinalIgnoreCase)
         {
             ["year"] = DateTime.UtcNow.Year.ToString()
@@ -51,7 +42,9 @@ public partial class TemplateRenderer : ITemplateRenderer
         var html = ReplacePlaceholders(htmlRaw, allParams);
         var text = ReplacePlaceholders(textRaw, allParams);
 
-        return new RenderedTemplate(subject, html, text);
+        var inlineImages = LogoImage.Value is { } logo ? [logo] : new List<InlineImage>();
+
+        return new RenderedTemplate(subject, html, text, inlineImages);
     }
 
     private static string ReplacePlaceholders(string content, Dictionary<string, string> parameters)
@@ -65,12 +58,21 @@ public partial class TemplateRenderer : ITemplateRenderer
 
     private static string? LoadEmbeddedResource(string relativePath)
     {
-        // Embedded resource names use the default namespace + folder path with dots
         var resourceName = $"Overflow.NotificationService.{relativePath}";
         using var stream = Assembly.GetManifestResourceStream(resourceName);
         if (stream is null) return null;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    private static InlineImage? LoadLogoImage()
+    {
+        const string resourceName = "Overflow.NotificationService.Templates.Images.overflow-logo.png";
+        using var stream = Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null) return null;
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return new InlineImage(LogoContentId, ms.ToArray(), "image/png", "overflow-logo.png");
     }
 
     [GeneratedRegex(@"\{\{(\w+)\}\}")]

@@ -20,6 +20,7 @@
     <ItemGroup>
         <EmbeddedResource Include="Templates\Html\*.html"/>
         <EmbeddedResource Include="Templates\Text\*.txt"/>
+        <EmbeddedResource Include="Templates\Images\*.png"/>
     </ItemGroup>
 
     <ItemGroup>

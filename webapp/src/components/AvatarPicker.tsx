@@ -16,8 +16,11 @@ type Props = {
 };
 
 const BG_COLORS = [
+    // Light pastels
     'b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf',
-    'f9e8d9', 'a3d9a5', 'f5c6aa', 'cce2cb', 'e2cfc4',
+    'f9e8d9', 'a3d9a5', 'f5c6aa', 'e2cfc4', 'f0e6c8',
+    // Dark tones
+    '2e1f3b', '1f2e3b', '1e3333', '2a2a3d', '2f332b',
 ];
 
 const COLOR_FEATURES = new Set(['skinColor', 'clothesColor', 'hairColor', 'facialHairColor', 'accessoriesColor']);
@@ -132,7 +135,7 @@ export default function AvatarPicker({ value, seed, onChange, children }: Props)
                             <img
                                 src={previewSrc}
                                 alt="Avatar preview"
-                                className="h-28 w-28 rounded-full ring-3 ring-primary/40 shrink-0"
+                                className="h-28 w-28 rounded-full border-3 border-primary/40 shrink-0"
                             />
                             <div className="flex flex-col gap-2">
                                 <p className="text-sm text-foreground-500">

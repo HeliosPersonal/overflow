@@ -4,10 +4,7 @@ using Overflow.NotificationService.Templates;
 
 namespace Overflow.NotificationService.MessageHandlers;
 
-/// <summary>
-/// Wolverine message handler — consumes <see cref="SendNotification"/> from RabbitMQ,
-/// resolves the template, and dispatches to the appropriate channel.
-/// </summary>
+/// <summary>Consumes <see cref="SendNotification"/> from RabbitMQ, renders the template, and dispatches to the channel.</summary>
 public class SendNotificationHandler(
     ITemplateRenderer templateRenderer,
     IEnumerable<INotificationChannel> channels,
@@ -22,7 +19,6 @@ public class SendNotificationHandler(
             "Processing notification: channel={Channel}, template={Template}, to={Recipient}",
             message.Channel, message.Template, message.Recipient);
 
-        // 1. Render the template
         var rendered = templateRenderer.Render(message.Template, message.Parameters);
         if (rendered is null)
         {
@@ -30,7 +26,6 @@ public class SendNotificationHandler(
             return;
         }
 
-        // 2. Dispatch to the right channel
         var channelName = message.Channel.ToString();
         if (!_channels.TryGetValue(channelName, out var channel))
         {
@@ -38,6 +33,7 @@ public class SendNotificationHandler(
             return;
         }
 
-        await channel.SendAsync(message.Recipient, rendered.Subject, rendered.HtmlBody, rendered.TextBody);
+        await channel.SendAsync(message.Recipient, rendered.Subject, rendered.HtmlBody, rendered.TextBody,
+            rendered.InlineImages);
     }
 }

@@ -170,7 +170,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
 
                                             {/* Participants */}
                                             <td className="py-3 pr-4">
-                                                <AvatarGroup max={5} size="sm" isBordered>
+                                                <AvatarGroup max={5} size="sm">
                                                     {r.participants.map((p, i) => (
                                                         <Tooltip key={i} content={p.displayName} placement="top">
                                                             <span className="inline-flex">
