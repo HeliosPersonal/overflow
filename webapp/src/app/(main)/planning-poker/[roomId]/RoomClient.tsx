@@ -716,10 +716,10 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
         <div className="border-b border-content3 bg-content2/80 backdrop-blur-md z-10">
             <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-3">
                 {/* Left: title + status */}
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="flex items-center justify-center gap-2.5 min-w-0 flex-1">
                     {editingTitle ? (
                         <input
-                            className="text-lg font-bold bg-content1 border border-primary rounded-md px-2 py-0.5 min-w-0 w-64
+                            className="text-lg font-bold bg-content1 border border-primary rounded-md px-2 py-0.5 min-w-0 w-64 text-center
                             focus:outline-none focus:ring-2 focus:ring-primary/40"
                             value={titleDraft}
                             onChange={e => onTitleDraftChange(e.target.value)}
@@ -735,7 +735,7 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
                         <div
                             className={`flex items-center gap-1.5 min-w-0 ${canEditTitle ? 'group cursor-pointer' : ''}`}
                             onClick={canEditTitle ? onStartEditingTitle : undefined}>
-                            <h1 className="text-lg font-bold truncate">{room.title}</h1>
+                            <h1 className="text-lg font-bold truncate text-center">{room.title}</h1>
                             {canEditTitle && (
                                 <Pencil className={`${ICON_SM} text-foreground-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0`}/>
                             )}
