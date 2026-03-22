@@ -11,6 +11,9 @@ import { signupSchema, type SignupFormData } from '@/lib/validators/auth';
 import Link from 'next/link';
 import { Layers } from '@/components/animated-icons';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
+import { createClientLogger } from '@/lib/client-logger';
+
+const log = createClientLogger('SignupPage');
 
 export default function SignupPage() {
     const router = useRouter();
@@ -44,7 +47,7 @@ export default function SignupPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                console.error('Signup failed:', result.error);
+                log.warn('Signup failed', { error: result.error });
                 setError(result.error || 'Signup failed. Please try again.');
                 setIsLoading(false);
                 return;
@@ -57,7 +60,7 @@ export default function SignupPage() {
             }, 2000);
 
         } catch (err) {
-            console.error('Signup error:', err);
+            log.error('Signup error', err instanceof Error ? err : String(err));
             setError('An unexpected error occurred. Please try again.');
             setIsLoading(false);
         }

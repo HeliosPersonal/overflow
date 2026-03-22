@@ -10,6 +10,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { createClientLogger } from '@/lib/client-logger';
+
+const log = createClientLogger('ResetPasswordPage');
 
 const resetPasswordSchema = z.object({
     password: z.string()
@@ -82,7 +85,7 @@ export default function ResetPasswordPage() {
             }, 3000);
 
         } catch (err) {
-            console.error('Reset password error:', err);
+            log.error('Reset password error', err instanceof Error ? err : String(err));
             setError('An unexpected error occurred. Please try again.');
             setIsLoading(false);
         }

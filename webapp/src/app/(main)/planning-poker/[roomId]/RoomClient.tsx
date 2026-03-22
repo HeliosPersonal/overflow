@@ -1175,7 +1175,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
     room: PlanningPokerRoom;
     scene: SceneDimensions;
 }) {
-    const {sceneW, sceneH, orbitR, cx, cy, cardW, cardH, avatarSize, cardInward, nameLabelWidth, scale} = scene;
+    const {sceneW, sceneH, orbitR, cx, cy} = scene;
 
     const seats = useMemo(() => {
         const count = participants.length;

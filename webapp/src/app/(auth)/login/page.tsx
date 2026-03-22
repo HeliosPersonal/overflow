@@ -12,6 +12,9 @@ import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { Layers } from '@/components/animated-icons';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
+import { createClientLogger } from '@/lib/client-logger';
+
+const log = createClientLogger('LoginPage');
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,16 +37,12 @@ export default function LoginPage() {
     });
 
     const onSubmit = async (data: LoginFormData) => {
-        console.log('[Login Page] ========== LOGIN SUBMIT START ==========');
-        console.log('[Login Page] Timestamp:', new Date().toISOString());
-        console.log('[Login Page] Email:', data.email);
-        console.log('[Login Page] Callback URL:', callbackUrl);
+        log.debug('Login submit start', { email: data.email, callbackUrl });
         
         setIsLoading(true);
         setError(null);
 
         try {
-            console.log('[Login Page] Calling signIn with credentials provider...');
             // eslint-disable-next-line react-hooks/purity
             const startTime = Date.now();
             
@@ -55,43 +54,28 @@ export default function LoginPage() {
             
             // eslint-disable-next-line react-hooks/purity
             const duration = Date.now() - startTime;
-            console.log('[Login Page] signIn completed in', duration, 'ms');
-            console.log('[Login Page] Result:', {
-                ok: result?.ok,
-                error: result?.error,
-                status: result?.status,
-                url: result?.url
-            });
+            log.debug('signIn completed', { duration, ok: result?.ok, error: result?.error, status: result?.status });
 
             if (result?.error) {
-                console.error('[Login Page] Login failed with error:', result.error);
+                log.warn('Login failed', { error: result.error });
                 setError('Invalid email or password.');
                 setIsLoading(false);
-                console.log('[Login Page] ========== LOGIN SUBMIT END (ERROR) ==========');
                 return;
             }
 
             if (result?.ok) {
-                console.log('[Login Page] Login successful, redirecting to:', callbackUrl);
-                console.log('[Login Page] ========== LOGIN SUBMIT END (SUCCESS) ==========');
+                log.info('Login successful, redirecting', { callbackUrl });
                 router.push(callbackUrl);
             } else {
-                console.error('[Login Page] Login failed without specific error');
-                console.error('[Login Page] Full result:', result);
+                log.error('Login failed without specific error', { result });
                 setError('Login failed. Please try again.');
                 setIsLoading(false);
-                console.log('[Login Page] ========== LOGIN SUBMIT END (FAILED) ==========');
             }
 
         } catch (err) {
-            console.error('[Login Page] ========== LOGIN SUBMIT EXCEPTION ==========');
-            console.error('[Login Page] Error type:', err?.constructor?.name);
-            console.error('[Login Page] Error message:', err instanceof Error ? err.message : String(err));
-            console.error('[Login Page] Error stack:', err instanceof Error ? err.stack : 'N/A');
-            console.error('[Login Page] Full error:', err);
+            log.error('Login exception', err instanceof Error ? err : String(err));
             setError('An unexpected error occurred.');
             setIsLoading(false);
-            console.log('[Login Page] ========== LOGIN SUBMIT END (EXCEPTION) ==========');
         }
     };
 
