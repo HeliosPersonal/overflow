@@ -12,19 +12,18 @@
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
+import logger from '@/lib/logger';
+
 const PHASE_PRODUCTION_BUILD = 'phase-production-build';
 
 export async function register(): Promise<void> {
     const currentPhase = process.env.NEXT_PHASE;
 
-    console.log('🚀 [Instrumentation/Node] Starting application bootstrap', {
-        phase: currentPhase,
-        nodeEnv: process.env.NODE_ENV,
-        appEnv: process.env.APP_ENV,
-    });
+    logger.info({ phase: currentPhase, nodeEnv: process.env.NODE_ENV, appEnv: process.env.APP_ENV },
+        'Starting application bootstrap');
 
     if (currentPhase === PHASE_PRODUCTION_BUILD) {
-        console.log('⏭️  [Instrumentation/Node] Skipped - Build phase');
+        logger.info('Skipped — build phase');
         return;
     }
 
@@ -40,14 +39,14 @@ export async function register(): Promise<void> {
  */
 async function initializeEnvironmentConfiguration(): Promise<void> {
     try {
-        console.log('🔧 [Instrumentation/Node] Loading environment configuration...');
+        logger.info('Loading environment configuration...');
         const { loadEnvironmentConfiguration } = await import('./infisical');
         const loadedVariables = await loadEnvironmentConfiguration();
         const variableCount = Object.keys(loadedVariables).length;
-        console.log(`✅ [Instrumentation/Node] Configuration loaded (${variableCount} variables)`);
+        logger.info({ variableCount }, 'Configuration loaded');
     } catch (error) {
-        console.error('❌ [Instrumentation/Node] Failed to load configuration:', error);
-        console.warn('⚠️  [Instrumentation/Node] App will start with existing environment variables');
+        logger.error({ err: error }, 'Failed to load configuration');
+        logger.warn('App will start with existing environment variables');
     }
 }
 
@@ -61,7 +60,7 @@ async function initializeOpenTelemetry(): Promise<void> {
     const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
     if (!endpoint) {
-        console.log('⏭️  [OTEL] Skipped — OTEL_EXPORTER_OTLP_ENDPOINT not set');
+        logger.info('OTEL skipped — OTEL_EXPORTER_OTLP_ENDPOINT not set');
         return;
     }
 
@@ -120,15 +119,15 @@ async function initializeOpenTelemetry(): Promise<void> {
         });
 
         sdk.start();
-        console.log(`✅ [OTEL] SDK started — exporting to ${endpoint}`);
+        logger.info({ endpoint }, 'OTEL SDK started');
 
         process.on('SIGTERM', () => {
             sdk.shutdown()
-                .then(() => console.log('✅ [OTEL] SDK shut down gracefully'))
-                .catch((err) => console.error('❌ [OTEL] SDK shutdown error:', err));
+                .then(() => logger.info('OTEL SDK shut down gracefully'))
+                .catch((err) => logger.error({ err }, 'OTEL SDK shutdown error'));
         });
     } catch (error) {
-        console.error('❌ [OTEL] Failed to initialize OpenTelemetry:', error);
+        logger.error({ err: error }, 'Failed to initialize OpenTelemetry');
         // Non-fatal
     }
 }

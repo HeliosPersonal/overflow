@@ -6,6 +6,7 @@ import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 import {auth} from "@/auth";
 import {fetchProfileMap} from "@/lib/profiles";
+import logger from "@/lib/logger";
 
 export async function getUserProfiles(sortBy?: string) {
     const effectiveSort = sortBy ?? 'reputation';
@@ -41,7 +42,7 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
             });
         }
     } catch (e) {
-        console.warn('[editProfile] profile-cache eviction threw:', e instanceof Error ? e.message : e);
+        logger.warn({ err: e }, 'profile-cache eviction threw');
     }
 
     return result;

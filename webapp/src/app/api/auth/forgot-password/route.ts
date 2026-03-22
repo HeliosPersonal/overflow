@@ -2,6 +2,7 @@
 import { KeycloakAdminClient } from '@/lib/keycloak-admin';
 import { createResetToken } from '@/lib/resetTokens';
 import { apiConfig, authConfig } from '@/lib/config';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/forgot-password
@@ -64,17 +65,17 @@ export async function POST(request: NextRequest) {
 
                 if (!response.ok) {
                     const body = await response.text();
-                    console.error('[Auth] NotificationService error:', response.status, body);
+                    logger.error({ status: response.status, body }, 'NotificationService error');
                 }
             } catch (error) {
-                console.error('[Auth] Failed to send password reset email:', error);
+                logger.error({ err: error }, 'Failed to send password reset email');
             }
         }
 
         // Always return success to prevent email enumeration
         return NextResponse.json({ message: SUCCESS_MSG });
     } catch (error) {
-        console.error('[Auth] Forgot password error:', error);
+        logger.error({ err: error }, 'Forgot password error');
         return NextResponse.json(
             { error: 'An unexpected error occurred. Please try again.' },
             { status: 500 },

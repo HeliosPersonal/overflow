@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
         '@opentelemetry/resources',
         '@opentelemetry/semantic-conventions',
         '@infisical/sdk',
+        'pino',
+        'pino-pretty',
     ],
 };
 

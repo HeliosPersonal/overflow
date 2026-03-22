@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { KeycloakAdminClient, KeycloakAdminError } from '@/lib/keycloak-admin';
 import { verifyResetToken, consumeResetToken } from '@/lib/resetTokens';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/reset-password
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
         if (error instanceof KeycloakAdminError) {
             return NextResponse.json({ error: 'Failed to reset password' }, { status: error.statusCode });
         }
-        console.error('[Auth] Reset password error:', error);
+        logger.error({ err: error }, 'Reset password error');
         return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
     }
 }

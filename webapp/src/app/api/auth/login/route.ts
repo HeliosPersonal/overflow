@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { authConfig } from '@/lib/config';
+import logger from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
     try {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
         const tokenData = await tokenResponse.json();
 
         if (!tokenResponse.ok) {
-            console.error('Keycloak login error:', tokenData);
+            logger.error({ body: tokenData }, 'Keycloak login error');
             
             // Handle specific Keycloak errors
             if (tokenData.error === 'invalid_grant') {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Login API error:', error);
+        logger.error({ err: error }, 'Login API error');
         return NextResponse.json(
             { error: 'An unexpected error occurred. Please try again.' },
             { status: 500 }

@@ -4,6 +4,7 @@ import {
     KeycloakAdminError,
     ANONYMOUS_EMAIL_DOMAIN,
 } from '@/lib/keycloak-admin';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/anonymous
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
             credentials: [{ type: 'password', value: password, temporary: false }],
         });
 
-        console.info('[GuestAuth] Anonymous user created:', placeholderEmail);
+        logger.info({ email: placeholderEmail }, 'Anonymous user created');
 
         return NextResponse.json({
             email: placeholderEmail,
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
         if (error instanceof KeycloakAdminError) {
             return NextResponse.json({ error: error.message }, { status: error.statusCode });
         }
-        console.error('[GuestAuth] Unexpected error creating anonymous user:', error);
+        logger.error({ err: error }, 'Unexpected error creating anonymous user');
         return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
     }
 }

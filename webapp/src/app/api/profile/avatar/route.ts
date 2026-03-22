@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import logger from '@/lib/logger';
 
 /**
  * PUT /api/profile/avatar
@@ -38,7 +39,7 @@ export async function PUT(request: NextRequest) {
 
     if (!res.ok) {
         const body = await res.text();
-        console.error('[AvatarUpdate] Failed to update avatar:', res.status, body);
+        logger.error({ status: res.status, body }, 'Failed to update avatar');
         return NextResponse.json({ error: 'Failed to update avatar' }, { status: res.status });
     }
 
