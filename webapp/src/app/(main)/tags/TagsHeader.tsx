@@ -5,7 +5,6 @@ import {Input} from "@heroui/input";
 import {Tab, Tabs} from "@heroui/tabs";
 import {useRouter} from "next/navigation";
 import {Button} from "@heroui/button";
-import Link from "next/link";
 
 type Props = {
     isAdmin?: boolean;
@@ -28,7 +27,7 @@ export default function TagHeader({isAdmin}: Props) {
                         and answer your question.</p>
                 </div>
                 {isAdmin && (
-                    <Button as={Link} href='/tags/manage' color='primary'>
+                    <Button as="a" href='/tags/manage' color='primary'>
                         Edit tags
                     </Button>
                 )}
