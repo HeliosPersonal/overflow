@@ -68,7 +68,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
 
     return (
         <div className="min-h-full bg-content1">
-        <div className="px-6 py-8 max-w-5xl mx-auto flex flex-col gap-6">
+        <div className="px-6 py-6 max-w-5xl mx-auto flex flex-col gap-5">
 
             {/* ── Page header ───────────────────────────────────────── */}
             <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             </div>
 
             {/* ── Start Planning Poker CTA ──────────────────────────── */}
-            <div className="p-6 rounded-2xl bg-content2 border border-content3 shadow-raise-sm flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="p-5 rounded-2xl bg-content2 border border-content3 shadow-raise-sm flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
                     <h2 className="text-xl font-semibold text-foreground-700 mb-1">Ready to estimate?</h2>
                     <p className="text-sm text-foreground-500">
@@ -100,7 +100,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             </div>
 
             {/* ── Recent Sessions ───────────────────────────────────── */}
-            <div className="p-6 rounded-2xl bg-content2 border border-content3 shadow-raise-sm">
+            <div className="p-5 rounded-2xl bg-content2 border border-content3 shadow-raise-sm">
                 <h2 className="text-xl font-semibold text-foreground-600 mb-1">Recent Sessions</h2>
                 <p className="text-xs text-foreground-400 mb-4">
                     Archived rooms are automatically deleted after {recentSessions[0]?.retentionDays ?? 30} days.

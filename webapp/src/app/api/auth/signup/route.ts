@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { KeycloakAdminClient, KeycloakAdminError } from '@/lib/keycloak-admin';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/signup
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
             credentials: [{ type: 'password', value: password, temporary: false }],
         });
 
-        console.info('[Auth] User registered:', email);
+        logger.info({ email }, 'User registered');
 
         return NextResponse.json({
             message: 'Account created successfully',
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
                 );
             }
             if (error.statusCode === 403) {
-                console.error('[Auth] Signup permission denied — service account needs manage-users role');
+                logger.error('Signup permission denied — service account needs manage-users role');
                 return NextResponse.json(
                     { error: 'Registration is temporarily unavailable. Please try again later.' },
                     { status: 503 },
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
             }
             return NextResponse.json({ error: 'Failed to create user account' }, { status: error.statusCode });
         }
-        console.error('[Auth] Signup error:', error);
+        logger.error({ err: error }, 'Signup error');
         return NextResponse.json(
             { error: 'An unexpected error occurred. Please try again.' },
             { status: 500 },

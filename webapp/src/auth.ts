@@ -4,23 +4,21 @@ import Credentials from "next-auth/providers/credentials"
 import {apiConfig, authConfig} from "@/lib/config";
 import { loginSchema } from "@/lib/validators/auth";
 import { isAnonymousEmail } from "@/lib/keycloak-admin";
+import logger from "@/lib/logger";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     debug: false,
     trustHost: true,
     logger: {
         error(error) {
-            // JWTSessionError means the browser has a stale cookie encrypted with a
-            // different AUTH_SECRET (e.g. left from staging). Treat as unauthenticated —
-            // the cookie is cleared automatically on next sign-in. Log at debug level only.
             if (error.name === 'JWTSessionError') {
-                console.debug('[Auth] Stale session cookie detected (JWTSessionError) — treating as unauthenticated');
+                logger.debug('Stale session cookie detected (JWTSessionError) — treating as unauthenticated');
                 return;
             }
-            console.error('[Auth] Error:', error);
+            logger.error({ err: error }, 'Auth error');
         },
-        warn(code) { console.warn('[Auth] Warning:', code); },
-        debug(code, metadata) { console.debug('[Auth] Debug:', code, metadata); },
+        warn(code) { logger.warn({ code }, 'Auth warning'); },
+        debug(code, metadata) { logger.debug({ code, metadata }, 'Auth debug'); },
     },
     pages: {
         signIn: '/login',
@@ -38,7 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const validatedFields = loginSchema.safeParse(credentials);
                     
                     if (!validatedFields.success) {
-                        console.error('[Auth] Credential validation failed:', validatedFields.error);
+                        logger.error({ err: validatedFields.error }, 'Credential validation failed');
                         return null;
                     }
 
@@ -64,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     if (!tokenResponse.ok) {
                         const errorData = await tokenResponse.text();
-                        console.error('[Auth] Keycloak authentication failed:', tokenResponse.status, errorData);
+                        logger.error({ status: tokenResponse.status, body: errorData }, 'Keycloak authentication failed');
                         return null;
                     }
 
@@ -80,7 +78,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     });
 
                     if (!userInfoResponse.ok) {
-                        console.error('[Auth] Failed to fetch user info:', userInfoResponse.status);
+                        logger.error({ status: userInfoResponse.status }, 'Failed to fetch user info');
                         return null;
                     }
 
@@ -98,8 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             profile = await profileResponse.json();
                         }
                     } catch (profileError) {
-                        console.warn('[Auth] Profile fetch failed, proceeding with defaults:',
-                            profileError instanceof Error ? profileError.message : profileError);
+                        logger.warn({ err: profileError }, 'Profile fetch failed, proceeding with defaults');
                     }
 
                     const isAnonymous = isAnonymousEmail(userInfo.email);
@@ -136,7 +133,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     
                     return userObject;
                 } catch (error) {
-                    console.error('[Auth] Authorize error:', error instanceof Error ? error.message : String(error));
+                    logger.error({ err: error }, 'Authorize error');
                     return null;
                 }
             }
@@ -160,7 +157,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (account?.provider === 'credentials') {
                 const u = user as typeof user & { emailVerified?: boolean; isAnonymous?: boolean };
                 if (!u.isAnonymous && u.emailVerified === false) {
-                    console.warn('[Auth] Login blocked — email not verified:', user.email);
+                    logger.warn({ email: user.email }, 'Login blocked — email not verified');
                     return '/login?error=EMAIL_NOT_VERIFIED';
                 }
             }
@@ -203,8 +200,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             profileData = await res.json();
                         }
                     } catch (profileError) {
-                        console.warn('[Auth] Profile fetch failed, using defaults:',
-                            profileError instanceof Error ? profileError.message : profileError);
+                        logger.warn({ err: profileError }, 'Profile fetch failed, using defaults');
                     }
 
                     const kcRoles = (() => {
@@ -271,7 +267,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const refreshed = await response.json()
                     
                     if (!response.ok) {
-                        console.error('[Auth] Failed to refresh token:', refreshed);
+                        logger.error({ body: refreshed }, 'Failed to refresh token');
                         token.error = 'RefreshAccessTokenError';
                         return token;
                     }
@@ -296,18 +292,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         }
                     } catch (profileError) {
                         // Non-fatal — keep existing session values
-                        console.warn('[Auth] Profile re-fetch on refresh failed:',
-                            profileError instanceof Error ? profileError.message : profileError);
+                        logger.warn({ err: profileError }, 'Profile re-fetch on refresh failed');
                     }
                     token.profileLastFetched = now;
                 } catch (error) {
-                    console.error('[Auth] Token refresh error:', error);
+                    logger.error({ err: error }, 'Token refresh error');
                     token.error = 'RefreshAccessTokenError';
                 }
             
                 return token;
             } catch (error) {
-                console.error('[Auth] JWT callback error:', error instanceof Error ? error.message : String(error));
+                logger.error({ err: error }, 'JWT callback error');
                 return token;
             }
         },

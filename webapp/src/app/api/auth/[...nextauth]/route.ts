@@ -1,7 +1,8 @@
 import { handlers } from "@/auth"
+import logger from "@/lib/logger";
 
 // Log all auth requests
-console.log('[NextAuth Route] Module loaded at:', new Date().toISOString());
+logger.info({ loadedAt: new Date().toISOString() }, 'NextAuth route module loaded');
 
 // Export handlers directly - NextAuth handles the typing internally
 export const { GET, POST } = handlers;

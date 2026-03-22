@@ -24,7 +24,7 @@ export default async function Page({searchParams}: {searchParams: SearchParams }
     return (
         <div className='min-h-full bg-content1 w-full px-6 pb-6'>
             <TagHeader isAdmin={isAdmin} />
-            <div className='grid grid-cols-3 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
                 {Array.isArray(tags) && tags.map(tag => (
                     <TagCard tag={tag} key={tag.id} />
                 ))}

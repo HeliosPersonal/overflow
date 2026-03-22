@@ -5,7 +5,6 @@ import {Input} from "@heroui/input";
 import {Tab, Tabs} from "@heroui/tabs";
 import {useRouter} from "next/navigation";
 import {Button} from "@heroui/button";
-import Link from "next/link";
 
 type Props = {
     isAdmin?: boolean;
@@ -23,12 +22,12 @@ export default function TagHeader({isAdmin}: Props) {
             <div className='flex items-start justify-between'>
                 <div className='flex flex-col items-start gap-3'>
                     <h1>Tags</h1>
-                    <p>A tag is a keyword or label that categorizes your question with other,
+                    <p className='text-sm text-foreground-500'>A tag is a keyword or label that categorizes your question with other,
                         similar questions. Using the right tags makes it easier for others to find
                         and answer your question.</p>
                 </div>
                 {isAdmin && (
-                    <Button as={Link} href='/tags/manage' color='primary'>
+                    <Button as="a" href='/tags/manage' color='primary'>
                         Edit tags
                     </Button>
                 )}

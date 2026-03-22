@@ -2,6 +2,9 @@
 
 import { useEffect } from 'react'
 import {Button} from "@heroui/button";
+import {createClientLogger} from "@/lib/client-logger";
+
+const log = createClientLogger('ErrorBoundary');
 
 export default function Error({
                                   error,
@@ -11,7 +14,7 @@ export default function Error({
     reset: () => void
 }) {
     useEffect(() => {
-        console.error(error)
+        log.error('Unhandled error', error)
     }, [error])
 
     return (

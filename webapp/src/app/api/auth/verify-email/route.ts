@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KeycloakAdminClient, KeycloakAdminError } from '@/lib/keycloak-admin';
 import { verifyResetToken, consumeResetToken } from '@/lib/resetTokens';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/verify-email
@@ -50,14 +51,14 @@ export async function POST(request: NextRequest) {
         // Consume the token so it can't be reused
         consumeResetToken(token);
 
-        console.info('[Auth] Email verified for user:', email);
+        logger.info({ email }, 'Email verified for user');
 
         return NextResponse.json({ message: 'Email verified successfully' });
     } catch (error) {
         if (error instanceof KeycloakAdminError) {
             return NextResponse.json({ error: 'Failed to verify email' }, { status: error.statusCode });
         }
-        console.error('[Auth] Verify email error:', error);
+        logger.error({ err: error }, 'Verify email error');
         return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
     }
 }

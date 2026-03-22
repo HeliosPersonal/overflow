@@ -1,5 +1,8 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {PlanningPokerRoom} from "@/lib/types";
+import {createClientLogger} from "@/lib/client-logger";
+
+const log = createClientLogger('RoomWebSocket');
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -38,7 +41,7 @@ export function useRoomWebSocket(roomId: string | null) {
                 const data = JSON.parse(event.data) as PlanningPokerRoom;
                 // Ignore error messages from the server
                 if ((data as unknown as {type?: string})?.type === 'error') {
-                    console.warn('[WS] Server error:', data);
+                    log.warn('Server error', data);
                     return;
                 }
                 // The WS connection may resolve to a different viewer identity
@@ -65,7 +68,7 @@ export function useRoomWebSocket(roomId: string | null) {
                     return data;
                 });
             } catch (e) {
-                console.error('[WS] Failed to parse message:', e);
+                log.error('Failed to parse message', e);
             }
         };
 

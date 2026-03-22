@@ -2,6 +2,7 @@ import {notFound} from "next/navigation";
 import {auth} from "@/auth";
 import {FetchResponse} from "@/lib/types";
 import type {Session} from "next-auth";
+import logger from "@/lib/logger";
 
 export async function fetchClient<T>(
     url: string,
@@ -19,7 +20,7 @@ export async function fetchClient<T>(
     try {
         session = await auth() as Session | null;
     } catch (e) {
-        console.warn('[fetchClient] Failed to read session (stale cookie?):', e instanceof Error ? e.message : e);
+        logger.warn({ err: e }, 'Failed to read session (stale cookie?)');
     }
     
     const headers: HeadersInit = {
@@ -38,7 +39,7 @@ export async function fetchClient<T>(
         });
     } catch (e) {
         const message = e instanceof Error ? e.message : 'Network error';
-        console.warn(`[fetchClient] fetch failed for ${method} ${url}:`, message);
+        logger.warn({ method, url, error: message }, 'Fetch failed');
         return {data: null, error: {message: 'Backend unavailable. Please try again later.', status: 503}};
     }
 

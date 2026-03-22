@@ -6,6 +6,9 @@ import { Input } from '@heroui/input';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Layers } from '@/components/animated-icons';
+import { createClientLogger } from '@/lib/client-logger';
+
+const log = createClientLogger('ForgotPasswordPage');
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -37,7 +40,7 @@ export default function ForgotPasswordPage() {
 
             setIsSubmitted(true);
         } catch (err) {
-            console.error('Forgot password error:', err);
+            log.error('Forgot password error', err instanceof Error ? err : String(err));
             setError('An unexpected error occurred. Please try again.');
             setIsLoading(false);
         }
@@ -45,7 +48,7 @@ export default function ForgotPasswordPage() {
 
     if (isSubmitted) {
         return (
-            <div className="flex min-h-screen items-center justify-center px-4 py-12">
+            <div className="flex min-h-full items-center justify-center px-4 py-8">
                 <div className="w-full max-w-md">
                     <div className="mb-8 text-center">
                         <Link href="/" className="inline-flex items-center gap-3 mb-4">
@@ -86,7 +89,7 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center px-4 py-12">
+        <div className="flex min-h-full items-center justify-center px-4 py-8">
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">

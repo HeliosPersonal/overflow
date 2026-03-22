@@ -1,3 +1,5 @@
+import logger from '@/lib/logger';
+
 const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
 const isServer = typeof window === 'undefined';
 
@@ -9,7 +11,7 @@ function getEnv(name: keyof NodeJS.ProcessEnv, fallback: string = ''): string {
     
     if (!value) {
         const context = isServer ? 'server' : 'client';
-        console.error(`[Config] Missing required env var: ${name} (${context}-side)`);
+        logger.error({ envVar: name, context }, 'Missing required env var');
         throw new Error(`Could not find env: ${name}`);
     }
     

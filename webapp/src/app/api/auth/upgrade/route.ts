@@ -7,6 +7,7 @@ import {
     isAnonymousEmail,
 } from '@/lib/keycloak-admin';
 import { createResetToken } from '@/lib/resetTokens';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/auth/upgrade
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
                 body: JSON.stringify({ displayName: newDisplayName }),
             });
         } catch (profileError) {
-            console.warn('[GuestAuth] Profile display name update failed (non-fatal):', profileError);
+            logger.warn({ err: profileError }, 'Profile display name update failed (non-fatal)');
         }
 
         // 6. Send verification email via NotificationService
@@ -108,10 +109,10 @@ export async function POST(request: NextRequest) {
                 }),
             });
         } catch (emailError) {
-            console.error('[GuestAuth] Failed to send verification email:', emailError);
+            logger.error({ err: emailError }, 'Failed to send verification email');
         }
 
-        console.info('[GuestAuth] Account upgraded (pending email verification):', kcUser.email, '→', email);
+        logger.info({ from: kcUser.email, to: email }, 'Account upgraded (pending email verification)');
 
         return NextResponse.json({
             message: 'Account upgraded. Please check your email to verify your address.',
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
             const status = error.statusCode === 409 ? 409 : error.statusCode >= 500 ? 500 : error.statusCode;
             return NextResponse.json({ error: error.message }, { status });
         }
-        console.error('[GuestAuth] Unexpected error upgrading account:', error);
+        logger.error({ err: error }, 'Unexpected error upgrading account');
         return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
     }
 }

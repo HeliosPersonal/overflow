@@ -32,13 +32,13 @@ export default function QuestionsHeader({tag, total}: Props) {
     }
 
     return (
-        <div className='flex flex-col w-full border-b border-content2 gap-4 pb-4 pt-4'>
+        <div className='flex flex-col w-full border-b border-content2 gap-3 pb-3 pt-3'>
             <div className='flex justify-between px-6'>
-                <div className='flex flex-col items-start gap-2'>
+                <div className='flex flex-col items-start gap-1'>
                     <h1>
                         {tag ? `[${tag}]` : 'Newest Questions'}
                     </h1>
-                    <p className='font-light'>{selectedTag?.description}</p>
+                    <p className='font-light text-sm text-foreground-500'>{selectedTag?.description}</p>
                 </div>
                 <Link href='/questions/ask'>
                     <Button color='primary'>

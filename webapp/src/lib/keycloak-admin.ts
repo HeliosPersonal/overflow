@@ -1,4 +1,5 @@
 import {authConfig} from '@/lib/config';
+import logger from '@/lib/logger';
 
 /**
  * Domain used for anonymous (guest) user placeholder emails in Keycloak.
@@ -75,7 +76,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to acquire admin token:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to acquire admin token');
             throw new KeycloakAdminError('Failed to acquire admin token', 503);
         }
 
@@ -109,7 +110,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to create user:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to create user');
             throw new KeycloakAdminError(`Failed to create user: ${body}`, response.status);
         }
 
@@ -126,7 +127,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to fetch user:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to fetch user');
             throw new KeycloakAdminError('User not found', response.status);
         }
 
@@ -154,7 +155,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to update user:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to update user');
             throw new KeycloakAdminError(
                 response.status === 409 ? 'Email already taken' : `Failed to update user: ${body}`,
                 response.status,
@@ -172,7 +173,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to reset password:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to reset password');
             throw new KeycloakAdminError(`Failed to reset password: ${body}`, response.status);
         }
     }
@@ -187,7 +188,7 @@ export class KeycloakAdminClient {
 
         if (!response.ok) {
             const body = await response.text();
-            console.error('[KeycloakAdmin] Failed to execute actions:', response.status, body);
+            logger.error({ status: response.status, body }, 'Failed to execute actions');
             throw new KeycloakAdminError(`Failed to execute actions: ${body}`, response.status);
         }
     }

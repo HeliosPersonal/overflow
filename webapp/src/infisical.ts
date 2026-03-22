@@ -6,6 +6,8 @@
  * - staging/production → .env file + Infisical secrets
  */
 
+import logger from '@/lib/logger';
+
 /** Configuration for Infisical secret management */
 interface InfisicalCredentials {
     clientId: string;
@@ -42,17 +44,14 @@ const APP_SECRET_PATHS = [
  */
 export async function loadEnvironmentConfiguration(): Promise<EnvironmentVariables> {
     if (!isNodeJsRuntime()) {
-        console.warn('⚠️  [Config] Cannot load configuration in Edge Runtime');
+        logger.warn('Cannot load configuration in Edge Runtime');
         return {};
     }
 
     const appEnvironment = determineAppEnvironment();
     const useInfisical = shouldFetchFromInfisical(appEnvironment);
 
-    console.log('🔧 [Config] Environment:', {
-        APP_ENV: appEnvironment,
-        useInfisical
-    });
+    logger.info({ appEnv: appEnvironment, useInfisical }, 'Environment configuration');
 
     const baseConfig = await loadEnvFile(appEnvironment);
     const secrets = useInfisical ? await fetchInfisicalSecrets(appEnvironment) : {};
@@ -60,7 +59,8 @@ export async function loadEnvironmentConfiguration(): Promise<EnvironmentVariabl
 
     injectEnvironmentVariables(allVariables);
 
-    console.log(`✅ [Config] Loaded ${allVariables.length} variables (${baseConfig.length} base + ${secrets.length} secrets)`);
+    logger.info({ total: Object.keys(allVariables).length, base: Object.keys(baseConfig).length, secrets: Object.keys(secrets).length },
+        'Configuration loaded');
 
     return allVariables;
 }
@@ -100,8 +100,8 @@ function injectEnvironmentVariables(variables: EnvironmentVariables): void {
         return `${name}: ${value ? value.substring(0, 8) + '...' : '❌'}`;
     });
 
-    console.log(`💉 [Config] Injected ${Object.keys(variables).length} variables`);
-    console.log(`🔍 [Config] ${status.join(' | ')}`);
+    logger.info({ count: Object.keys(variables).length }, 'Injected environment variables');
+    logger.info({ critical: status.join(' | ') }, 'Critical variable check');
 }
 
 /** Load environment variables from .env file */
@@ -117,16 +117,16 @@ async function loadEnvFile(environment: string): Promise<EnvironmentVariables> {
         const result = dotenv.config({ path: envFilePath });
 
         if (result.error) {
-            console.warn(`⚠️  [Config] Could not read ${envFileName}: ${result.error.message}`);
+            logger.warn({ envFile: envFileName, error: result.error.message }, 'Could not read env file');
             return {};
         }
 
         const parsed = result.parsed || {};
-        console.log(`📄 [Config] Loaded ${Object.keys(parsed).length} variables from ${envFileName}`);
+        logger.info({ envFile: envFileName, count: Object.keys(parsed).length }, 'Loaded env file');
         return parsed;
 
     } catch (error) {
-        console.error(`❌ [Config] Failed to load env file:`, error);
+        logger.error({ err: error }, 'Failed to load env file');
         return {};
     }
 }
@@ -136,11 +136,11 @@ async function fetchInfisicalSecrets(environment: string): Promise<EnvironmentVa
     const credentials = getInfisicalCredentials(environment);
 
     if (!credentials) {
-        console.warn('⚠️  [Config] Infisical credentials missing - skipping');
+        logger.warn('Infisical credentials missing — skipping');
         return {};
     }
 
-    console.log(`🔐 [Config] Fetching secrets from Infisical (${credentials.environment})...`);
+    logger.info({ environment: credentials.environment }, 'Fetching secrets from Infisical');
 
     try {
         const { InfisicalSDK } = await import('@infisical/sdk');
@@ -161,18 +161,18 @@ async function fetchInfisicalSecrets(environment: string): Promise<EnvironmentVa
             });
 
             const secrets = response.secrets || [];
-            console.log(`📂 [Config] Loaded ${secrets.length} secrets from ${secretPath}`);
+            logger.info({ secretPath, count: secrets.length }, 'Loaded secrets from path');
             allSecrets = allSecrets.concat(secrets);
         }
 
         const transformed = transformSecretsToEnvFormat(allSecrets);
 
-        console.log(`✅ [Config] Loaded ${allSecrets.length} total secrets from Infisical`);
+        logger.info({ count: allSecrets.length }, 'Loaded total secrets from Infisical');
         return transformed;
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`❌ [Config] Failed to fetch Infisical secrets: ${errorMessage}`);
+        logger.error({ err: error }, 'Failed to fetch Infisical secrets');
 
         if (process.env.NODE_ENV === 'production') {
             throw new Error('Critical: Failed to load required secrets from Infisical');
@@ -189,11 +189,11 @@ function getInfisicalCredentials(appEnvironment: string): InfisicalCredentials |
     const projectId = process.env.INFISICAL_PROJECT_ID || '';
 
     if (!clientId || !clientSecret || !projectId) {
-        console.warn('⚠️  [Config] Missing Infisical credentials:', {
+        logger.warn({
             hasClientId: !!clientId,
             hasClientSecret: !!clientSecret,
             hasProjectId: !!projectId,
-        });
+        }, 'Missing Infisical credentials');
         return null;
     }
 
@@ -226,7 +226,7 @@ function transformSecretsToEnvFormat(secrets: Array<{ secretKey: string; secretV
             .replace(/([a-z])([A-Z])/g, '$1_$2')
             .toUpperCase();
 
-        console.log(`🔄 [Config] ${originalKey} → ${envVarKey}`);
+        logger.debug({ from: originalKey, to: envVarKey }, 'Secret key transform');
         transformedSecrets[envVarKey] = secret.secretValue;
     });
 

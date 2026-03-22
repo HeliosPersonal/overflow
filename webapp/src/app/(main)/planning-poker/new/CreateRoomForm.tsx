@@ -80,18 +80,18 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
 
     return (
         <div className="min-h-full bg-content1">
-            <div className="px-6 py-10 max-w-2xl mx-auto">
+            <div className="px-6 py-6 max-w-2xl mx-auto">
                 {/* Back link */}
                 <button
                     onClick={() => router.push('/planning-poker')}
-                    className="flex items-center gap-1.5 text-sm text-foreground-400 hover:text-foreground-600 mb-8 transition-colors"
+                    className="flex items-center gap-1.5 text-sm text-foreground-400 hover:text-foreground-600 mb-5 transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4"/>
                     Back to Planning Poker
                 </button>
 
                 {/* Header */}
-                <div className="mb-10">
+                <div className="mb-6">
                     <h1 className="text-3xl font-bold text-foreground-700">New Planning Poker Session</h1>
                     <p className="text-base text-foreground-400 mt-1">
                         Set up your room and share the link with your team.
@@ -99,7 +99,7 @@ export default function CreateRoomForm({isAuthenticated}: { isAuthenticated: boo
                 </div>
 
                 {/* Form card */}
-                <div className="bg-content2 border border-content3 rounded-2xl shadow-raise-md p-8 flex flex-col gap-6">
+                <div className="bg-content2 border border-content3 rounded-2xl shadow-raise-md p-6 flex flex-col gap-5">
                     <h2 className="text-xl font-semibold text-foreground-700">Room details</h2>
                     {!isAuthenticated && (
                         <>

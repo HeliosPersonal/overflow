@@ -5,6 +5,9 @@ import MenuBar from "@/components/rte/MenuBar";
 import {useEffect, useRef} from "react";
 import clsx from "clsx";
 import {extractPublicIdsFromHtml} from "@/lib/util";
+import {createClientLogger} from "@/lib/client-logger";
+
+const log = createClientLogger('RichTextEditor');
 
 type Props = {
     onChange: (body: string) => void;
@@ -45,7 +48,7 @@ export default function RichTextEditor({ onChange, onBlur, value, errorMessage }
                         method: 'POST',
                         headers: {'Content-type': 'application/json'},
                         body: JSON.stringify(publicId)
-                    }).then(() => console.log('deleted ' + publicId))
+                    }).then(() => log.debug('Deleted image', { publicId }))
                 })
             }
             
