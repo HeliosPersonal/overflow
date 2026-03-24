@@ -6,16 +6,16 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 
 ## Overview
 
-|               |                                                                            |
-|---------------|----------------------------------------------------------------------------|
-| **Type**      | .NET 10 ASP.NET Core (Controllers + CommandFlow CQRS + WebSocket endpoint) |
-| **Database**  | PostgreSQL via EF Core (`estimationDb`)                                    |
-| **Cache**     | FusionCache (L1 in-memory + L2 Redis) with Redis backplane                 |
-| **Real-time** | Raw WebSocket (server → client snapshots) + Redis pub/sub cross-pod sync   |
-| **Auth**      | Keycloak JWT — guests get real Keycloak accounts automatically             |
-| **Port**      | 8080                                                                       |
-| **Messaging** | None — no Wolverine or RabbitMQ dependency                                 |
-| **Scaling**   | Multi-pod safe via Redis-backed distributed cache + cross-pod broadcast    |
+|               |                                                                                    |
+|---------------|------------------------------------------------------------------------------------|
+| **Type**      | .NET 10 ASP.NET Core (Controllers + CommandFlow CQRS + WebSocket endpoint)         |
+| **Database**  | PostgreSQL via EF Core (`estimationDb`)                                            |
+| **Cache**     | FusionCache for profile data only (L1 in-memory + L2 Redis); no room state caching |
+| **Real-time** | Raw WebSocket (server → client snapshots) + Redis pub/sub cross-pod sync           |
+| **Auth**      | Keycloak JWT — guests get real Keycloak accounts automatically                     |
+| **Port**      | 8080                                                                               |
+| **Messaging** | None — no Wolverine or RabbitMQ dependency                                         |
+| **Scaling**   | Multi-pod safe via Redis-backed distributed cache + cross-pod broadcast            |
 
 ---
 
@@ -39,12 +39,13 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 
 ## Archived Room Cleanup
 
-Archived rooms are **automatically deleted after 30 days** (configurable) to keep storage lean.
+Inactive rooms are **auto-archived** and then **permanently deleted** after a configurable retention period.
 
-| Setting                     | Default | Description                                              |
-|-----------------------------|---------|----------------------------------------------------------|
-| `RoomCleanup:RetentionDays` | `30`    | Days after archival before a room is permanently deleted |
-| `RoomCleanup:IntervalHours` | `24`    | How often the cleanup background job runs                |
+| Setting                                 | Default | Description                                              |
+|-----------------------------------------|---------|----------------------------------------------------------|
+| `RoomCleanup:InactiveDaysBeforeArchive` | `10`    | Days of inactivity before a room is auto-archived        |
+| `RoomCleanup:ArchivedDaysBeforeDelete`  | `10`    | Days after archival before a room is permanently deleted |
+| `RoomCleanup:IntervalHours`             | `24`    | How often the cleanup background job runs                |
 
 Implemented via `ArchivedRoomCleanupService` (`BackgroundService`). On each run it bulk-deletes expired rooms
 along with all related votes, round history, and participants. Override via `appsettings.json`, environment
@@ -54,16 +55,17 @@ variables, or Infisical (`ROOM_CLEANUP__RETENTION_DAYS`, `ROOM_CLEANUP__INTERVAL
 
 ## Caching & Multi-Pod Architecture
 
-The service uses **FusionCache** with Redis as L2 distributed cache and backplane, plus Redis pub/sub for cross-pod
-WebSocket broadcast. This enables horizontal scaling with multiple pods.
+Room state is always read directly from the database — there is no room caching layer. This ensures consistent,
+fresh data even with many concurrent participants and rapid mutations. Redis is used only for cross-pod WebSocket
+broadcast coordination and for caching external profile data (display name + avatar) via `ProfileServiceClient`.
 
-### Cache Layers
+### Profile Cache
 
-| Layer         | Technology          | Scope      | TTL                                          | Purpose                                         |
-|---------------|---------------------|------------|----------------------------------------------|-------------------------------------------------|
-| **L1**        | In-memory (per-pod) | Single pod | 30s (rooms), 60s (profiles), 2m (user rooms) | Sub-millisecond reads, zero network hops        |
-| **L2**        | Redis (shared)      | All pods   | Same as L1                                   | Shared cache across pods, survives pod restarts |
-| **Backplane** | Redis pub/sub       | All pods   | —                                            | L1 cache invalidation propagation across pods   |
+| Layer         | Technology          | Scope      | TTL | Purpose                                                 |
+|---------------|---------------------|------------|-----|---------------------------------------------------------|
+| **L1**        | In-memory (per-pod) | Single pod | 60s | Sub-millisecond profile reads, zero network hops        |
+| **L2**        | Redis (shared)      | All pods   | 60s | Shared profile cache across pods, survives pod restarts |
+| **Backplane** | Redis pub/sub       | All pods   | —   | Profile cache invalidation propagation across pods      |
 
 ### Multi-Pod WebSocket Broadcast
 
@@ -74,12 +76,10 @@ all pods must push updates to their local WebSocket connections:
 Pod A (mutation)                          Pod B (WebSocket connections)
 ┌─────────────────────┐                   ┌─────────────────────────────┐
 │ 1. EF Core → DB     │                   │                             │
-│ 2. Cache invalidate │──── Redis ────────│ FusionCache backplane       │
-│    (L1 + backplane) │    backplane      │ → evicts local L1 entry     │
-│ 3. Publish roomId   │──── Redis ────────│ CrossPodBroadcastService    │
+│ 2. Publish roomId   │──── Redis ────────│ CrossPodBroadcastService    │
 │    to pub/sub       │    pub/sub        │ → receives roomId           │
-│ 4. Local broadcast  │                   │ → WebSocketBroadcaster      │
-│    (Pod A sockets)  │                   │   loads room (cache/DB)     │
+│ 3. Local broadcast  │                   │ → WebSocketBroadcaster      │
+│    (Pod A sockets)  │                   │   loads room from DB        │
 └─────────────────────┘                   │   broadcasts to local WS    │
                                           └─────────────────────────────┘
 ```
@@ -88,16 +88,15 @@ Pod A (mutation)                          Pod B (WebSocket connections)
 
 | Service                      | Lifetime           | Purpose                                                                                       |
 |------------------------------|--------------------|-----------------------------------------------------------------------------------------------|
-| `RoomCacheService`           | Singleton          | Cache-aside reads for rooms + user room lists via FusionCache                                 |
 | `CrossPodBroadcastService`   | Singleton (hosted) | Redis pub/sub: publishes room mutations, subscribes on startup to trigger local WS broadcasts |
 | `WebSocketBroadcaster`       | Singleton          | Tracks local WebSocket connections, sends viewer-scoped snapshots                             |
 | `ArchivedRoomCleanupService` | Singleton (hosted) | Periodically deletes archived rooms past the configured retention period (default: 30 days)   |
 
-### Fail-Safe Behavior
+### Simplicity over Caching
 
-FusionCache provides automatic **fail-safe**: if the database is temporarily unreachable, stale cached data is served
-(up to 5 minutes). If Redis is down, the service degrades gracefully to L1-only (in-memory) caching — it never blocks
-on Redis unavailability.
+Room state is always read directly from the database (no caching layer). This ensures all participants see consistent,
+fresh data even with many concurrent mutations. Redis is only used for cross-pod WebSocket broadcast coordination
+and profile data caching (via `ProfileServiceClient`).
 
 ---
 
@@ -132,7 +131,6 @@ sequenceDiagram
     EC->>SVC: CreateRoomAsync(title, participantId, ...)
     SVC->>DB: INSERT Room + Participant (moderator)
     DB-->>SVC: Room entity
-    SVC->>SVC: Invalidate user rooms cache (FusionCache)
     SVC-->>EC: Result<Room>
     EC-->>GW: 201 Created + RoomResponse
     GW-->>User: RoomResponse { roomId, canonicalUrl, ... }
@@ -151,7 +149,6 @@ sequenceDiagram
     participant PS as ProfileService
     participant SVC as EstimationRoomService
     participant DB as PostgreSQL
-    participant FC as FusionCache + Redis
     participant WS as WebSocketBroadcaster
     participant WSE as WebSocketEndpoint
 
@@ -167,16 +164,15 @@ sequenceDiagram
 
     alt Participant already exists & display name changed
         SVC->>DB: UPDATE display name across ALL rooms
-        SVC->>FC: Invalidate room cache (backplane → all pods)
-        SVC->>FC: Publish cross-pod broadcast (Redis pub/sub)
-        FC-->>WS: Each pod broadcasts to local WebSocket connections
+        SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
+        WS-->>WS: Each pod broadcasts to local WebSocket connections
     else New participant
         SVC->>DB: INSERT Participant
     end
 
-    SVC->>FC: Invalidate room cache + publish cross-pod broadcast
-    FC-->>WS: All pods broadcast updated room state
-    SVC-->>EC: Result<Room> (reloaded via cache → DB)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
+    WS-->>WS: All pods broadcast updated room state
+    SVC-->>EC: Result<Room> (reloaded from DB)
     EC-->>GW: 200 OK + RoomResponse
     GW-->>User: RoomResponse
 
@@ -187,8 +183,8 @@ sequenceDiagram
     WSE->>IR: ResolveAsync(httpContext)
     IR-->>WSE: ParticipantIdentity
     WSE->>SVC: GetRoomByIdAsync(roomId)
-    SVC->>FC: Get room (L1 → L2 Redis → DB)
-    FC-->>SVC: Room entity
+    SVC->>DB: SELECT Room (with includes)
+    DB-->>SVC: Room entity
     SVC-->>WSE: Room
     WSE->>WS: AddConnection(roomId, participantId, socket)
     WSE->>User: Initial RoomResponse snapshot (JSON)
@@ -221,7 +217,7 @@ sequenceDiagram
     EC->>SVC: SubmitVoteAsync(roomId, p1Id, "5")
     SVC->>DB: Validate deck contains "5"
     SVC->>DB: DELETE existing vote (same round) + INSERT new vote
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>P1: Snapshot (own vote="5" visible, others hidden)
     WS-->>P2: Snapshot (P1 hasVoted=true, vote hidden)
     WS-->>Mod: Snapshot (P1 hasVoted=true, vote hidden)
@@ -233,7 +229,7 @@ sequenceDiagram
     GW->>EC: Route
     EC->>SVC: SubmitVoteAsync(roomId, p2Id, "8")
     SVC->>DB: DELETE + INSERT vote
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>P1: Snapshot (P2 hasVoted=true, vote hidden)
     WS-->>P2: Snapshot (own vote="8" visible)
     WS-->>Mod: Snapshot (both hasVoted=true)
@@ -248,7 +244,7 @@ sequenceDiagram
     SVC->>DB: Calculate distribution + average
     SVC->>DB: INSERT RoundHistory { distribution, average }
     SVC->>DB: UPDATE Room status → Revealed
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>P1: Snapshot (all votes visible, distribution, average)
     WS-->>P2: Snapshot (all votes visible, distribution, average)
     WS-->>Mod: Snapshot (all votes visible, distribution, average)
@@ -264,7 +260,7 @@ sequenceDiagram
     SVC->>DB: Verify moderator + status=Revealed
     SVC->>DB: DELETE all votes for this room
     SVC->>DB: UPDATE Room: roundNumber++, status → Voting
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>P1: Snapshot (Round N+1, no votes, status=Voting)
     WS-->>P2: Snapshot (Round N+1, no votes, status=Voting)
     WS-->>Mod: Snapshot (Round N+1, no votes, status=Voting)
@@ -295,7 +291,7 @@ sequenceDiagram
     WSE->>SVC: LeaveRoomAsync(roomId, participantId)<br/>(new DI scope)
     SVC->>DB: DELETE votes for participant
     SVC->>DB: DELETE participant from room
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>Others: Updated RoomResponse (participant removed, all pods)
 
     WSE->>User: CloseAsync (if socket still open)
@@ -324,7 +320,7 @@ sequenceDiagram
         SVC->>DB: DELETE participant's vote for current round
     end
 
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>User: Snapshot (isSpectator=true, no vote)
     WS-->>Others: Snapshot (participant now spectator, all pods)
     SVC-->>EC: Result<Room>
@@ -350,8 +346,7 @@ sequenceDiagram
     EC->>SVC: ArchiveRoomAsync(roomId, moderatorId)
     SVC->>DB: Verify moderator
     SVC->>DB: UPDATE Room: status → Archived, archivedAtUtc = now
-    SVC->>SVC: Invalidate room + user rooms cache (FusionCache)
-    SVC->>SVC: Publish cross-pod broadcast (Redis pub/sub)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>Others: Final RoomResponse (status=Archived, isReadOnly=true, all pods)
     SVC-->>EC: Result<Room>
     EC-->>Mod: 200 OK + RoomResponse
@@ -416,7 +411,7 @@ sequenceDiagram
     EC->>SVC: ClearVoteAsync(roomId, participantId)
     SVC->>DB: Verify status = Voting
     SVC->>DB: DELETE vote WHERE roomId, participantId, roundNumber
-    SVC->>SVC: Invalidate cache + cross-pod broadcast (Redis)
+    SVC->>SVC: Cross-pod broadcast (Redis pub/sub)
     WS-->>User: Snapshot (no vote)
     WS-->>Others: Snapshot (participant hasVoted=false, all pods)
     SVC-->>EC: UnitResult (success)
@@ -431,15 +426,9 @@ After editing their profile or avatar, a user calls this endpoint to push change
 sequenceDiagram
     actor User as Authenticated User
     participant GW as YARP Gateway
-    participant EC as RoomsController
+    participant EC as ProfileCacheController
     participant PC as ProfileServiceClient
-    participant IR as IdentityResolver
-    participant PS as ProfileService
-    participant SVC as EstimationRoomService
-    participant DB as PostgreSQL
     participant FC as FusionCache + Redis
-    participant WS as WebSocketBroadcaster
-    actor Others as Other Participants
 
     User->>GW: DELETE /estimation/profile-cache<br/>(JWT Bearer)
     GW->>EC: Route (requires [Authorize])
@@ -447,9 +436,8 @@ sequenceDiagram
     PC->>FC: Remove cache key "profile:{userId}"
     FC-->>PC: Evicted (backplane → all pods)
 
-    EC-->>User: 204 No Content
-    EC-->>GW: 200 OK { updated: N }
-    GW-->>User: { updated: N }
+    EC-->>GW: 200 OK { invalidated: true }
+    GW-->>User: { invalidated: true }
 ```
 
 ### 10. Full Session Lifecycle (End-to-End)
@@ -641,13 +629,12 @@ Overflow.EstimationService/
 │   ├── EstimationRoundHistory.cs# Round history entity
 │   └── DeckDefinition.cs       # Deck definitions (Fibonacci, etc.)
 ├── Services/
-│   ├── EstimationRoomService.cs     # Room business logic (all mutations)
-│   ├── RoomCacheService.cs          # FusionCache layer (L1 + L2 Redis) for room reads
+│   ├── EstimationRoomService.cs     # Room business logic (all mutations + reads from DB)
 │   ├── CrossPodBroadcastService.cs  # Redis pub/sub for cross-pod WS broadcast
 │   ├── WebSocketBroadcaster.cs      # WS connection tracking + viewer-scoped broadcast
 │   └── ArchivedRoomCleanupService.cs# Background job: deletes expired archived rooms
 ├── Options/
-│   └── RoomCleanupOptions.cs        # IOptions for room cleanup (RetentionDays, IntervalHours)
+│   └── RoomCleanupOptions.cs        # IOptions for room cleanup (InactiveDaysBeforeArchive, ArchivedDaysBeforeDelete, IntervalHours)
 ├── Auth/
 │   ├── IdentityResolver.cs      # JWT → user, cookie → guest resolution
 │   └── GuestIdentity.cs         # Guest cookie issuance + reading
@@ -671,16 +658,17 @@ Overflow.EstimationService/
 
 ## Configuration
 
-| Key                                  | Source                   | Description                                                                                         |
-|--------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------|
-| `ConnectionStrings:estimationDb`     | ConfigMap / Infisical    | PostgreSQL connection string                                                                        |
-| `ConnectionStrings:estimation-redis` | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                                              |
-| `ConnectionStrings:Redis`            | Infisical (staging/prod) | Redis — `CONNECTION_STRINGS__REDIS` from Infisical `/app/connections` (includes password + options) |
-| `KeycloakOptions:*`                  | appsettings + ConfigMap  | JWT validation settings                                                                             |
-| `APP_BASE_URL`                       | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                                            |
-| `PROFILE_SERVICE_URL`                | Aspire / ConfigMap       | ProfileService base URL for name resolution                                                         |
-| `RoomCleanup:RetentionDays`          | appsettings / Infisical  | Days before archived rooms are deleted (default: 30)                                                |
-| `RoomCleanup:IntervalHours`          | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                                     |
+| Key                                     | Source                   | Description                                                                                         |
+|-----------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------|
+| `ConnectionStrings:estimationDb`        | ConfigMap / Infisical    | PostgreSQL connection string                                                                        |
+| `ConnectionStrings:estimation-redis`    | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                                              |
+| `ConnectionStrings:Redis`               | Infisical (staging/prod) | Redis — `CONNECTION_STRINGS__REDIS` from Infisical `/app/connections` (includes password + options) |
+| `KeycloakOptions:*`                     | appsettings + ConfigMap  | JWT validation settings                                                                             |
+| `APP_BASE_URL`                          | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                                            |
+| `PROFILE_SERVICE_URL`                   | Aspire / ConfigMap       | ProfileService base URL for name resolution                                                         |
+| `RoomCleanup:InactiveDaysBeforeArchive` | appsettings / Infisical  | Days of inactivity before auto-archiving (default: 10)                                              |
+| `RoomCleanup:ArchivedDaysBeforeDelete`  | appsettings / Infisical  | Days before archived rooms are deleted (default: 10)                                                |
+| `RoomCleanup:IntervalHours`             | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                                     |
 
 > **Redis connection string format** (staging/prod):
 `redis.infra-production.svc.cluster.local:6379,password=...,abortConnect=false`  

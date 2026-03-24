@@ -41,21 +41,17 @@ const NAME_LABEL_WIDTH = 96; // px — width of the name label below each avatar
 
 // PokerTableScene layout — responsive via useSceneSize()
 const BASE_SCENE_W = 900;
-const BASE_SCENE_H = 400;
-const BASE_CENTER_RX = 220;
-const BASE_CENTER_RY = 140;
-const BASE_ORBIT_R = 300;
-const BASE_CY_RATIO = 0.44;
+const BASE_SCENE_H = 560;
+const BASE_CENTER_RX = 200;
+const BASE_CENTER_RY = 120;
+const BASE_ORBIT_RX = 340;
+const BASE_ORBIT_RY = 220;
+const BASE_CY_RATIO = 0.50;
 const BASE_CARD_W = 54;
 const BASE_CARD_H = 74;
 const BASE_AVATAR_SIZE = 44;
 const BASE_CARD_INWARD = 42;
 
-// Arc layout
-const ARC_START_DEG = 200;
-const ARC_END_DEG = 340;
-const ARC_MAX_SPAN = ARC_END_DEG - ARC_START_DEG;
-const ARC_MID_DEG = (ARC_START_DEG + ARC_END_DEG) / 2;
 
 /**
  * Returns scene dimensions scaled to available container size.
@@ -84,7 +80,8 @@ function useSceneSize(containerRef: React.RefObject<HTMLDivElement | null>) {
         sceneH: BASE_SCENE_H * s,
         centerRx: BASE_CENTER_RX * s,
         centerRy: BASE_CENTER_RY * s,
-        orbitR: BASE_ORBIT_R * s,
+        orbitRx: BASE_ORBIT_RX * s,
+        orbitRy: BASE_ORBIT_RY * s,
         cx: (BASE_SCENE_W * s) / 2,
         cy: (BASE_SCENE_H * s) * BASE_CY_RATIO,
         cardW: BASE_CARD_W * s,
@@ -572,15 +569,16 @@ export default function RoomClient({roomId, isAuthenticated}: {
             {/* ════════════ MAIN CONTENT ════════════ */}
             <div className="flex-1 flex overflow-hidden min-h-0">
 
+
                 {/* ── Center column ── */}
                 <div className="flex-1 flex flex-col transition-all duration-300 relative min-w-0">
 
-                    {/* ── Room scene: estimation strip (overlay) + table + participants ── */}
-                    <div className="flex-1 relative min-h-0 overflow-hidden">
+                    {/* ── Room scene: estimation strip + table + participants ── */}
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
-                        {/* ── Estimation strip — overlaid at top so it doesn't shift the table ── */}
-                        <div className="absolute top-1 left-4 right-4 z-10 flex justify-center pointer-events-none">
-                            <div className="w-full max-w-[860px] pointer-events-auto">
+                        {/* ── Estimation strip — fixed-height zone so the table never shifts ── */}
+                        <div className="shrink-0 px-4 pt-1 flex justify-center">
+                            <div className="w-full max-w-[860px]">
                                 <CompactEstimationStrip
                                     room={room}
                                     hasTasks={!!hasTasks}
@@ -594,12 +592,12 @@ export default function RoomClient({roomId, isAuthenticated}: {
                             </div>
                         </div>
 
-                        {/* ── The poker table scene — always fills the full area, centered ── */}
-                        <div ref={sceneContainerRef} className="absolute inset-0 flex items-center justify-center">
+                        {/* ── The poker table scene — fills remaining space, centered ── */}
+                        <div ref={sceneContainerRef} className="flex-1 min-h-0 relative flex items-center justify-center">
 
-                            {/* ── Spectators — floating left panel ── */}
+                            {/* ── Spectators card — centered in left free space ── */}
                             {spectators.length > 0 && (
-                                <SpectatorPanel spectators={spectators}/>
+                                <SpectatorCard spectators={spectators} scene={scene}/>
                             )}
 
                             {/* ── Table + participants ── */}
@@ -763,7 +761,7 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
                 <div className="flex items-center justify-center gap-2 min-w-0 flex-1">
                     {editingTitle ? (
                         <input
-                            className="text-lg font-bold bg-content1 border border-primary rounded-md px-2 py-0.5 min-w-0 w-64 text-center
+                            className="text-lg font-bold bg-content1 border border-primary rounded-md px-2 py-0.5 min-w-0 w-96 text-center
                             focus:outline-none focus:ring-2 focus:ring-primary/40"
                             value={titleDraft}
                             onChange={e => onTitleDraftChange(e.target.value)}
@@ -777,7 +775,7 @@ function RoomHeader({room, editingTitle, titleDraft, onTitleDraftChange, onStart
                         />
                     ) : (
                         <div
-                            className={`flex items-center gap-1.5 min-w-0 ${canEditTitle ? 'group cursor-pointer' : ''}`}
+                            className={`flex items-center gap-1.5 min-w-0 max-w-[50%] ${canEditTitle ? 'group cursor-pointer' : ''}`}
                             onClick={canEditTitle ? onStartEditingTitle : undefined}>
                             <h1 className="text-lg font-bold truncate text-center">{room.title}</h1>
                             {canEditTitle && (
@@ -843,33 +841,73 @@ function StatusBadge({status}: { status: string }) {
     return <Chip size="sm" color={STATUS_COLOR_MAP[status] ?? 'default'} variant="bordered">{status}</Chip>;
 }
 
-// ── SpectatorPanel ───────────────────────────────────────────────────────────
+// ── SpectatorCard (floating) ──────────────────────────────────────────────────
 
-function SpectatorPanel({spectators}: { spectators: PlanningPokerParticipant[] }) {
+const SPECTATOR_CARD_W = 160;
+
+function SpectatorCard({spectators, scene}: {
+    spectators: PlanningPokerParticipant[];
+    scene: SceneDimensions;
+}) {
+    // The PokerTableScene div (sceneW × sceneH) is centered in the container.
+    // Left edge of the orbit relative to container center = orbitRx.
+    // Container center is at 50%. Left free-space midpoint sits halfway between
+    // the container left edge (0) and the orbit left edge (50% − orbitRx px).
+    // We position the card at that midpoint using calc().
+    const orbitLeftFromCenter = scene.orbitRx + scene.avatarSize / 2 + scene.nameLabelWidth * 0.5 + 16 * scene.scale;
+    const cardW = SPECTATOR_CARD_W * scene.scale;
+
+    // The card's right edge should sit in the gap to the left of the orbit.
+    // If there isn't enough room (small screens), clamp to a minimum left margin.
+    const rawLeft = `calc(50% - ${orbitLeftFromCenter + cardW}px)`;
+
     return (
-        <div className="absolute -left-20 top-1/2 -translate-y-1/2 z-10 hidden xl:block">
-            <div className="rounded-xl bg-content2/60 backdrop-blur-sm border border-content3/60 p-2 flex flex-col items-center gap-2 w-[72px]">
-                <div className="flex items-center gap-1 cursor-default">
-                    <Eye className="h-3 w-3 text-foreground-400"/>
-                    <span className="text-[10px] font-semibold text-foreground-400">
-                        {spectators.length}
-                    </span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                    {spectators.map(p => (
-                        <Tooltip key={p.participantId} content={p.displayName} placement="right">
-                            <div className="flex flex-col items-center gap-0.5 group cursor-default">
-                                    <DiceBearAvatar userId={p.participantId} avatarJson={p.avatarUrl}
-                                        name={p.displayName}
-                                        className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity"
-                                        borderClass="border border-content3 group-hover:border-primary/40 transition-all"/>
-                                <span className="text-[10px] text-foreground-500 truncate w-14 text-center leading-tight">
-                                    {p.displayName}
-                                </span>
-                            </div>
-                        </Tooltip>
-                    ))}
-                </div>
+        <div
+            className="absolute z-10 flex flex-col max-h-[60%]
+                rounded-xl bg-content2/80 backdrop-blur-sm border border-content3/60 shadow-sm overflow-hidden"
+            style={{
+                width: `${cardW}px`,
+                top: '50%',
+                left: `max(8px, ${rawLeft})`,
+                transform: 'translateY(-50%)',
+            }}
+        >
+            {/* Header */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-content3/40 shrink-0">
+                <Eye className="h-3.5 w-3.5 text-foreground-400 shrink-0"/>
+                <span className="text-[11px] font-semibold text-foreground-400 uppercase tracking-wide">
+                    Spectators
+                </span>
+                <span className="text-[11px] font-bold text-foreground-500 ml-auto tabular-nums">
+                    {spectators.length}
+                </span>
+            </div>
+
+            {/* List */}
+            <div className="overflow-y-auto py-1.5 px-1.5 flex flex-col gap-0.5">
+                {spectators.map(p => (
+                    <div key={p.participantId}
+                         className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-content3/40 transition-colors">
+                        <div className="relative shrink-0">
+                            <DiceBearAvatar
+                                userId={p.participantId}
+                                avatarJson={p.avatarUrl}
+                                name={p.displayName}
+                                className="h-6 w-6 opacity-70"
+                                size="sm"
+                                borderClass="border border-content3"
+                            />
+                            {p.isModerator && (
+                                <div className="absolute -top-0.5 -right-0.5 bg-warning rounded-full p-[1px]">
+                                    <Crown className="h-2 w-2 text-white"/>
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-[11px] text-foreground-500 truncate leading-tight">
+                            {p.displayName}
+                        </span>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -890,7 +928,7 @@ function NoticeBar({isSpectator, isArchived}: { isSpectator: boolean; isArchived
         return (
             <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-2 text-warning text-xs">
                 <Archive className={ICON_SM}/>
-                <span className="font-medium">This room has been archived and is read-only.</span>
+                <span className="font-medium">This room has been archived and is read-only. It will be automatically deleted after the retention period.</span>
             </div>
         );
     }
@@ -1040,35 +1078,43 @@ function CompactEstimationStrip({room, hasTasks, isVoting, isRevealed, isArchive
                 </div>
             )}
 
-            {/* Results (revealed) */}
-            {hasResults && (
-                <div className="px-4 py-2.5 flex items-center gap-3 border-t border-content3/40">
-                    {/* Distribution cards */}
-                    <div className="flex items-center gap-2.5 flex-1">
-                        {sorted.map(([value, count], index) => (
-                            <DistributionCard
-                                key={value}
-                                value={value}
-                                count={count}
-                                totalVotes={totalVotes}
-                                isTop={count === maxCount}
-                                voters={voteGroups[value] ?? []}
-                                animationDelay={100 + index * 60}
-                                visible={resultsVisible}
-                            />
-                        ))}
+            {/* Results row — always reserves space so the table never shifts */}
+            <div className="min-h-[68px] border-t border-content3/40">
+                {hasResults ? (
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                        {/* Distribution cards */}
+                        <div className="flex items-center gap-2.5 flex-1">
+                            {sorted.map(([value, count], index) => (
+                                <DistributionCard
+                                    key={value}
+                                    value={value}
+                                    count={count}
+                                    totalVotes={totalVotes}
+                                    isTop={count === maxCount}
+                                    voters={voteGroups[value] ?? []}
+                                    animationDelay={100 + index * 60}
+                                    visible={resultsVisible}
+                                />
+                            ))}
+                        </div>
+                        {/* Average + consensus */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                            {summary!.numericAverageDisplay && (
+                                <span className="text-2xl font-black tabular-nums text-warning leading-none">
+                                    {summary!.numericAverageDisplay}
+                                </span>
+                            )}
+                            <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+                        </div>
                     </div>
-                    {/* Average + consensus */}
-                    <div className="flex items-center gap-2.5 shrink-0">
-                        {summary!.numericAverageDisplay && (
-                            <span className="text-2xl font-black tabular-nums text-warning leading-none">
-                                {summary!.numericAverageDisplay}
-                            </span>
-                        )}
-                        <span className={`text-xs font-semibold ${consensusColor}`}>{consensusLabel}</span>
+                ) : (
+                    <div className="px-4 py-2.5 flex items-center min-h-[48px]">
+                        <span className="text-xs text-foreground-300 italic">
+                            {isVoting ? 'Results will appear here after reveal' : '\u00A0'}
+                        </span>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
@@ -1175,35 +1221,21 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
     room: PlanningPokerRoom;
     scene: SceneDimensions;
 }) {
-    const {sceneW, sceneH, orbitR, cx, cy} = scene;
+    const {sceneW, sceneH, orbitRx, orbitRy, cx, cy} = scene;
 
     const seats = useMemo(() => {
         const count = participants.length;
         if (count === 0) return [];
 
-        const span = count <= 2 ? 80
-            : count <= 3 ? 100
-            : count <= 5 ? 120
-            : ARC_MAX_SPAN;
-
-        const startDeg = ARC_MID_DEG - span / 2;
-        const endDeg = ARC_MID_DEG + span / 2;
-
-        const orbitBase = count <= 2 ? orbitR * 0.88
-            : count <= 3 ? orbitR * 0.90
-            : count <= 5 ? orbitR * 0.94
-            : orbitR;
-
-        const rx = orbitBase;
-        const ry = orbitBase * 0.65;
-
+        // Evenly distribute participants around the full 360° ellipse.
+        // Start at the top (90°) and go clockwise.
         return participants.map((p, i) => {
             const deg = count === 1
-                ? 270
-                : startDeg + (i / (count - 1)) * (endDeg - startDeg);
+                ? 90                                     // single participant at top
+                : 90 - (i / count) * 360;                // clockwise from top
             const rad = (deg * Math.PI) / 180;
-            const x = cx + Math.cos(rad) * rx;
-            const y = cy - Math.sin(rad) * ry;
+            const x = cx + Math.cos(rad) * orbitRx;
+            const y = cy - Math.sin(rad) * orbitRy;
             const dx = x - cx;
             const dy = y - cy;
             const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -1211,7 +1243,7 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
             const ny = dy / dist;
             return {participant: p, x, y, nx, ny, deg};
         });
-    }, [participants, orbitR, cx, cy]);
+    }, [participants, orbitRx, orbitRy, cx, cy]);
 
     if (participants.length === 0) {
         return (
@@ -1245,11 +1277,11 @@ function PokerTableScene({participants, viewerParticipantId, isVoting, isReveale
                 />
 
                 {/* ── Participant seats ── */}
-                {seats.map(({participant: p, x, y, nx, ny}, i) => (
+                {seats.map(({participant: p, x, y, nx, ny, deg}, i) => (
                     <ParticipantSeat
                         key={p.participantId}
                         participant={p}
-                        x={x} y={y} nx={nx} ny={ny}
+                        x={x} y={y} nx={nx} ny={ny} deg={deg}
                         index={i}
                         isViewer={p.participantId === viewerParticipantId}
                         isVoting={isVoting}
@@ -1364,9 +1396,9 @@ function CenterTable({room, hasTasks, isModerator, isArchived, isVoting, isRevea
 
 // ── ParticipantSeat ──────────────────────────────────────────────────────────
 
-function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVoting, isRevealed, scene}: {
+function ParticipantSeat({participant: p, x, y, nx, ny, deg, index, isViewer, isVoting, isRevealed, scene}: {
     participant: PlanningPokerParticipant;
-    x: number; y: number; nx: number; ny: number;
+    x: number; y: number; nx: number; ny: number; deg: number;
     index: number;
     isViewer: boolean;
     isVoting: boolean;
@@ -1379,6 +1411,36 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
     const cardY = y - ny * cardInward - cardH / 2;
     const avatarX = x - avatarSize / 2;
     const avatarY = y - avatarSize / 2;
+
+    // Place name label on the outward side of the avatar (away from the table center).
+    // Normalize deg into 0-360 range.
+    const normDeg = ((deg % 360) + 360) % 360;
+    const isTopHalf = normDeg > 0 && normDeg < 180;
+
+    // How far the seat is from true left (180°) or right (0°/360°).
+    // 0 = pure top/bottom, 1 = pure left/right.
+    const angRad = (normDeg * Math.PI) / 180;
+    const sideWeight = Math.abs(Math.cos(angRad));        // 0 at 90°/270°, 1 at 0°/180°
+    const isLeftSide = normDeg > 90 && normDeg < 270;     // avatar is on the left half
+
+    // Vertical: above for top-half, below for bottom-half
+    const NAME_GAP = 3;
+    const nameTop = isTopHalf
+        ? avatarY - 16 - NAME_GAP
+        : avatarY + avatarSize + NAME_GAP;
+
+    // Horizontal: smoothly shift outward for side seats so the name doesn't overlap the card.
+    // At pure top/bottom (sideWeight≈0) → centered on avatar.
+    // At pure left/right (sideWeight≈1) → shifted outward by ~half label width.
+    const hShift = sideWeight * (nameLabelWidth * 0.45);
+    const nameLeft = isLeftSide
+        ? x - nameLabelWidth + hShift * 0.1          // left-side: align right edge near avatar center
+        : x - hShift * 0.1;                          // right-side: align left edge near avatar center
+
+    // Text alignment follows the shift direction
+    const textAlign = sideWeight > 0.4
+        ? (isLeftSide ? 'text-right' : 'text-left')
+        : 'text-center';
 
     return (
         <motion.div
@@ -1441,18 +1503,18 @@ function ParticipantSeat({participant: p, x, y, nx, ny, index, isViewer, isVotin
                 </div>
             </div>
 
-            {/* Name — centered below avatar */}
+            {/* Name — positioned outward from the card to avoid overlap */}
             <Tooltip content={p.displayName} delay={400}>
                 <div
-                    className="absolute flex items-start justify-center"
+                    className={`absolute ${isTopHalf ? 'items-end' : 'items-start'}`}
                     style={{
-                        left: `${x - nameLabelWidth / 2}px`,
-                        top: `${avatarY + avatarSize + 3}px`,
+                        left: `${nameLeft}px`,
+                        top: `${nameTop}px`,
                         width: `${nameLabelWidth}px`,
                         pointerEvents: 'auto',
                     }}
                 >
-                    <span className={`text-[11px] leading-tight font-medium truncate text-center
+                    <span className={`block text-[11px] leading-tight font-medium truncate ${textAlign}
                         ${isViewer ? 'text-primary' : 'text-foreground-500'}`}>
                         {p.displayName}
                     </span>

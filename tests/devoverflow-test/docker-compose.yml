@@ -1,0 +1,104 @@
+x-chromium-common: &chromium-common
+  image: lscr.io/linuxserver/chromium:latest
+  shm_size: "1gb"
+  restart: unless-stopped
+  environment:
+    PUID: "1000"
+    PGID: "1000"
+    TZ: "Europe/Warsaw"
+    CHROME_CLI: "--no-default-browser-check --disable-default-apps --disable-popup-blocking --disable-notifications --start-maximized ${TARGET_URL}"
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  poker-user-1:
+    <<: *chromium-common
+    container_name: poker-user-1
+    ports:
+      - "3001:3000"
+    volumes:
+      - chromium-user-1:/config
+
+  poker-user-2:
+    <<: *chromium-common
+    container_name: poker-user-2
+    ports:
+      - "3002:3000"
+    volumes:
+      - chromium-user-2:/config
+
+  poker-user-3:
+    <<: *chromium-common
+    container_name: poker-user-3
+    ports:
+      - "3003:3000"
+    volumes:
+      - chromium-user-3:/config
+
+  poker-user-4:
+    <<: *chromium-common
+    container_name: poker-user-4
+    ports:
+      - "3004:3000"
+    volumes:
+      - chromium-user-4:/config
+
+  poker-user-5:
+    <<: *chromium-common
+    container_name: poker-user-5
+    ports:
+      - "3005:3000"
+    volumes:
+      - chromium-user-5:/config
+
+#  poker-user-6:
+#    <<: *chromium-common
+#    container_name: poker-user-6
+#    ports:
+#      - "3006:3000"
+#    volumes:
+#      - chromium-user-6:/config
+#
+#  poker-user-7:
+#    <<: *chromium-common
+#    container_name: poker-user-7
+#    ports:
+#      - "3007:3000"
+#    volumes:
+#      - chromium-user-7:/config
+#
+#  poker-user-8:
+#    <<: *chromium-common
+#    container_name: poker-user-8
+#    ports:
+#      - "3008:3000"
+#    volumes:
+#      - chromium-user-8:/config
+#
+#  poker-user-9:
+#    <<: *chromium-common
+#    container_name: poker-user-9
+#    ports:
+#      - "3009:3000"
+#    volumes:
+#      - chromium-user-9:/config
+#
+#  poker-user-10:
+#    <<: *chromium-common
+#    container_name: poker-user-10
+#    ports:
+#      - "3010:3000"
+#    volumes:
+#      - chromium-user-10:/config
+
+volumes:
+  chromium-user-1:
+  chromium-user-2:
+  chromium-user-3:
+  chromium-user-4:
+  chromium-user-5:
+#  chromium-user-6:
+#  chromium-user-7:
+#  chromium-user-8:
+#  chromium-user-9:
+#  chromium-user-10:

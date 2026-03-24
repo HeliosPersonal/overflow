@@ -81,9 +81,11 @@ public record RoomSummaryResponse(
     int ParticipantCount,
     int CompletedRounds,
     DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
     DateTime? ArchivedAtUtc,
     bool IsModerator,
-    int RetentionDays,
+    int ArchivedDaysBeforeDelete,
+    int InactiveDaysBeforeArchive,
     string CreatorDisplayName,
     string? CreatorAvatarUrl,
     List<ParticipantSummaryResponse> Participants

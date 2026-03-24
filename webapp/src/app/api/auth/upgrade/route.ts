@@ -6,7 +6,7 @@ import {
     KeycloakAdminError,
     isAnonymousEmail,
 } from '@/lib/keycloak-admin';
-import { createResetToken } from '@/lib/resetTokens';
+import { createResetToken, EMAIL_VERIFICATION_EXPIRY_MS } from '@/lib/resetTokens';
 import logger from '@/lib/logger';
 
 /**
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
         // 6. Send verification email via NotificationService
         try {
-            const token = createResetToken(email); // reuse token infra (15-min expiry)
+            const token = createResetToken(email, EMAIL_VERIFICATION_EXPIRY_MS);
             const verifyUrl = `${authConfig.authUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
             const appEnv = process.env.APP_ENV || 'production';
             const appName = appEnv === 'staging' ? 'Overflow Staging' : 'Overflow';

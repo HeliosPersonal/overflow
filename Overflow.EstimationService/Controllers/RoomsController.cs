@@ -21,7 +21,8 @@ public class RoomsController(
     IConfiguration configuration) : ControllerBase
 {
     private string BaseUrl => configuration["APP_BASE_URL"] ?? "http://localhost:3000";
-    private int RetentionDays => cleanupOptions.Value.RetentionDays;
+    private int ArchivedDaysBeforeDelete => cleanupOptions.Value.ArchivedDaysBeforeDelete;
+    private int InactiveDaysBeforeArchive => cleanupOptions.Value.InactiveDaysBeforeArchive;
 
     private string? AccessToken
     {
@@ -61,7 +62,9 @@ public class RoomsController(
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
-        var summaries = await sender.Send(new GetMyRoomsQuery(userId, RetentionDays, AccessToken));
+        var summaries =
+            await sender.Send(new GetMyRoomsQuery(userId, ArchivedDaysBeforeDelete, InactiveDaysBeforeArchive,
+                AccessToken));
         return Ok(summaries);
     }
 

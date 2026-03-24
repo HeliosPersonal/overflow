@@ -2,11 +2,11 @@ import NextAuth from "next-auth"
 import Keycloak from "next-auth/providers/keycloak"
 import Credentials from "next-auth/providers/credentials"
 import {apiConfig, authConfig} from "@/lib/config";
-import { loginSchema } from "@/lib/validators/auth";
-import { isAnonymousEmail } from "@/lib/keycloak-admin";
+import {loginSchema} from "@/lib/validators/auth";
+import {isAnonymousEmail} from "@/lib/keycloak-admin";
 import logger from "@/lib/logger";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const {handlers, signIn, signOut, auth} = NextAuth({
     debug: false,
     trustHost: true,
     logger: {
@@ -15,10 +15,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 logger.debug('Stale session cookie detected (JWTSessionError) — treating as unauthenticated');
                 return;
             }
-            logger.error({ err: error }, 'Auth error');
+            logger.error({err: error}, 'Auth error');
         },
-        warn(code) { logger.warn({ code }, 'Auth warning'); },
-        debug(code, metadata) { logger.debug({ code, metadata }, 'Auth debug'); },
+        warn(code) {
+            logger.warn({code}, 'Auth warning');
+        },
+        debug(code, metadata) {
+            logger.debug({code, metadata}, 'Auth debug');
+        },
     },
     pages: {
         signIn: '/login',
@@ -28,23 +32,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         Credentials({
             name: 'credentials',
             credentials: {
-                email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
+                email: {label: "Email", type: "email"},
+                password: {label: "Password", type: "password"}
             },
             async authorize(credentials) {
                 try {
                     const validatedFields = loginSchema.safeParse(credentials);
-                    
+
                     if (!validatedFields.success) {
-                        logger.error({ err: validatedFields.error }, 'Credential validation failed');
+                        logger.error({err: validatedFields.error}, 'Credential validation failed');
                         return null;
                     }
 
-                    const { email, password } = validatedFields.data;
+                    const {email, password} = validatedFields.data;
 
                     // Authenticate with Keycloak using Direct Access Grant
                     const tokenUrl = `${authConfig.kcInternal}/protocol/openid-connect/token`;
-                    
+
                     const tokenResponse = await fetch(tokenUrl, {
                         method: 'POST',
                         headers: {
@@ -62,7 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     if (!tokenResponse.ok) {
                         const errorData = await tokenResponse.text();
-                        logger.error({ status: tokenResponse.status, body: errorData }, 'Keycloak authentication failed');
+                        logger.error({status: tokenResponse.status, body: errorData}, 'Keycloak authentication failed');
                         return null;
                     }
 
@@ -70,7 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     // Get user info
                     const userInfoUrl = `${authConfig.kcInternal}/protocol/openid-connect/userinfo`;
-                    
+
                     const userInfoResponse = await fetch(userInfoUrl, {
                         headers: {
                             Authorization: `Bearer ${tokens.access_token}`,
@@ -78,7 +82,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     });
 
                     if (!userInfoResponse.ok) {
-                        logger.error({ status: userInfoResponse.status }, 'Failed to fetch user info');
+                        logger.error({status: userInfoResponse.status}, 'Failed to fetch user info');
                         return null;
                     }
 
@@ -90,17 +94,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     let profile = null;
                     try {
                         const profileResponse = await fetch(profileUrl, {
-                            headers: { Authorization: `Bearer ${tokens.access_token}` }
+                            headers: {Authorization: `Bearer ${tokens.access_token}`}
                         });
                         if (profileResponse.ok) {
                             profile = await profileResponse.json();
                         }
                     } catch (profileError) {
-                        logger.warn({ err: profileError }, 'Profile fetch failed, proceeding with defaults');
+                        logger.warn({err: profileError}, 'Profile fetch failed, proceeding with defaults');
                     }
 
                     const isAnonymous = isAnonymousEmail(userInfo.email);
-
+                    
                     // Resolve display name:
                     //   1. ProfileService (source of truth for registered users)
                     //   2. For anonymous users: Keycloak given_name (= the guest name they entered)
@@ -118,22 +122,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         displayName,
                         reputation: profile?.reputation || 0,
                         isAnonymous,
-                        emailVerified: userInfo.email_verified ?? false,
+                        // Anonymous users have emailVerified=true in Keycloak only to satisfy
+                        // Direct Access Grant — their placeholder email is not actually verified.
+                        // Use null (not false) — next-auth's User type uses Date|null.
+                        emailVerified: isAnonymous ? null : (userInfo.email_verified ? new Date() : null),
                         avatarUrl: profile?.avatarUrl ?? null,
                         roles: (() => {
                             try {
                                 const payload = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64').toString());
                                 return payload?.realm_access?.roles ?? [];
-                            } catch { return []; }
+                            } catch {
+                                return [];
+                            }
                         })(),
                         accessToken: tokens.access_token,
                         refreshToken: tokens.refresh_token,
                         accessTokenExpires: Math.floor(Date.now() / 1000) + tokens.expires_in,
                     };
-                    
+
                     return userObject;
                 } catch (error) {
-                    logger.error({ err: error }, 'Authorize error');
+                    logger.error({err: error}, 'Authorize error');
                     return null;
                 }
             }
@@ -152,12 +161,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
         async signIn({user, account}) {
             // Block credentials login for non-anonymous users who haven't verified their email.
-            // Anonymous (guest) users always have emailVerified=true on their placeholder email.
+            // Anonymous (guest) users are always allowed through — their emailVerified is null
+            // but they must not be blocked (they have no real email to verify).
             // Keycloak SSO (provider='keycloak') handles verification on its own.
             if (account?.provider === 'credentials') {
-                const u = user as typeof user & { emailVerified?: boolean; isAnonymous?: boolean };
-                if (!u.isAnonymous && u.emailVerified === false) {
-                    logger.warn({ email: user.email }, 'Login blocked — email not verified');
+                const u = user as typeof user & { emailVerified?: Date | null; isAnonymous?: boolean };
+                if (!u.isAnonymous && !u.emailVerified) {
+                    logger.warn({email: user.email}, 'Login blocked — email not verified');
                     return '/login?error=EMAIL_NOT_VERIFIED';
                 }
             }
@@ -176,43 +186,55 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         reputation: user.reputation,
                         roles: (user as typeof user & { roles: string[] }).roles ?? [],
                         email: user.email || '',
-                        emailVerified: new Date(),
+                        emailVerified: user.emailVerified ?? null,
                         isAnonymous: user.isAnonymous,
                         avatarUrl: user.avatarUrl ?? null,
                     };
-                    
+
                     token.accessToken = (user as typeof user & { accessToken: string }).accessToken;
                     token.refreshToken = (user as typeof user & { refreshToken: string }).refreshToken;
-                    token.accessTokenExpires = (user as typeof user & { accessTokenExpires: number }).accessTokenExpires;
+                    token.accessTokenExpires = (user as typeof user & {
+                        accessTokenExpires: number
+                    }).accessTokenExpires;
                     token.profileLastFetched = now;
                     token.error = undefined;
                     return token;
                 }
-            
+
                 // Initial sign in with Keycloak provider
                 if (account?.provider === 'keycloak' && account.access_token && account.refresh_token) {
                     let profileData = null;
                     try {
                         const res = await fetch(apiConfig.baseUrl + '/profiles/me', {
-                            headers: { Authorization: `Bearer ${account.access_token}` }
+                            headers: {Authorization: `Bearer ${account.access_token}`}
                         });
                         if (res.ok) {
                             profileData = await res.json();
                         }
                     } catch (profileError) {
-                        logger.warn({ err: profileError }, 'Profile fetch failed, using defaults');
+                        logger.warn({err: profileError}, 'Profile fetch failed, using defaults');
                     }
 
                     const kcRoles = (() => {
                         try {
                             const payload = JSON.parse(Buffer.from(account.access_token.split('.')[1], 'base64').toString());
                             return payload?.realm_access?.roles ?? [];
-                        } catch { return []; }
+                        } catch {
+                            return [];
+                        }
                     })();
 
                     token.user = profileData
-                        ? { ...profileData, id: profileData.userId ?? profileData.id, roles: kcRoles }
-                        : { id: '', displayName: '', reputation: 0, roles: kcRoles, email: '', emailVerified: null, avatarUrl: null };
+                        ? {...profileData, id: profileData.userId ?? profileData.id, roles: kcRoles}
+                        : {
+                            id: '',
+                            displayName: '',
+                            reputation: 0,
+                            roles: kcRoles,
+                            email: '',
+                            emailVerified: null,
+                            avatarUrl: null
+                        };
                     token.accessToken = account.access_token
                     token.refreshToken = account.refresh_token;
                     token.accessTokenExpires = now + account.expires_in!;
@@ -220,7 +242,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     token.error = undefined;
                     return token;
                 }
-            
+
                 // Token still valid — but periodically re-fetch profile from ProfileService
                 // so session data (displayName/reputation) stays reasonably current.
                 // Mutable profile data displayed in the UI (UserMenu) is fetched directly
@@ -228,11 +250,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (token.accessTokenExpires && now < token.accessTokenExpires) {
                     const PROFILE_REFRESH_INTERVAL = 60; // seconds
                     const lastFetched = token.profileLastFetched ?? 0;
-                    
+
                     if ((now - lastFetched >= PROFILE_REFRESH_INTERVAL) && token.accessToken) {
                         try {
                             const profileRes = await fetch(apiConfig.baseUrl + '/profiles/me', {
-                                headers: { Authorization: `Bearer ${token.accessToken}` }
+                                headers: {Authorization: `Bearer ${token.accessToken}`}
                             });
                             if (profileRes.ok) {
                                 const profile = await profileRes.json();
@@ -247,10 +269,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         }
                         token.profileLastFetched = now;
                     }
-                    
+
                     return token;
                 }
-            
+
                 // Token expired — refresh
                 try {
                     const response = await fetch(`${authConfig.kcInternal}/protocol/openid-connect/token`, {
@@ -263,15 +285,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             refresh_token: token.refreshToken as string
                         })
                     })
-                    
+
                     const refreshed = await response.json()
-                    
+
                     if (!response.ok) {
-                        logger.error({ body: refreshed }, 'Failed to refresh token');
+                        logger.error({body: refreshed}, 'Failed to refresh token');
                         token.error = 'RefreshAccessTokenError';
                         return token;
                     }
-                    
+
                     token.accessToken = refreshed.access_token;
                     token.refreshToken = refreshed.refresh_token;
                     token.accessTokenExpires = now + refreshed.expires_in!;
@@ -280,7 +302,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     // so displayName/reputation stay current (ProfileService = source of truth)
                     try {
                         const profileRes = await fetch(apiConfig.baseUrl + '/profiles/me', {
-                            headers: { Authorization: `Bearer ${refreshed.access_token}` }
+                            headers: {Authorization: `Bearer ${refreshed.access_token}`}
                         });
                         if (profileRes.ok) {
                             const profile = await profileRes.json();
@@ -292,17 +314,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         }
                     } catch (profileError) {
                         // Non-fatal — keep existing session values
-                        logger.warn({ err: profileError }, 'Profile re-fetch on refresh failed');
+                        logger.warn({err: profileError}, 'Profile re-fetch on refresh failed');
                     }
                     token.profileLastFetched = now;
                 } catch (error) {
-                    logger.error({ err: error }, 'Token refresh error');
+                    logger.error({err: error}, 'Token refresh error');
                     token.error = 'RefreshAccessTokenError';
                 }
-            
+
                 return token;
             } catch (error) {
-                logger.error({ err: error }, 'JWT callback error');
+                logger.error({err: error}, 'JWT callback error');
                 return token;
             }
         },
@@ -313,15 +335,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     roles: token.user.roles ?? [],
                 };
             }
-            
+
             if (token.accessToken) {
                 session.accessToken = token.accessToken;
             }
-            
+
             if (token.accessTokenExpires) {
                 session.expires = new Date(token.accessTokenExpires * 1000) as unknown as typeof session.expires;
             }
-            
+
             return session;
         }
     }

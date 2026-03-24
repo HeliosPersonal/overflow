@@ -18,7 +18,7 @@ webapp (Next.js 16)
 ```
 
 **Inter-service messaging** uses RabbitMQ via Wolverine (durable outbox). Contracts are plain C# `record` types in `Overflow.Contracts`.  
-**EstimationService** is isolated — no Wolverine/RabbitMQ, uses EF Core + PostgreSQL + FusionCache (L1 in-memory + L2 Redis) with Redis pub/sub for cross-pod WebSocket broadcast.
+**EstimationService** is isolated — no Wolverine/RabbitMQ, uses EF Core + PostgreSQL with Redis pub/sub for cross-pod WebSocket broadcast. Room state is read directly from DB (no caching). FusionCache is used only for profile data.
 
 ---
 
@@ -152,15 +152,38 @@ Handlers use `CSharpFunctionalExtensions.Result<T>` to signal business failures 
 ## EstimationService (Planning Poker)
 
 - Uses EF Core + PostgreSQL (like every other service).
-- **Distributed cache**: FusionCache (L1 in-memory + L2 Redis) with Redis backplane for cross-pod cache invalidation. Configured in `Program.cs` via `AddFusionCache()`.
+- **No room caching**: Room state is always read directly from the database for consistency. FusionCache is used only for profile data (display name + avatar) via `ProfileServiceClient`.
 - **Multi-pod support**: Redis pub/sub (`CrossPodBroadcastService`) notifies all pods when a room is mutated so each pod broadcasts to its local WebSocket connections. K8s deployment runs 2+ replicas.
 - **Room identification**: Rooms use `Guid Id` — no short codes. Join only via link (`/planning-poker/{roomId}`).
 - **Room creation**: Both authenticated users and guests can create rooms. Guests provide a display name and get a real Keycloak account created automatically (see Guest Auth below).
-- **Participant lifecycle**: WebSocket disconnect = auto-leave. Server removes participant from DB, invalidates cache, and broadcasts updated state via Redis pub/sub. Re-joining updates the participant's display name if it changed (e.g. after account upgrade).
+- **Participant lifecycle**: WebSocket disconnect = auto-leave. Server removes participant from DB and broadcasts updated state via Redis pub/sub. Re-joining updates the participant's display name if it changed (e.g. after account upgrade).
 - HTTP-only mutations (vote, reveal, reset, etc.); WebSocket is read-only push (server → client snapshots).
-- No Wolverine or RabbitMQ dependency. Uses Redis only for caching + WebSocket coordination.
+- No Wolverine or RabbitMQ dependency. Uses Redis only for profile caching + WebSocket coordination.
 - **Legacy guest cookie**: `overflow_guest_id` cookie (30-day, HttpOnly) is still used for backwards compatibility; new guests get a real Keycloak account instead.
 - **Guest-to-account claim**: `POST /estimation/claim-guest` migrates any legacy cookie-based guest participation to the authenticated user.
+- **Automatic room lifecycle**: Rooms inactive for 30 days are auto-archived by `ArchivedRoomCleanupService`. Archived rooms are permanently deleted after another 30 days of being archived.
+
+---
+
+## Automatic Cleanup
+
+### Room Cleanup (EstimationService)
+
+`ArchivedRoomCleanupService` runs every 24 hours and performs two operations:
+
+1. **Auto-archive stale rooms**: Rooms not archived but inactive (no `UpdatedAtUtc` change) for `InactiveDaysBeforeArchive` (default: 10, configurable) days are automatically set to `Archived` status. Connected WebSocket clients receive the update immediately.
+2. **Delete expired archived rooms**: Rooms that have been archived for longer than `ArchivedDaysBeforeDelete` (default: 10, configurable) days are permanently deleted along with all participants, votes, and round history.
+
+### Anonymous User Cleanup (ProfileService)
+
+`AnonymousUserCleanupService` runs every 24 hours and deletes anonymous guest accounts older than 30 days:
+
+1. Queries Keycloak Admin API for users with `@anonymous.overflow.local` email domain.
+2. Filters to accounts with `createdTimestamp` older than 30 days.
+3. Deletes the user from Keycloak (removes auth credentials and sessions).
+4. Deletes the corresponding `UserProfile` record from ProfileService database.
+
+Requires `KeycloakOptions:AdminClientId` and `KeycloakOptions:AdminClientSecret` to be configured. If missing, the cleanup is disabled with a warning log.
 
 ---
 
