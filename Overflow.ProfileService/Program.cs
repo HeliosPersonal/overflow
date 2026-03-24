@@ -37,3 +37,9 @@ app.MapDefaultEndpoints();
 await app.MigrateDbContextAsync<ProfileDbContext>();
 
 app.Run();
+
+namespace Overflow.ProfileService
+{
+    /// <summary>Marker type for WebApplicationFactory in integration tests.</summary>
+    public partial class ProfileServiceMarker;
+}

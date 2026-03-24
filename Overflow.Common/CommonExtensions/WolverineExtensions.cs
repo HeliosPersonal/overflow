@@ -24,31 +24,46 @@ public static class WolverineExtensions
         {
             using var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
             var logger = loggerFactory.CreateLogger("RabbitMQConnection");
-            
-            var retryPolicy = Policy
-                .Handle<BrokerUnreachableException>()
-                .Or<SocketException>()
-                .WaitAndRetryAsync(
-                    retryCount: 5,
-                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-                    (exception, timespan, retryCount, _) =>
-                    {
-                        logger.LogWarning("RabbitMQ connection attempt {Attempt} failed, retrying in {Seconds}s: {Message}", 
-                            retryCount, timespan.TotalSeconds, exception.Message);
-                    });
 
-            await retryPolicy.ExecuteAsync(async () =>
+            var endpoint = builder.Configuration.GetConnectionString("messaging");
+
+            // Connection string may not be available yet in WebApplicationFactory tests
+            // (test config is applied after Program.cs runs). Skip the probe — Wolverine
+            // handles its own connection via UseRabbitMqUsingNamedConnection below.
+            if (string.IsNullOrEmpty(endpoint))
             {
-                var endpoint = builder.Configuration.GetConnectionString("messaging") ??
-                               throw new InvalidOperationException("cannot get messaging connection string");
-
-                var factory = new ConnectionFactory
+                logger.LogWarning("RabbitMQ connection string 'messaging' not found — skipping startup probe");
+            }
+            else
+            {
+                try
                 {
-                    Uri = new Uri(endpoint)
-                };
-                await using var connection = await factory.CreateConnectionAsync();
-                logger.LogInformation("RabbitMQ connection established successfully");
-            });
+                    var retryPolicy = Policy
+                        .Handle<BrokerUnreachableException>()
+                        .Or<SocketException>()
+                        .WaitAndRetryAsync(
+                            retryCount: 5,
+                            retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                            (exception, timespan, retryCount, _) =>
+                            {
+                                logger.LogWarning(
+                                    "RabbitMQ connection attempt {Attempt} failed, retrying in {Seconds}s: {Message}",
+                                    retryCount, timespan.TotalSeconds, exception.Message);
+                            });
+
+                    await retryPolicy.ExecuteAsync(async () =>
+                    {
+                        var factory = new ConnectionFactory { Uri = new Uri(endpoint) };
+                        await using var connection = await factory.CreateConnectionAsync();
+                        logger.LogInformation("RabbitMQ connection established successfully");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex,
+                        "RabbitMQ startup probe failed — continuing anyway (Wolverine will manage its own connection)");
+                }
+            }
         }
 
         builder.Services
@@ -60,14 +75,26 @@ public static class WolverineExtensions
                     .AddSource("Wolverine");
             });
 
+        var messagingEndpoint = builder.Configuration.GetConnectionString("messaging");
+
         builder.UseWolverine(opts =>
         {
-            opts.UseRabbitMqUsingNamedConnection("messaging")
-                .AutoProvision()
-                .UseConventionalRouting(x =>
-                {
-                    x.QueueNameForListener(t => $"{t.FullName}.{builder.Environment.ApplicationName}");
-                });
+            // When the messaging connection string is unavailable (e.g. WebApplicationFactory tests
+            // where env vars aren't set), stub all external transports so Wolverine doesn't
+            // try to connect to RabbitMQ. Test fixtures should NOT set the messaging env var.
+            if (string.IsNullOrEmpty(messagingEndpoint))
+            {
+                opts.StubAllExternalTransports();
+            }
+            else
+            {
+                opts.UseRabbitMqUsingNamedConnection("messaging")
+                    .AutoProvision()
+                    .UseConventionalRouting(x =>
+                    {
+                        x.QueueNameForListener(t => $"{t.FullName}.{builder.Environment.ApplicationName}");
+                    });
+            }
 
             configureMessaging(opts);
         });

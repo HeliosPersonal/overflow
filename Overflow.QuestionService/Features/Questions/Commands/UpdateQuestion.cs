@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Overflow.Common;
 using Overflow.Contracts;
 using Overflow.QuestionService.Data;
-using Overflow.QuestionService.Models;
 using Overflow.QuestionService.Services;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;

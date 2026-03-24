@@ -74,7 +74,7 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
     /// <summary>
     /// Publishes a room update notification to all pods.
     /// </summary>
-    public async Task PublishRoomUpdateAsync(Guid roomId)
+    public virtual async Task PublishRoomUpdateAsync(Guid roomId)
     {
         try
         {

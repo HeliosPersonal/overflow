@@ -35,11 +35,13 @@ public static class FusionCacheExtensions
         builder.Services.AddSingleton<IValidateOptions<DistributedCacheOptions>>(sp =>
             new DistributedCacheOptionsValidator(sp.GetRequiredService<IConfiguration>()));
 
-        // Resolve validated options eagerly so Redis + FusionCache can be configured inline.
-        // Same pattern used in AuthExtensions for KeycloakOptions.
-        var options = builder.Services
-            .BuildServiceProvider()
-            .GetRequiredService<IOptions<DistributedCacheOptions>>().Value;
+        // Read options directly from configuration — avoids BuildServiceProvider() which
+        // creates a throwaway DI container that doesn't see WebApplicationFactory test config.
+        var options = builder.Configuration
+                          .GetSection(DistributedCacheOptions.SectionName)
+                          .Get<DistributedCacheOptions>()
+                      ?? throw new InvalidOperationException(
+                          $"Missing '{DistributedCacheOptions.SectionName}' configuration section.");
 
         var redisConnectionString = builder.Configuration.GetConnectionString(options.ConnectionStringName)!;
 

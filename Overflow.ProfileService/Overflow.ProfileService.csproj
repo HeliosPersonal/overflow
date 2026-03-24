@@ -4,6 +4,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Overflow.IntegrationTests"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="CommandFlow"/>
         <PackageReference Include="CommandFlow.DependencyInjection"/>
         <PackageReference Include="CSharpFunctionalExtensions"/>

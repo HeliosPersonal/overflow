@@ -60,3 +60,9 @@ await app.MigrateDbContextAsync<QuestionDbContext>();
 await TagSeeder.SeedDefaultTagsAsync(app);
 
 app.Run();
+
+namespace Overflow.QuestionService
+{
+    /// <summary>Marker type for WebApplicationFactory in integration tests.</summary>
+    public partial class QuestionServiceMarker;
+}

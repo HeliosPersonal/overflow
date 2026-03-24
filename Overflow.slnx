@@ -15,4 +15,12 @@
   </Folder>
   <Project Path="Overflow.AppHost/Overflow.AppHost.csproj" />
   <Project Path="Overflow.ServiceDefaults/Overflow.ServiceDefaults.csproj" />
+    <Folder Name="/tests/">
+        <Project Path="tests/Overflow.QuestionService.UnitTests/Overflow.QuestionService.UnitTests.csproj"/>
+        <Project Path="tests/Overflow.VoteService.UnitTests/Overflow.VoteService.UnitTests.csproj"/>
+        <Project Path="tests/Overflow.ProfileService.UnitTests/Overflow.ProfileService.UnitTests.csproj"/>
+        <File Path="tests\README.md"/>
+        <Project Path="tests/Overflow.Contracts.UnitTests/Overflow.Contracts.UnitTests.csproj"/>
+        <Project Path="tests/Overflow.IntegrationTests/Overflow.IntegrationTests.csproj"/>
+    </Folder>
 </Solution>

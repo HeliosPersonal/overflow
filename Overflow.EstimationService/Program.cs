@@ -87,3 +87,9 @@ app.MapDefaultEndpoints();
 await app.MigrateDbContextAsync<EstimationDbContext>();
 
 app.Run();
+
+namespace Overflow.EstimationService
+{
+    /// <summary>Marker type for WebApplicationFactory in integration tests.</summary>
+    public partial class EstimationServiceMarker;
+}

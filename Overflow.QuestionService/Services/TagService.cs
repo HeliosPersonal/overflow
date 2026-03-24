@@ -17,12 +17,12 @@ public class TagService(IFusionCache cache, QuestionDbContext db)
         }, new FusionCacheEntryOptions { Duration = TimeSpan.FromHours(2) });
     }
 
-    public async Task<bool> AreTagsValidAsync(List<string> slugs)
+    public virtual async Task<bool> AreTagsValidAsync(List<string> slugs)
     {
         var tags = await GetTags();
         var tagSet = tags.Select(x => x.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return slugs.All(x => tagSet.Contains(x));
     }
 
-    public void InvalidateCache() => cache.Remove(CacheKeys.TagValidation);
+    public virtual void InvalidateCache() => cache.Remove(CacheKeys.TagValidation);
 }
