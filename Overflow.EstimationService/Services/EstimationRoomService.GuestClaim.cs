@@ -32,8 +32,7 @@ public partial class EstimationRoomService
         await db.SaveChangesAsync();
 
         foreach (var roomId in affectedRoomIds.Distinct())
-            await roomCache.InvalidateRoomAsync(roomId);
-        await roomCache.InvalidateUserRoomsAsync(userId);
+            await BroadcastRoomUpdateAsync(roomId);
 
         if (claimed > 0)
             logger.LogInformation("Claimed {Count} room(s) for guest {GuestId} → user {UserId}",

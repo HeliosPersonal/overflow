@@ -18,7 +18,9 @@ export function useRoomWebSocket(roomId: string | null) {
         if (typeof window !== 'undefined') {
             const isDev = window.location.port === '3000' || window.location.port === '4000';
             if (isDev) {
-                wsUrl = `ws://localhost:8001/estimation/rooms/${roomId}/ws`;
+                // Use the browser's actual hostname (not hardcoded localhost) so it works
+                // from Docker containers that access the app via host.docker.internal
+                wsUrl = `ws://${window.location.hostname}:8001/estimation/rooms/${roomId}/ws`;
             } else {
                 const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 wsUrl = `${proto}//${window.location.host}/api/estimation/rooms/${roomId}/ws`;

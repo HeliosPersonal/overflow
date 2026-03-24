@@ -35,7 +35,6 @@ builder.AddFusionCacheWithRedis();
 // ── Services ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<EstimationRoomService>();
 builder.Services.AddSingleton<WebSocketBroadcaster>();
-builder.Services.AddSingleton<RoomCacheService>();
 builder.Services.AddSingleton<CrossPodBroadcastService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CrossPodBroadcastService>());
 

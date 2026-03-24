@@ -47,8 +47,6 @@ public partial class EstimationRoomService
         db.Rooms.Add(room);
         await db.SaveChangesAsync();
 
-        if (moderatorUserId is not null)
-            await roomCache.InvalidateUserRoomsAsync(moderatorUserId);
 
         logger.LogInformation("Room created: {RoomId} by {ParticipantId}", room.Id, moderatorParticipantId);
         return room;
@@ -86,10 +84,7 @@ public partial class EstimationRoomService
         await db.SaveChangesAsync();
         await TouchRoomAsync(roomId);
 
-        if (userId is not null)
-            await roomCache.InvalidateUserRoomsAsync(userId);
-
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} joined room {RoomId}", participantId, roomId);
         return await ReloadRoom(roomId);
     }
@@ -117,10 +112,7 @@ public partial class EstimationRoomService
 
         await TouchRoomAsync(roomId);
 
-        if (participant.UserId is not null)
-            await roomCache.InvalidateUserRoomsAsync(participant.UserId);
-
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} left room {RoomId} (marked absent)", participantId, roomId);
         return UnitResult.Success<RoomError>();
     }
@@ -152,7 +144,7 @@ public partial class EstimationRoomService
         }
 
         await TouchRoomAsync(roomId);
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Participant {ParticipantId} mode → {Mode} in room {RoomId}",
             participantId, isSpectator ? "Spectator" : "Participant", roomId);
         return await ReloadRoom(roomId);
@@ -170,7 +162,7 @@ public partial class EstimationRoomService
         {
             var affectedRoomIds = await UpdateDisplayNameAcrossRoomsAsync(participantId, displayName);
             foreach (var affectedId in affectedRoomIds)
-                await InvalidateAndBroadcastAsync(affectedId);
+                await BroadcastRoomUpdateAsync(affectedId);
         }
 
         if (wasAbsent)
@@ -179,7 +171,7 @@ public partial class EstimationRoomService
                 .Where(p => p.RoomId == roomId && p.ParticipantId == participantId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsPresent, true));
             await TouchRoomAsync(roomId);
-            await InvalidateAndBroadcastAsync(roomId);
+            await BroadcastRoomUpdateAsync(roomId);
             logger.LogInformation("Participant {ParticipantId} returned to room {RoomId}", participantId, roomId);
             return await ReloadRoom(roomId);
         }
