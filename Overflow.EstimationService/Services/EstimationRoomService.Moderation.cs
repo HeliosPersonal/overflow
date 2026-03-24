@@ -75,7 +75,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.Status, RoomStatus.Revealed)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Votes revealed in room {RoomId} by {ModeratorId}", roomId, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -107,7 +107,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.Status, RoomStatus.Voting)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Round reset in room {RoomId}, new round {Round}", roomId, newRound);
         return await ReloadRoom(roomId);
     }
@@ -148,7 +148,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.Status, RoomStatus.Voting)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Revote started in room {RoomId} for round {Round} by {ModeratorId}",
             roomId, round, moderatorId);
         return await ReloadRoom(roomId);
@@ -181,7 +181,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.Title, trimmed)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Room {RoomId} renamed to '{Title}' by {ModeratorId}", roomId, trimmed, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -208,7 +208,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.TasksJson, tasksJson)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Tasks updated in room {RoomId} by {ModeratorId}", roomId, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -233,10 +233,7 @@ public partial class EstimationRoomService
                 .SetProperty(r => r.ArchivedAtUtc, now)
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
-        var userIds = room.Participants.Select(p => p.UserId).Where(u => u is not null);
-        await roomCache.InvalidateRoomAndUsersAsync(roomId, userIds);
-
-        await crossPodBroadcast.PublishRoomUpdateAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Room {RoomId} archived by {ModeratorId}", roomId, moderatorId);
         return await ReloadRoom(roomId);
     }
@@ -251,11 +248,9 @@ public partial class EstimationRoomService
         var moderatorCheck = EnsureModerator(room, moderatorId);
         if (moderatorCheck.IsFailure) return moderatorCheck.Error;
 
-        var userIds = room.Participants.Select(p => p.UserId).Where(u => u is not null);
-
         await db.Rooms.Where(r => r.Id == roomId).ExecuteDeleteAsync();
 
-        await roomCache.InvalidateRoomAndUsersAsync(roomId, userIds);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogInformation("Room {RoomId} deleted by {ModeratorId}", roomId, moderatorId);
         return UnitResult.Success<RoomError>();
     }

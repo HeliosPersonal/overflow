@@ -44,7 +44,7 @@ public partial class EstimationRoomService
         await db.SaveChangesAsync();
         await TouchRoomAsync(roomId);
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogDebug("Vote submitted by {ParticipantId} in room {RoomId}", participantId, roomId);
         return await ReloadRoom(roomId);
     }
@@ -66,7 +66,7 @@ public partial class EstimationRoomService
         if (deleted > 0)
             await TouchRoomAsync(roomId);
 
-        await InvalidateAndBroadcastAsync(roomId);
+        await BroadcastRoomUpdateAsync(roomId);
         logger.LogDebug("Vote cleared by {ParticipantId} in room {RoomId}", participantId, roomId);
         return UnitResult.Success<RoomError>();
     }

@@ -9,7 +9,7 @@ namespace Overflow.EstimationService.Services;
 /// to its local connections.
 ///
 /// Flow:
-///   Mutation on Pod A → InvalidateCache → PublishRoomUpdate(roomId)
+///   Mutation on Pod A → PublishRoomUpdate(roomId)
 ///   Redis pub/sub → All pods receive notification
 ///   Each pod → WebSocketBroadcaster.BroadcastRoomUpdateAsync(roomId) for LOCAL connections only
 ///
