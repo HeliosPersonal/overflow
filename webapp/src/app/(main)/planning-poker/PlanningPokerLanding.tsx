@@ -20,13 +20,19 @@ import {timeAgo} from "@/lib/util";
 import {differenceInDays} from "date-fns";
 import DiceBearAvatar from "@/components/DiceBearAvatar";
 
-function retentionLabel(r: PlanningPokerRoomSummary): string {
+function retentionLabel(r: PlanningPokerRoomSummary): {text: string; color: 'warning' | 'danger' | 'default'} | null {
     if (r.status === 'Archived' && r.archivedAtUtc) {
-        const daysLeft = r.retentionDays - differenceInDays(new Date(), new Date(r.archivedAtUtc));
-        if (daysLeft <= 0) return 'expires soon';
-        return `deletes in ${daysLeft}d`;
+        const daysLeft = r.archivedDaysBeforeDelete - differenceInDays(new Date(), new Date(r.archivedAtUtc));
+        if (daysLeft <= 0) return {text: 'expires soon', color: 'danger'};
+        return {text: `deletes in ${daysLeft}d`, color: 'warning'};
     }
-    return '';
+    if (r.status !== 'Archived' && r.updatedAtUtc) {
+        const inactiveDays = differenceInDays(new Date(), new Date(r.updatedAtUtc));
+        const daysLeft = r.inactiveDaysBeforeArchive - inactiveDays;
+        if (daysLeft <= 3 && daysLeft > 0) return {text: `auto-archives in ${daysLeft}d`, color: 'default'};
+        if (daysLeft <= 0) return {text: 'archiving soon', color: 'warning'};
+    }
+    return null;
 }
 
 export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated: boolean}) {
@@ -103,7 +109,8 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             <div className="p-5 rounded-2xl bg-content2 border border-content3 shadow-raise-sm">
                 <h2 className="text-xl font-semibold text-foreground-600 mb-1">Recent Sessions</h2>
                 <p className="text-xs text-foreground-400 mb-4">
-                    Archived rooms are automatically deleted after {recentSessions[0]?.retentionDays ?? 30} days.
+                    Inactive rooms are auto-archived after {recentSessions[0]?.inactiveDaysBeforeArchive ?? 10} days.
+                    Archived rooms are permanently deleted after {recentSessions[0]?.archivedDaysBeforeDelete ?? 10} days.
                 </p>
 
                 {!isAuthenticated ? (
@@ -143,7 +150,9 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                             <td className="py-3 pr-4 whitespace-nowrap text-foreground-500">
                                                 <div>{timeAgo(r.createdAtUtc)}</div>
                                                 {label && (
-                                                    <div className="text-xs text-warning-500">{label}</div>
+                                                    <div className={`text-xs ${label.color === 'danger' ? 'text-danger' : label.color === 'warning' ? 'text-warning-500' : 'text-foreground-400'}`}>
+                                                        {label.text}
+                                                    </div>
                                                 )}
                                             </td>
 

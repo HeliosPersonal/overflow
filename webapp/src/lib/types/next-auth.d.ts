@@ -21,6 +21,8 @@ declare module 'next-auth' {
         displayName: string;
         reputation: number;
         roles: string[];
+        email?: string | null;
+        emailVerified?: Date | null;
         isAnonymous?: boolean;
         avatarUrl?: string | null;
     }

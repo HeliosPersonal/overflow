@@ -71,6 +71,7 @@ public partial class EstimationRoomService(
     private async Task<Result<EstimationRoom, RoomError>> ReloadRoom(Guid roomId)
         => await GetRoomWithAll(roomId);
 
+
     private async Task TouchRoomAsync(Guid roomId)
     {
         var now = DateTime.UtcNow;

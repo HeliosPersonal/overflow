@@ -161,6 +161,29 @@ Handlers use `CSharpFunctionalExtensions.Result<T>` to signal business failures 
 - No Wolverine or RabbitMQ dependency. Uses Redis only for profile caching + WebSocket coordination.
 - **Legacy guest cookie**: `overflow_guest_id` cookie (30-day, HttpOnly) is still used for backwards compatibility; new guests get a real Keycloak account instead.
 - **Guest-to-account claim**: `POST /estimation/claim-guest` migrates any legacy cookie-based guest participation to the authenticated user.
+- **Automatic room lifecycle**: Rooms inactive for 30 days are auto-archived by `ArchivedRoomCleanupService`. Archived rooms are permanently deleted after another 30 days of being archived.
+
+---
+
+## Automatic Cleanup
+
+### Room Cleanup (EstimationService)
+
+`ArchivedRoomCleanupService` runs every 24 hours and performs two operations:
+
+1. **Auto-archive stale rooms**: Rooms not archived but inactive (no `UpdatedAtUtc` change) for `InactiveDaysBeforeArchive` (default: 10, configurable) days are automatically set to `Archived` status. Connected WebSocket clients receive the update immediately.
+2. **Delete expired archived rooms**: Rooms that have been archived for longer than `ArchivedDaysBeforeDelete` (default: 10, configurable) days are permanently deleted along with all participants, votes, and round history.
+
+### Anonymous User Cleanup (ProfileService)
+
+`AnonymousUserCleanupService` runs every 24 hours and deletes anonymous guest accounts older than 30 days:
+
+1. Queries Keycloak Admin API for users with `@anonymous.overflow.local` email domain.
+2. Filters to accounts with `createdTimestamp` older than 30 days.
+3. Deletes the user from Keycloak (removes auth credentials and sessions).
+4. Deletes the corresponding `UserProfile` record from ProfileService database.
+
+Requires `KeycloakOptions:AdminClientId` and `KeycloakOptions:AdminClientSecret` to be configured. If missing, the cleanup is disabled with a warning log.
 
 ---
 

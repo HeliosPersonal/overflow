@@ -10,8 +10,11 @@ namespace Overflow.EstimationService.Services;
 ///
 /// Flow:
 ///   Mutation on Pod A → PublishRoomUpdate(roomId)
-///   Redis pub/sub → All pods receive notification
-///   Each pod → WebSocketBroadcaster.BroadcastRoomUpdateAsync(roomId) for LOCAL connections only
+///     1. Local broadcast immediately (Pod A sockets)
+///     2. Redis pub/sub → Other pods receive notification → broadcast to their sockets
+///
+/// Messages are tagged with the pod's unique instance ID so the sender can ignore
+/// its own echo from Redis (it already handled the local broadcast directly).
 ///
 /// The channel name is prefixed with the environment name (e.g. "staging:", "production:")
 /// so that multiple environments sharing the same Redis instance are fully isolated.
@@ -19,6 +22,7 @@ namespace Overflow.EstimationService.Services;
 public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
 {
     private readonly string _channel;
+    private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
 
     private readonly IConnectionMultiplexer _redis;
     private readonly WebSocketBroadcaster _broadcaster;
@@ -43,16 +47,33 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
         var queue = await _subscriber.SubscribeAsync(RedisChannel.Literal(_channel));
         queue.OnMessage(channelMessage => { _ = HandleBroadcastAsync(channelMessage.Message); });
 
-        _logger.LogInformation("Cross-pod broadcast subscriber started on channel '{Channel}'", _channel);
+        _logger.LogInformation(
+            "Cross-pod broadcast subscriber started on channel '{Channel}' (instance {InstanceId})",
+            _channel, _instanceId);
     }
 
     private async Task HandleBroadcastAsync(string? message)
     {
         try
         {
-            if (Guid.TryParse(message, out var roomId))
+            if (message is null) return;
+
+            // Message format: "instanceId:roomId" — skip our own messages
+            var separatorIndex = message.IndexOf(':');
+            if (separatorIndex < 0) return;
+
+            var senderId = message[..separatorIndex];
+            var roomIdStr = message[(separatorIndex + 1)..];
+
+            if (senderId == _instanceId)
             {
-                _logger.LogDebug("Received cross-pod broadcast for room {RoomId}", roomId);
+                _logger.LogDebug("Skipping own broadcast echo for room {RoomId}", roomIdStr);
+                return;
+            }
+
+            if (Guid.TryParse(roomIdStr, out var roomId))
+            {
+                _logger.LogDebug("Received cross-pod broadcast for room {RoomId} from {SenderId}", roomId, senderId);
                 await _broadcaster.BroadcastRoomUpdateAsync(roomId);
             }
         }
@@ -72,22 +93,32 @@ public class CrossPodBroadcastService : IHostedService, IAsyncDisposable
     }
 
     /// <summary>
-    /// Publishes a room update notification to all pods.
+    /// Broadcasts a room update to local WebSocket connections immediately,
+    /// then publishes to Redis so other pods do the same.
     /// </summary>
-    public async Task PublishRoomUpdateAsync(Guid roomId)
+    public virtual async Task PublishRoomUpdateAsync(Guid roomId)
     {
+        // 1. Broadcast locally first — fastest path for connections on this pod
+        try
+        {
+            await _broadcaster.BroadcastRoomUpdateAsync(roomId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Local broadcast failed for room {RoomId}", roomId);
+        }
+
+        // 2. Notify other pods via Redis pub/sub (tagged with instance ID to skip echo)
         try
         {
             var subscriber = _redis.GetSubscriber();
-            await subscriber.PublishAsync(RedisChannel.Literal(_channel), roomId.ToString());
+            var payload = $"{_instanceId}:{roomId}";
+            await subscriber.PublishAsync(RedisChannel.Literal(_channel), payload);
             _logger.LogDebug("Published cross-pod broadcast for room {RoomId}", roomId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to publish cross-pod broadcast for room {RoomId} — " +
-                                   "falling back to local-only broadcast", roomId);
-            // Fallback: at least broadcast locally
-            await _broadcaster.BroadcastRoomUpdateAsync(roomId);
+            _logger.LogWarning(ex, "Failed to publish cross-pod broadcast for room {RoomId}", roomId);
         }
     }
 

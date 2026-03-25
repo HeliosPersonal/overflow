@@ -32,7 +32,8 @@ public class GetRoomHandler(
 
 public record GetMyRoomsQuery(
     string UserId,
-    int RetentionDays,
+    int ArchivedDaysBeforeDelete,
+    int InactiveDaysBeforeArchive,
     string? AccessToken) : IQuery<List<RoomSummaryResponse>>;
 
 public class GetMyRoomsHandler(
@@ -67,9 +68,11 @@ public class GetMyRoomsHandler(
                     r.Participants.Count,
                     r.RoundHistory.Count,
                     r.CreatedAtUtc,
+                    r.UpdatedAtUtc,
                     r.ArchivedAtUtc,
                     r.ModeratorUserId == request.UserId,
-                    request.RetentionDays,
+                    request.ArchivedDaysBeforeDelete,
+                    request.InactiveDaysBeforeArchive,
                     creator?.DisplayName ?? "Unknown",
                     creator?.UserId is not null ? avatarLookup.GetValueOrDefault(creator.UserId) : null,
                     r.Participants

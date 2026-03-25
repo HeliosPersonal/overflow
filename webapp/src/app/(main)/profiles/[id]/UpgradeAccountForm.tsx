@@ -109,6 +109,10 @@ export default function UpgradeAccountForm({userId}: Props) {
                 You&apos;re using a guest account. Add an email and password to keep your
                 account permanently, or sign in with Google.
             </p>
+            <p className="text-xs text-warning-600 bg-warning-50 rounded-lg px-3 py-2">
+                ⚠️ Guest accounts are automatically deleted after 30 days of inactivity.
+                Complete registration to keep your data.
+            </p>
             <GoogleSignInButton/>
             <div className="flex items-center gap-3">
                 <Divider className="flex-1"/>

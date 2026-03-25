@@ -43,13 +43,13 @@ export async function POST(request: NextRequest) {
         const kc = new KeycloakAdminClient();
         await kc.authenticate();
 
-        await kc.createUser({
+        const userId = await kc.createUser({
             username: placeholderEmail,
             email: placeholderEmail,
             firstName: trimmedName,
             lastName: 'Guest',
             enabled: true,
-            emailVerified: true,       // Must be true — Keycloak blocks Direct Access Grant otherwise
+            emailVerified: true,       // Must be true initially — Keycloak blocks Direct Access Grant otherwise
             requiredActions: [],       // No pending actions — same reason
             credentials: [{ type: 'password', value: password, temporary: false }],
         });

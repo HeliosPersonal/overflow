@@ -928,7 +928,7 @@ function NoticeBar({isSpectator, isArchived}: { isSpectator: boolean; isArchived
         return (
             <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-2 text-warning text-xs">
                 <Archive className={ICON_SM}/>
-                <span className="font-medium">This room has been archived and is read-only.</span>
+                <span className="font-medium">This room has been archived and is read-only. It will be automatically deleted after the retention period.</span>
             </div>
         );
     }

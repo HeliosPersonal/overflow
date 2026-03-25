@@ -68,7 +68,7 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
           <DropdownSection showDivider>
             <DropdownItem
               key="register"
-              description="Add email & password to keep your account"
+              description="Guest accounts expire after 30 days"
               onPress={() => router.push(`/profiles/${user.id}`)}
             >
               Complete Registration

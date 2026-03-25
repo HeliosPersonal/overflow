@@ -158,9 +158,11 @@ export type PlanningPokerRoomSummary = {
     participantCount: number
     completedRounds: number
     createdAtUtc: string
+    updatedAtUtc: string
     archivedAtUtc?: string | null
     isModerator?: boolean
-    retentionDays: number
+    archivedDaysBeforeDelete: number
+    inactiveDaysBeforeArchive: number
     creatorDisplayName: string
     creatorAvatarUrl?: string | null
     participants: PlanningPokerParticipantSummary[]

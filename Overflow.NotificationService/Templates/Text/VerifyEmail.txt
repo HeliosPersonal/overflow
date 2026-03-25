@@ -4,7 +4,7 @@ Thanks for signing up! Please confirm your email address by visiting the link be
 
 {{verifyUrl}}
 
-This link will expire in 24 hours.
+This link will expire in 1 hour.
 
 If you didn't create an account, you can safely ignore this email.
 

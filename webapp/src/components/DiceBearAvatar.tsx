@@ -55,7 +55,7 @@ export default function DiceBearAvatar({
             src={src}
             size={size}
             className={className}
-            classNames={{ base: `bg-transparent ${borderClass ?? ''}` }}
+            classNames={{ base: `bg-default-200 ${borderClass ?? ''}` }}
             name={name}
             showFallback={false}
         />

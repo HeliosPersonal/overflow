@@ -39,12 +39,13 @@ Real-time Planning Poker estimation rooms with WebSocket push.
 
 ## Archived Room Cleanup
 
-Archived rooms are **automatically deleted after 30 days** (configurable) to keep storage lean.
+Inactive rooms are **auto-archived** and then **permanently deleted** after a configurable retention period.
 
-| Setting                     | Default | Description                                              |
-|-----------------------------|---------|----------------------------------------------------------|
-| `RoomCleanup:RetentionDays` | `30`    | Days after archival before a room is permanently deleted |
-| `RoomCleanup:IntervalHours` | `24`    | How often the cleanup background job runs                |
+| Setting                                 | Default | Description                                              |
+|-----------------------------------------|---------|----------------------------------------------------------|
+| `RoomCleanup:InactiveDaysBeforeArchive` | `10`    | Days of inactivity before a room is auto-archived        |
+| `RoomCleanup:ArchivedDaysBeforeDelete`  | `10`    | Days after archival before a room is permanently deleted |
+| `RoomCleanup:IntervalHours`             | `24`    | How often the cleanup background job runs                |
 
 Implemented via `ArchivedRoomCleanupService` (`BackgroundService`). On each run it bulk-deletes expired rooms
 along with all related votes, round history, and participants. Override via `appsettings.json`, environment
@@ -633,7 +634,7 @@ Overflow.EstimationService/
 │   ├── WebSocketBroadcaster.cs      # WS connection tracking + viewer-scoped broadcast
 │   └── ArchivedRoomCleanupService.cs# Background job: deletes expired archived rooms
 ├── Options/
-│   └── RoomCleanupOptions.cs        # IOptions for room cleanup (RetentionDays, IntervalHours)
+│   └── RoomCleanupOptions.cs        # IOptions for room cleanup (InactiveDaysBeforeArchive, ArchivedDaysBeforeDelete, IntervalHours)
 ├── Auth/
 │   ├── IdentityResolver.cs      # JWT → user, cookie → guest resolution
 │   └── GuestIdentity.cs         # Guest cookie issuance + reading
@@ -657,16 +658,17 @@ Overflow.EstimationService/
 
 ## Configuration
 
-| Key                                  | Source                   | Description                                                                                         |
-|--------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------|
-| `ConnectionStrings:estimationDb`     | ConfigMap / Infisical    | PostgreSQL connection string                                                                        |
-| `ConnectionStrings:estimation-redis` | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                                              |
-| `ConnectionStrings:Redis`            | Infisical (staging/prod) | Redis — `CONNECTION_STRINGS__REDIS` from Infisical `/app/connections` (includes password + options) |
-| `KeycloakOptions:*`                  | appsettings + ConfigMap  | JWT validation settings                                                                             |
-| `APP_BASE_URL`                       | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                                            |
-| `PROFILE_SERVICE_URL`                | Aspire / ConfigMap       | ProfileService base URL for name resolution                                                         |
-| `RoomCleanup:RetentionDays`          | appsettings / Infisical  | Days before archived rooms are deleted (default: 30)                                                |
-| `RoomCleanup:IntervalHours`          | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                                     |
+| Key                                     | Source                   | Description                                                                                         |
+|-----------------------------------------|--------------------------|-----------------------------------------------------------------------------------------------------|
+| `ConnectionStrings:estimationDb`        | ConfigMap / Infisical    | PostgreSQL connection string                                                                        |
+| `ConnectionStrings:estimation-redis`    | Aspire (dev only)        | Redis — auto-injected by Aspire in dev                                                              |
+| `ConnectionStrings:Redis`               | Infisical (staging/prod) | Redis — `CONNECTION_STRINGS__REDIS` from Infisical `/app/connections` (includes password + options) |
+| `KeycloakOptions:*`                     | appsettings + ConfigMap  | JWT validation settings                                                                             |
+| `APP_BASE_URL`                          | ConfigMap / Infisical    | Base URL for `canonicalUrl` in responses                                                            |
+| `PROFILE_SERVICE_URL`                   | Aspire / ConfigMap       | ProfileService base URL for name resolution                                                         |
+| `RoomCleanup:InactiveDaysBeforeArchive` | appsettings / Infisical  | Days of inactivity before auto-archiving (default: 10)                                              |
+| `RoomCleanup:ArchivedDaysBeforeDelete`  | appsettings / Infisical  | Days before archived rooms are deleted (default: 10)                                                |
+| `RoomCleanup:IntervalHours`             | appsettings / Infisical  | Cleanup job run interval in hours (default: 24)                                                     |
 
 > **Redis connection string format** (staging/prod):
 `redis.infra-production.svc.cluster.local:6379,password=...,abortConnect=false`  
