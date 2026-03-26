@@ -221,7 +221,7 @@ Pre-assembled connection strings consumed by .NET services via Infisical SDK.
 | `TYPESENSE_OPTIONS__CONNECTION_URL` | `TypesenseOptions:ConnectionUrl` | search-svc |
 | `MAILGUN__API_KEY` | `Mailgun:ApiKey` | notification-svc |
 | `NOTIFICATION__INTERNAL_API_KEY` | `Notification:InternalApiKey` | notification-svc + webapp |
-| `AI_ANSWER_OPTIONS__AI_EMAIL` | `AiAnswerOptions:AiEmail` | data-seeder-svc — AI user Keycloak email |
+| `AI_ANSWER_OPTIONS__AI_EMAIL` | `AiAnswerOptions:AiEmail` | data-seeder-svc — AI user Keycloak email (`ai-assistant@staging.overflow.dev` in staging) |
 | `AI_ANSWER_OPTIONS__AI_PASSWORD` | `AiAnswerOptions:AiPassword` | data-seeder-svc — AI user Keycloak password |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` (flat) | All .NET services |
 

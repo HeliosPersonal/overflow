@@ -95,8 +95,8 @@ If all variants fail validation, the answer is skipped with a warning log.
 | `LlmApiUrl`            | `http://localhost:11434`      | Ollama API endpoint                   |
 | `LlmModel`             | `qwen2.5:3b`                  | Ollama model name                     |
 | `AiDisplayName`        | `AI Assistant`                | Display name for the AI user          |
-| `AiEmail`              | (from Infisical)              | Keycloak email for the AI user        |
-| `AiPassword`           | (from Infisical)              | Keycloak password for the AI user     |
+| `AiEmail`              | (from Infisical/config)       | Keycloak email for the AI user (`ai-assistant@staging.overflow.dev` in staging, `ai-assistant@overflow.local` locally) |
+| `AiPassword`           | (from Infisical/config)       | Keycloak password for the AI user     |
 | `AnswerVariants`       | `3`                           | Number of answer variants to generate |
 
 **Staging/Production:** `AiEmail` and `AiPassword` must be set in **Infisical** under `/app/services`:

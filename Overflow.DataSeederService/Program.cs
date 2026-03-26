@@ -28,20 +28,16 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Eagerly resolve validated options for client registration
-var sp = builder.Services.BuildServiceProvider();
-var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
-var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
-
 // OllamaSharp client — use a custom HttpClient with extended timeout for LLM inference
-builder.Services.AddSingleton<IOllamaApiClient>(_ =>
+builder.Services.AddSingleton<IOllamaApiClient>(sp =>
 {
+    var options = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
     var httpClient = new HttpClient
     {
-        BaseAddress = new Uri(aiOptions.LlmApiUrl),
-        Timeout = TimeSpan.FromSeconds(aiOptions.LlmTimeoutSeconds)
+        BaseAddress = new Uri(options.LlmApiUrl),
+        Timeout = TimeSpan.FromSeconds(options.LlmTimeoutSeconds)
     };
-    return new OllamaApiClient(httpClient, aiOptions.LlmModel);
+    return new OllamaApiClient(httpClient, options.LlmModel);
 });
 
 builder.AddServiceDefaults();
@@ -57,20 +53,34 @@ await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly =
 builder.Services.AddTransient<AdminBearerTokenHandler>();
 
 builder.Services.AddRefitClient<IKeycloakTokenClient>()
-    .ConfigureHttpClient(c =>
-        c.BaseAddress = new Uri($"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}"));
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+        c.BaseAddress = new Uri($"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}");
+    });
 
 builder.Services.AddRefitClient<IKeycloakAdminClient>()
-    .ConfigureHttpClient(c =>
-        c.BaseAddress = new Uri($"{keycloakOptions.Url}/admin/realms/{keycloakOptions.Realm}"))
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+        c.BaseAddress = new Uri($"{keycloakOptions.Url}/admin/realms/{keycloakOptions.Realm}");
+    })
     .AddHttpMessageHandler<AdminBearerTokenHandler>();
 
 // Domain API clients
 builder.Services.AddRefitClient<IQuestionApiClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(aiOptions.QuestionServiceUrl));
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
+        c.BaseAddress = new Uri(aiOptions.QuestionServiceUrl);
+    });
 
 builder.Services.AddRefitClient<IProfileApiClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(aiOptions.ProfileServiceUrl));
+    .ConfigureHttpClient((sp, c) =>
+    {
+        var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
+        c.BaseAddress = new Uri(aiOptions.ProfileServiceUrl);
+    });
 
 // Services
 builder.Services.AddSingleton<KeycloakAdminService>();
