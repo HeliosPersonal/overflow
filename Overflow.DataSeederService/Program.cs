@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
 using Overflow.Common.CommonExtensions;
@@ -8,6 +9,7 @@ using Overflow.DataSeederService.Keycloak;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Services;
 using Overflow.ServiceDefaults;
+using Polly;
 using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,7 +51,10 @@ builder.Services.AddHealthChecks()
 // Wolverine + RabbitMQ for consuming QuestionCreated events
 await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
-// Keycloak admin clients
+// ── Refit HTTP clients ─────────────────────────────────────────────────
+// The global AddStandardResilienceHandler (30s total / 10s attempt) from ServiceDefaults
+// is too aggressive for cross-namespace K8s calls. Override with extended timeouts.
+
 builder.Services.AddTransient<AdminBearerTokenHandler>();
 
 builder.Services.AddRefitClient<IKeycloakTokenClient>()
@@ -57,6 +62,14 @@ builder.Services.AddRefitClient<IKeycloakTokenClient>()
     {
         var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
         c.BaseAddress = new Uri($"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}");
+        c.Timeout = TimeSpan.FromSeconds(60);
+    })
+    .AddStandardResilienceHandler(o =>
+    {
+        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        o.Retry.MaxRetryAttempts = 2;
+        o.Retry.BackoffType = DelayBackoffType.Exponential;
     });
 
 builder.Services.AddRefitClient<IKeycloakAdminClient>()
@@ -64,15 +77,30 @@ builder.Services.AddRefitClient<IKeycloakAdminClient>()
     {
         var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
         c.BaseAddress = new Uri($"{keycloakOptions.Url}/admin/realms/{keycloakOptions.Realm}");
+        c.Timeout = TimeSpan.FromSeconds(60);
     })
-    .AddHttpMessageHandler<AdminBearerTokenHandler>();
+    .AddHttpMessageHandler<AdminBearerTokenHandler>()
+    .AddStandardResilienceHandler(o =>
+    {
+        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        o.Retry.MaxRetryAttempts = 2;
+        o.Retry.BackoffType = DelayBackoffType.Exponential;
+    });
 
-// Domain API clients
 builder.Services.AddRefitClient<IQuestionApiClient>()
     .ConfigureHttpClient((sp, c) =>
     {
         var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
         c.BaseAddress = new Uri(aiOptions.QuestionServiceUrl);
+        c.Timeout = TimeSpan.FromSeconds(60);
+    })
+    .AddStandardResilienceHandler(o =>
+    {
+        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        o.Retry.MaxRetryAttempts = 2;
+        o.Retry.BackoffType = DelayBackoffType.Exponential;
     });
 
 builder.Services.AddRefitClient<IProfileApiClient>()
@@ -80,6 +108,14 @@ builder.Services.AddRefitClient<IProfileApiClient>()
     {
         var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
         c.BaseAddress = new Uri(aiOptions.ProfileServiceUrl);
+        c.Timeout = TimeSpan.FromSeconds(60);
+    })
+    .AddStandardResilienceHandler(o =>
+    {
+        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        o.Retry.MaxRetryAttempts = 2;
+        o.Retry.BackoffType = DelayBackoffType.Exponential;
     });
 
 // Services

@@ -34,7 +34,8 @@ public class AiAnswerService(
         }
         catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
         {
-            logger.LogError(ex, "LLM request timed out or was canceled for question '{Title}' ({QuestionId}). Check if Ollama is running and accessible.",
+            logger.LogError(ex,
+                "LLM request timed out or was canceled for question '{Title}' ({QuestionId}). Check if Ollama is running and accessible.",
                 questionTitle, questionId);
             return null;
         }
@@ -52,13 +53,17 @@ public class AiAnswerService(
             return null;
         }
 
-        logger.LogInformation("LLM generated answer for question '{Title}' ({QuestionId}), obtaining Keycloak token to post...",
+        logger.LogInformation(
+            "LLM generated answer for question '{Title}' ({QuestionId}), obtaining Keycloak token to post...",
             questionTitle, questionId);
 
         var token = await aiUserProvider.GetFreshTokenAsync(ct);
         if (token == null)
         {
-            logger.LogError("Could not obtain Keycloak token for AI user — cannot post answer for {QuestionId}. Answer content was successfully generated but not posted.", 
+            logger.LogError(
+                "Could not obtain Keycloak token for AI user — cannot post answer for {QuestionId}. " +
+                "Answer content was successfully generated but not posted. " +
+                "Check KeycloakAdminService logs above for the specific cause (timeout, bad credentials, or connectivity).",
                 questionId);
             return null;
         }

@@ -47,9 +47,24 @@ public class KeycloakAdminService(
             logger.LogDebug("Obtained admin token (expires in {Seconds}s)", response.ExpiresIn);
             return _adminToken;
         }
+        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        {
+            logger.LogError(
+                "Admin token request timed out or was canceled (Keycloak URL: {Url}). " +
+                "This usually means the Keycloak endpoint is unreachable or the resilience pipeline timeout was exceeded.",
+                $"{_kc.Url}/realms/{_kc.Realm}");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex,
+                "HTTP error obtaining admin token (Keycloak URL: {Url}). Check network connectivity and Keycloak health.",
+                $"{_kc.Url}/realms/{_kc.Realm}");
+            return null;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error obtaining admin token");
+            logger.LogError(ex, "Unexpected error obtaining admin token");
             return null;
         }
     }
@@ -87,9 +102,25 @@ public class KeycloakAdminService(
                 username, ex.StatusCode, ex.Content);
             return null;
         }
+        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        {
+            logger.LogError(
+                "Token request for {Username} timed out or was canceled (Keycloak URL: {Url}). " +
+                "This usually means the Keycloak endpoint is unreachable or the resilience pipeline timeout was exceeded.",
+                username, $"{_kc.Url}/realms/{_kc.Realm}");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex,
+                "HTTP error obtaining token for {Username} (Keycloak URL: {Url}). " +
+                "Check network connectivity and Keycloak health.",
+                username, $"{_kc.Url}/realms/{_kc.Realm}");
+            return null;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error obtaining token for {Username}", username);
+            logger.LogError(ex, "Unexpected error obtaining token for {Username}", username);
             return null;
         }
     }
