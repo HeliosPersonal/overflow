@@ -58,6 +58,12 @@ public static class Extensions
                                               | ActivityTrackingOptions.ParentId;
         });
 
+        // Suppress noisy OTLP exporter HTTP client logs
+        builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpTraceExporter.LogicalHandler", LogLevel.Warning);
+        builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpTraceExporter.ClientHandler", LogLevel.Warning);
+        builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.LogicalHandler", LogLevel.Warning);
+        builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.ClientHandler", LogLevel.Warning);
+
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource =>
             {
