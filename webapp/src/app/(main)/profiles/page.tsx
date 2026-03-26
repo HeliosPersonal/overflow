@@ -1,9 +1,13 @@
 import ProfilesList from "@/app/(main)/profiles/ProfilesList";
 import {getUserProfiles} from "@/lib/actions/profile-actions";
+import {auth} from "@/auth";
+import {redirect} from "next/navigation";
 
 type SearchParams = Promise<{sortBy?: string}>
 
 export default async function Page({searchParams}: {searchParams: SearchParams}) {
+    const session = await auth();
+    if (!session?.user?.roles?.includes('admin')) redirect('/questions');
     const {sortBy} = await searchParams;
     const {data: profiles, error} = await getUserProfiles(sortBy);
 

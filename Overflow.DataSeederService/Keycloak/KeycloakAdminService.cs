@@ -6,7 +6,7 @@ using Refit;
 
 namespace Overflow.DataSeederService.Keycloak;
 
-/// <summary>Wraps Keycloak Admin REST API — token management, user CRUD, user search.</summary>
+/// <summary>Wraps Keycloak Admin REST API — token management, user creation, user lookup.</summary>
 public class KeycloakAdminService(
     IKeycloakTokenClient tokenClient,
     IKeycloakAdminClient adminClient,
@@ -171,33 +171,6 @@ public class KeycloakAdminService(
         {
             logger.LogError(ex, "Error looking up user {Username}", username);
             return null;
-        }
-    }
-
-    public async Task<List<(string keycloakUserId, string username)>> SearchUsersByPrefixAsync(
-        string usernamePrefix, int max = 100, CancellationToken cancellationToken = default)
-    {
-        var adminToken = await GetAdminTokenAsync(cancellationToken);
-        if (adminToken == null)
-        {
-            return [];
-        }
-
-        AdminTokenAccessor.Current = adminToken;
-
-        try
-        {
-            var users = await adminClient.SearchUsersAsync(usernamePrefix, max, cancellationToken);
-            return users
-                .Where(u => u is { Id: not null, Username: not null }
-                            && u.Username.StartsWith(usernamePrefix, StringComparison.OrdinalIgnoreCase))
-                .Select(u => (u.Id!, u.Username!))
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error searching users by prefix '{Prefix}'", usernamePrefix);
-            return [];
         }
     }
 }

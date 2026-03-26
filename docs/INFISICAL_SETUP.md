@@ -221,6 +221,8 @@ Pre-assembled connection strings consumed by .NET services via Infisical SDK.
 | `TYPESENSE_OPTIONS__CONNECTION_URL` | `TypesenseOptions:ConnectionUrl` | search-svc |
 | `MAILGUN__API_KEY` | `Mailgun:ApiKey` | notification-svc |
 | `NOTIFICATION__INTERNAL_API_KEY` | `Notification:InternalApiKey` | notification-svc + webapp |
+| `AI_ANSWER_OPTIONS__AI_EMAIL` | `AiAnswerOptions:AiEmail` | data-seeder-svc — AI user Keycloak email |
+| `AI_ANSWER_OPTIONS__AI_PASSWORD` | `AiAnswerOptions:AiPassword` | data-seeder-svc — AI user Keycloak password |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` (flat) | All .NET services |
 
 ### `/app/auth/` — Keycloak & NextAuth
@@ -234,17 +236,17 @@ Pre-assembled connection strings consumed by .NET services via Infisical SDK.
 
 #### Keycloak Admin API
 
-| Infisical Key | .NET Config Key / Webapp env var | Consumer |
-|---|---|---|
-| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `KeycloakOptions:AdminClientId` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID` | Webapp signup route + DataSeederService — Admin API client ID (`overflow-admin`) |
-| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `KeycloakOptions:AdminClientSecret` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | Webapp signup route + DataSeederService — Admin API client secret |
-| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `KeycloakOptions:NextJsClientId` | DataSeederService — user token client ID (`overflow-web`) |
-| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `KeycloakOptions:NextJsClientSecret` | DataSeederService — user token client secret |
+| Infisical Key                             | .NET Config Key / Webapp env var                                             | Consumer                                                                         |
+|-------------------------------------------|------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID`       | `KeycloakOptions:AdminClientId` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_ID`         | Webapp signup route + AI Answer Service — Admin API client ID (`overflow-admin`) |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET`   | `KeycloakOptions:AdminClientSecret` / `KEYCLOAK_OPTIONS_ADMIN_CLIENT_SECRET` | Webapp signup route + AI Answer Service — Admin API client secret                |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID`     | `KeycloakOptions:NextJsClientId`                                             | AI Answer Service — user token client ID (`overflow-web`)                        |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `KeycloakOptions:NextJsClientSecret`                                         | AI Answer Service — user token client secret                                     |
 
 > **Note:** `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` and `ADMIN_CLIENT_SECRET` are needed in **both**
 > staging and production (webapp signup uses them in both environments).
 > `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` and `NEXT_JS_CLIENT_SECRET` are only meaningful in staging
-> (DataSeederService doesn't run in production). They should still exist in the
+> (AI Answer Service doesn't run in production). They should still exist in the
 > production environment to avoid breaking the SDK fetch, but can have placeholder values.
 
 ### `/app/google/` — Google OAuth (backup reference only)

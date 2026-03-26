@@ -2,7 +2,7 @@ using Refit;
 
 namespace Overflow.DataSeederService.Clients;
 
-/// <summary>Profile Service REST API. Used only to trigger profile auto-creation for new seeder users.</summary>
+/// <summary>Profile Service REST API. Used to trigger profile auto-creation for the AI user.</summary>
 [Headers("Content-Type: application/json")]
 public interface IProfileApiClient
 {

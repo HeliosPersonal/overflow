@@ -126,14 +126,14 @@ var ollamaReference = ollama.GetEndpoint("ollama");
 
 var dataSeeder = builder.AddProject<Projects.Overflow_DataSeederService>("data-seeder-svc")
     .WithReference(keycloak)
-    .WithEnvironment("SeederOptions__QuestionServiceUrl", yarp.GetEndpoint("http"))
-    .WithEnvironment("SeederOptions__ProfileServiceUrl", yarp.GetEndpoint("http"))
-    .WithEnvironment("SeederOptions__VoteServiceUrl", yarp.GetEndpoint("http"))
-    .WithEnvironment("SeederOptions__LlmApiUrl", ollamaReference)
+    .WithReference(rabbitmq)
+    .WithEnvironment("AiAnswerOptions__QuestionServiceUrl", yarp.GetEndpoint("http"))
+    .WithEnvironment("AiAnswerOptions__ProfileServiceUrl", yarp.GetEndpoint("http"))
+    .WithEnvironment("AiAnswerOptions__LlmApiUrl", ollamaReference)
     .WaitFor(keycloak)
+    .WaitFor(rabbitmq)
     .WaitFor(questionService)
     .WaitFor(profileService)
-    .WaitFor(voteService)
     .WaitFor(ollama);
 
 var webapp = builder.AddNpmApp("webapp", "../webapp", "dev")

@@ -2,23 +2,23 @@ using Microsoft.Extensions.Options;
 using OllamaSharp;
 using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
+using Overflow.DataSeederService;
 using Overflow.DataSeederService.Clients;
-using Overflow.DataSeederService.Jobs;
 using Overflow.DataSeederService.Keycloak;
 using Overflow.DataSeederService.Models;
 using Overflow.DataSeederService.Services;
 using Overflow.ServiceDefaults;
 using Refit;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.AddEnvVariablesAndConfigureSecrets();
 builder.ConfigureKeycloakFromSettings();
 
 // ── Options with validation ──────────────────────────────────────────────
 builder.Services
-    .AddOptions<SeederOptions>()
-    .BindConfiguration(SeederOptions.SectionName)
+    .AddOptions<AiAnswerOptions>()
+    .BindConfiguration(AiAnswerOptions.SectionName)
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -30,16 +30,30 @@ builder.Services
 
 // Eagerly resolve validated options for client registration
 var sp = builder.Services.BuildServiceProvider();
-var seederOptions = sp.GetRequiredService<IOptions<SeederOptions>>().Value;
+var aiOptions = sp.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
 var keycloakOptions = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
 
-// OllamaSharp client — long timeout for slow LLM responses
+// OllamaSharp client — use a custom HttpClient with extended timeout for LLM inference
 builder.Services.AddSingleton<IOllamaApiClient>(_ =>
-    new OllamaApiClient(new Uri(seederOptions.LlmApiUrl), seederOptions.LlmModel));
+{
+    var httpClient = new HttpClient
+    {
+        BaseAddress = new Uri(aiOptions.LlmApiUrl),
+        Timeout = TimeSpan.FromSeconds(aiOptions.LlmTimeoutSeconds)
+    };
+    return new OllamaApiClient(httpClient, aiOptions.LlmModel);
+});
 
 builder.AddServiceDefaults();
 
-// Keycloak
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddRabbitMqHealthCheck();
+
+// Wolverine + RabbitMQ for consuming QuestionCreated events
+await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
+
+// Keycloak admin clients
 builder.Services.AddTransient<AdminBearerTokenHandler>();
 
 builder.Services.AddRefitClient<IKeycloakTokenClient>()
@@ -53,37 +67,29 @@ builder.Services.AddRefitClient<IKeycloakAdminClient>()
 
 // Domain API clients
 builder.Services.AddRefitClient<IQuestionApiClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(seederOptions.QuestionServiceUrl));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri(aiOptions.QuestionServiceUrl));
 
 builder.Services.AddRefitClient<IProfileApiClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(seederOptions.ProfileServiceUrl));
-
-builder.Services.AddRefitClient<IVoteApiClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(seederOptions.VoteServiceUrl));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri(aiOptions.ProfileServiceUrl));
 
 // Services
 builder.Services.AddSingleton<KeycloakAdminService>();
-builder.Services.AddSingleton<SeederUserService>();
-builder.Services.AddSingleton<UserSyncService>();
-builder.Services.AddSingleton<SeederUserPool>();
+builder.Services.AddSingleton<AiUserProvider>();
 builder.Services.AddSingleton<LlmService>();
-builder.Services.AddSingleton<QuestionService>();
-builder.Services.AddSingleton<AnswerService>();
-builder.Services.AddSingleton<VotingService>();
+builder.Services.AddScoped<AiAnswerService>();
 
-// Jobs
-builder.Services.AddHostedService<PostQuestionJob>();
-builder.Services.AddHostedService<PostAnswerJob>();
-builder.Services.AddHostedService<AcceptBestAnswerJob>();
+// Bootstrap AI user on startup
+builder.Services.AddHostedService<AiUserBootstrapService>();
 
-var host = builder.Build();
+var app = builder.Build();
 
-var logger = host.Services.GetRequiredService<ILogger<Program>>();
-var options = host.Services.GetRequiredService<IOptions<SeederOptions>>().Value;
+app.MapDefaultEndpoints();
+
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var options = app.Services.GetRequiredService<IOptions<AiAnswerOptions>>().Value;
 
 logger.LogInformation(
-    "Data Seeder starting — Question every {Q}min, Answer every {A}min, Accept every {Acc}min | LLM: {Model}",
-    options.QuestionIntervalMinutes, options.AnswerIntervalMinutes, options.AcceptIntervalMinutes,
-    options.LlmModel);
+    "AI Answer Service starting — AI User: '{DisplayName}' | LLM: {Model} | Variants: {Variants}",
+    options.AiDisplayName, options.LlmModel, options.AnswerVariants);
 
-host.Run();
+app.Run();

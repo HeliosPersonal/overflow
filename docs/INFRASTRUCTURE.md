@@ -6,7 +6,8 @@
 - [Quick Start Guide](./QUICKSTART.md) — Local and Kubernetes setup
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client setup, audience mappers
 - [Infisical Secret Management](./INFISICAL_SETUP.md) — All 33 secrets, how they flow, GitHub Actions sync
-- [Data Seeder Service](../Overflow.DataSeederService/README.md) — LLM-powered content generation, user pool, variability system
+- [AI Answer Service](../Overflow.DataSeederService/README.md) — Event-driven AI answer generation via Ollama +
+  Wolverine/RabbitMQ
 - [Estimation Service](../Overflow.EstimationService/README.md) — Planning Poker rooms, WebSocket protocol
 - [Terraform README](../terraform/README.md) — Project-specific Terraform
 - [infrastructure-helios](https://github.com/heliospersonal/infrastructure-helios) — Shared infrastructure repository

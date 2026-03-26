@@ -1,14 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
         <UserSecretsId>dotnet-Overflow.DataSeederService-9fd7589c-8739-42ea-888a-9ebe81d74c91</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Hosting"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
         <PackageReference Include="Microsoft.Extensions.ServiceDiscovery"/>
-        <PackageReference Include="Bogus"/>
         <PackageReference Include="OllamaSharp" />
         <PackageReference Include="Refit"/>
         <PackageReference Include="Refit.HttpClientFactory"/>
@@ -17,6 +15,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Overflow.ServiceDefaults\Overflow.ServiceDefaults.csproj"/>
         <ProjectReference Include="..\Overflow.Common\Overflow.Common.csproj"/>
+        <ProjectReference Include="..\Overflow.Contracts\Overflow.Contracts.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -24,6 +23,9 @@
             <DependentUpon>appsettings.json</DependentUpon>
         </Content>
         <Content Update="appsettings.Staging.json">
+            <DependentUpon>appsettings.json</DependentUpon>
+        </Content>
+        <Content Update="appsettings.Production.json">
             <DependentUpon>appsettings.json</DependentUpon>
         </Content>
     </ItemGroup>

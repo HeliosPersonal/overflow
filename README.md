@@ -95,7 +95,7 @@ Each service has its own README with endpoints, configuration, and project struc
 | [VoteService](Overflow.VoteService/) | Upvote / downvote — publishes vote and reputation events | [README](Overflow.VoteService/README.md) |
 | [EstimationService](Overflow.EstimationService/) | Planning Poker rooms — real-time WebSocket, guest access | [README](Overflow.EstimationService/README.md) |
 | [NotificationService](Overflow.NotificationService/) | Email notifications via Wolverine/RabbitMQ + FluentEmail/Mailgun | — |
-| [DataSeederService](Overflow.DataSeederService/) | LLM-powered staging content generator | [README](Overflow.DataSeederService/README.md) |
+| [DataSeederService](Overflow.DataSeederService/) | AI-powered answer generation — reacts to QuestionCreated events | [README](Overflow.DataSeederService/README.md) |
 
 ### Shared Libraries
 

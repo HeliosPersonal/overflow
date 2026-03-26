@@ -77,7 +77,8 @@
   - **VoteService** — Upvote/downvote. Publishes VoteCasted + UserReputationChanged. Minimal API.
   - **EstimationService** — Planning Poker rooms. WebSocket real-time push. FusionCache + Redis. No RabbitMQ. Controllers.
   - **NotificationService** — Email notifications via FluentEmail + Mailgun. Wolverine handler.
-  - **DataSeederService** — LLM-powered content generation (staging only). 20-user pool, multi-step pipeline.
+  - **DataSeederService** — AI Answer Service (staging only). Consumes QuestionCreated events, generates AI answers via
+    Ollama, posts as a single AI user.
 - Highlight: each service is independently deployable, has its own DB, and communicates only via events or HTTP
 
 ---
@@ -252,17 +253,16 @@
 
 ---
 
-## Slide 18 — Data Seeder: LLM-Powered Content Generation
+## Slide 18 — AI Answer Service: Event-Driven LLM Integration
 
 **Concepts:**
-- Background worker that generates realistic Q&A content for staging
-- Three independent jobs: PostQuestionJob (60min), PostAnswerJob (15min), AcceptAnswerJob (30min)
-- 20 fixed seeder users in Keycloak (restart-safe via password resets)
-- Multi-step LLM pipeline: pick tag → generate topic seed → generate structured question (title + body in one call for consistency)
-- Variability system: Length (short/medium/long) × Style (conversational/formal/step-by-step/code-heavy)
-- LLM generates Markdown → service converts to HTML
-- Staging: Ollama (qwen2.5:3b), Local: llama.cpp/Ollama with configurable 1-min cycles
-- Falls back to paired static templates when LLM is unavailable
+
+- Event-driven service that generates AI answers for user questions
+- Consumes `QuestionCreated` events via Wolverine/RabbitMQ — no polling, no timers
+- Single AI user account ("AI Assistant") created in Keycloak on startup
+- Answer pipeline: generate 3 variants via Ollama → LLM picks the best → post as AI user
+- Each variant is validated (non-empty fields, reasonable code length, rendered HTML > 150 chars)
+- Staging: Ollama (qwen2.5:3b), configurable model and variant count
 - Not deployed to production
 
 ---

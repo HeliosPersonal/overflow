@@ -16,21 +16,9 @@ public interface IKeycloakAdminClient
         CancellationToken cancellationToken = default);
 
     [Get("/users")]
-    Task<List<KeycloakUserDto>> SearchUsersAsync(
-        [Query] string search,
-        [Query] int max = 100,
-        CancellationToken cancellationToken = default);
-
-    [Get("/users")]
     Task<List<KeycloakUserDto>> GetUserByUsernameExactAsync(
         [Query] string username,
         [Query] bool exact = true,
-        CancellationToken cancellationToken = default);
-
-    [Put("/users/{userId}/reset-password")]
-    Task ResetPasswordAsync(
-        string userId,
-        [Body] KeycloakCredentialDto body,
         CancellationToken cancellationToken = default);
 }
 

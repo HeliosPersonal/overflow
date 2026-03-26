@@ -1,8 +1,9 @@
-# Data Seeder Service
+# AI Answer Service (Data Seeder)
 
-A .NET background worker that generates realistic Q&A content for the Overflow staging environment.
-It uses [OllamaSharp](https://github.com/awaescher/OllamaSharp) to run a multi-step LLM pipeline and
-manages a fixed pool of seeder users in Keycloak.
+An event-driven .NET service that generates AI-powered answers for user questions.
+When a user posts a question, this service receives a `QuestionCreated` event via RabbitMQ,
+generates an answer using [OllamaSharp](https://github.com/awaescher/OllamaSharp), and posts it
+as a dedicated AI user account.
 
 ### Related docs
 
@@ -15,13 +16,12 @@ manages a fixed pool of seeder users in Keycloak.
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Jobs](#jobs)
-3. [User Pool](#user-pool)
-4. [Content Generation Pipeline](#content-generation-pipeline)
+2. [How It Works](#how-it-works)
+3. [AI User](#ai-user)
+4. [Answer Generation](#answer-generation)
 5. [Configuration](#configuration)
 6. [Project Structure](#project-structure)
 7. [Local Development](#local-development)
-8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -29,195 +29,86 @@ manages a fixed pool of seeder users in Keycloak.
 
 |                  |                                                                                 |
 |------------------|---------------------------------------------------------------------------------|
-| **Type**         | .NET 10 Worker Service (3 × `BackgroundService`)                                |
-| **Purpose**      | Populate staging with realistic questions, answers, and accepted answers        |
+| **Type**         | .NET 10 Web App (Wolverine message handler)                                     |
+| **Purpose**      | Automatically answer user questions with AI-generated content                   |
 | **LLM**          | [OllamaSharp](https://github.com/awaescher/OllamaSharp) → Ollama (`qwen2.5:3b`) |
-| **User pool**    | 20 fixed seeder-prefixed Keycloak users                                         |
+| **AI User**      | Single Keycloak account (`AI Assistant`)                                        |
+| **Messaging**    | RabbitMQ via Wolverine — consumes `QuestionCreated` events                      |
 | **Environments** | Staging (K8s) and local (Aspire)                                                |
 
 The service is **not** deployed to production.
 
 ---
 
-## Jobs
-
-Three independent background jobs share the same `SeederUserPool` singleton.
-
-### PostQuestionJob — every 60 min
+## How It Works
 
 ```
-1. Pick a random seeder user
-2. Fetch tags from question-svc, pick one at random
-3. Pick random complexity (Beginner / Intermediate / Advanced)
-4. Run LLM pipeline: TopicSeed → StructuredQuestion
-5. POST question to question-svc
+User asks a question
+  → QuestionService publishes QuestionCreated event to RabbitMQ
+    → DataSeederService receives the event (Wolverine handler)
+      → LLM generates 3 answer variants
+        → LLM picks the best variant
+          → Posts the answer to QuestionService as "AI Assistant"
 ```
 
-### PostAnswerJob — every 15 min
-
-```
-1. Fetch the newest question from question-svc
-2. Pick a random seeder user who is NOT the question author
-3. Pick random complexity
-4. Run LLM pipeline: StructuredAnswer → Critic → Repair (if needed)
-5. POST answer to question-svc
-```
-
-### AcceptBestAnswerJob — every 40 min
-
-```
-1. Fetch up to 3 recent unaccepted questions that have at least one answer
-2. For each question:
-   a. Find the question author in the seeder pool
-   b. Ask LLM to pick the best answer (falls back to random if only one answer)
-   c. POST accept to question-svc as the question author
-```
-
-If the LLM fails at any step, the job logs a warning and skips that iteration — no fallbacks, no retries at the job
-level.
+The entire flow is **event-driven** — no polling, no timers. The AI responds as soon as the
+LLM finishes generating (typically 10-60 seconds depending on the model and hardware).
 
 ---
 
-## User Pool
+## AI User
 
-`SeederUserPool` is a singleton shared across all jobs.
+On startup, the service:
 
-### Lifecycle
+1. Creates (or finds) a Keycloak account: `ai-assistant@overflow.local`
+2. Authenticates to get a JWT token
+3. Calls `GET /profiles/me` to trigger profile auto-creation in ProfileService
 
-1. **Discovery** — searches Keycloak for users whose email starts with `SeederUsernamePrefix` (default `seeder-`).
-2. **Creation** — if fewer than `MaxSeederUsers` exist, creates new ones in Keycloak and hits Profile Service to trigger
-   profile auto-creation.
-3. **Password** — set once at creation using `SeederUserPassword`. Never reset on subsequent runs.
-4. **Token refresh** — each job calls `RefreshTokenAsync` per user before acting. Stale tokens are replaced
-   transparently.
-
-### Email format
-
-```
-seeder-{name}{4-digit suffix}@overflow.local
-```
-
-e.g. `seeder-johndoe4521@overflow.local`
-
-> Keycloak must have `registrationEmailAsUsername` enabled — email is the unique identifier.
+This AI user appears in the frontend like any other user — with the display name **"AI Assistant"**.
 
 ---
 
-## Content Generation Pipeline
+## Answer Generation
 
-All generation goes through `LlmService`, which uses the OllamaSharp `Chat` class with `format: "json"` — Ollama
-guarantees valid JSON output with no markdown fences or prose.
+For each `QuestionCreated` event:
 
-### Steps
+1. **Generate N variants** (default: 3) — each is an independent LLM call that produces a structured JSON answer with
+   explanation, fix steps, code snippet, and notes.
+2. **Validate** each variant — checks for non-empty fields, reasonable code length.
+3. **Render to HTML** — converts the structured answer to HTML with proper code blocks.
+4. **Pick the best** — if multiple valid variants exist, asks the LLM to rank them and select the most correct/helpful
+   one.
+5. **Post** — sends the winning answer to QuestionService via HTTP as the AI user.
 
-```
-[Step 1] TopicSeed          (temp 0.7)
-         tag + complexity → topic, difficulty, problem_type, bug_reason, key_entities, solution_hint
-
-[Step 2] StructuredQuestion (temp 0.5)
-         seed → title, context, code_example, language, expected_behavior, actual_behavior, tags
-
-  └─→ ContentAssembler.BuildQuestionHtml() → POST to question-svc
-
-[Step 3] StructuredAnswer   (temp 0.4)
-         question + random style + complexity → explanation, fix_steps, code_snippet, language, notes
-
-[Step 4] Critic             (temp 0.2)
-         evaluates answer quality → { valid, issues[] }
-
-[Step 5] Repair             (temp 0.3, only if Critic flags issues)
-         fixes flagged issues → { question?, answer? }
-
-  └─→ ContentAssembler.BuildAnswerHtml() → POST to question-svc
-```
-
-### Complexity levels
-
-| Level | Label        | Effect                                     |
-|-------|--------------|--------------------------------------------|
-| 1     | Beginner     | Simple problem, minimal jargon, short code |
-| 2     | Intermediate | Standard developer problem                 |
-| 3     | Advanced     | Edge cases, performance, deeper concepts   |
-
-### Answer styles
-
-Each answer run picks a random style passed to Step 3:
-
-| Style          | Description               |
-|----------------|---------------------------|
-| Neutral        | Clear, professional       |
-| Conversational | Friendly, approachable    |
-| Formal         | Precise, concise          |
-| StepByStep     | Numbered steps            |
-| CodeHeavy      | Code first, minimal prose |
-
-### Retries
-
-If the LLM returns unparseable JSON, `LlmService` retries up to `MaxGenerationRetries` times (default 2). If all
-attempts fail, it returns `null` — the job logs a warning and skips the iteration.
-
-### HTML assembly
-
-`ContentAssembler` wraps the structured DTO fields directly into HTML — no markdown conversion:
-
-- `context` → `<p>`
-- `code_example` / `code_snippet` → `<pre><code class="language-{lang}">`
-- `fix_steps` → `<ol><li>`
-- `expected_behavior` / `actual_behavior` / `notes` → `<h3>` + `<p>`
+If all variants fail validation, the answer is skipped with a warning log.
 
 ---
 
 ## Configuration
 
-### Base (`appsettings.json`)
+### `AiAnswerOptions` (in `appsettings.json`)
 
-All environments inherit these defaults. Override only what differs in environment-specific files.
+| Key                    | Default                       | Description                           |
+|------------------------|-------------------------------|---------------------------------------|
+| `QuestionServiceUrl`   | `http://localhost:5000`       | Base URL for posting answers          |
+| `ProfileServiceUrl`    | `http://localhost:5002`       | Base URL for profile auto-creation    |
+| `LlmApiUrl`            | `http://localhost:11434`      | Ollama API endpoint                   |
+| `LlmModel`             | `qwen2.5:3b`                  | Ollama model name                     |
+| `AiDisplayName`        | `AI Assistant`                | Display name for the AI user          |
+| `AiEmail`              | (from Infisical)              | Keycloak email for the AI user        |
+| `AiPassword`           | (from Infisical)              | Keycloak password for the AI user     |
+| `AnswerVariants`       | `3`                           | Number of answer variants to generate |
 
-```json
-{
-  "SeederOptions": {
-    "LlmModel": "qwen2.5:3b",
-    "QuestionIntervalMinutes": 60,
-    "AnswerIntervalMinutes": 15,
-    "AcceptIntervalMinutes": 40,
-    "MaxSeederUsers": 20,
-    "SeederUsernamePrefix": "seeder-",
-    "SeederUserPassword": "...",
-    "EnableVoting": true,
-    "MaxGenerationRetries": 2,
-    "EnableCriticPass": true,
-    "EnableRepairPass": true
-  },
-  "KeycloakOptions": {
-    "AdminClientId": "overflow-admin",
-    "NextJsClientId": "overflow-web"
-  }
-}
-```
+**Staging/Production:** `AiEmail` and `AiPassword` must be set in **Infisical** under `/app/services`:
+- `AI_ANSWER_OPTIONS__AI_EMAIL` (e.g., `ai-assistant@overflow.local`)
+- `AI_ANSWER_OPTIONS__AI_PASSWORD` (secure password for the Keycloak AI user)
 
-### SeederOptions reference
+**Local Development:** Set them as environment variables or in `appsettings.Development.json` (not committed).
+| `MaxGenerationRetries` | `2`                           | Max LLM retries per variant           |
 
-| Key                       | Default      | Description                                    |
-|---------------------------|--------------|------------------------------------------------|
-| `LlmApiUrl`               | —            | Ollama base URL, e.g. `http://localhost:11434` |
-| `LlmModel`                | `qwen2.5:3b` | Model name passed to Ollama                    |
-| `QuestionIntervalMinutes` | 60           | PostQuestionJob cadence                        |
-| `AnswerIntervalMinutes`   | 15           | PostAnswerJob cadence                          |
-| `AcceptIntervalMinutes`   | 40           | AcceptBestAnswerJob cadence                    |
-| `MaxSeederUsers`          | 20           | Pool size                                      |
-| `SeederUsernamePrefix`    | `seeder-`    | Email prefix for pool users                    |
-| `SeederUserPassword`      | —            | Shared password, set once at user creation     |
-| `EnableVoting`            | true         | Cast random votes after posting content        |
-| `MaxGenerationRetries`    | 2            | JSON parse retries per pipeline step           |
-| `EnableCriticPass`        | true         | Run Step 4 critic after answer generation      |
-| `EnableRepairPass`        | true         | Run Step 5 repair when critic flags issues     |
+### `KeycloakOptions`
 
-### Environment overrides
-
-| File                           | What it overrides                                             |
-|--------------------------------|---------------------------------------------------------------|
-| `appsettings.Development.json` | Service URLs (localhost ports), Keycloak URL + secrets        |
-| `appsettings.Staging.json`     | Service URLs (k8s names), Keycloak URL + issuers, OTEL config |
+Standard Keycloak configuration — see other services for reference.
 
 ---
 
@@ -225,151 +116,42 @@ All environments inherit these defaults. Override only what differs in environme
 
 ```
 Overflow.DataSeederService/
-├── Program.cs                      # DI, Refit clients, OllamaSharp setup
-├── appsettings.json                # Base config
-├── appsettings.Development.json    # Local overrides
-├── appsettings.Staging.json        # K8s overrides + OTEL
-│
-├── Jobs/
-│   ├── PostQuestionJob.cs          # Every QuestionIntervalMinutes
-│   ├── PostAnswerJob.cs            # Every AnswerIntervalMinutes
-│   └── AcceptBestAnswerJob.cs      # Every AcceptIntervalMinutes
-│
-├── Services/
-│   ├── SeederUserPool.cs           # Singleton — 20-user pool cache + token refresh
-│   ├── UserSyncService.cs          # Creates missing users in Keycloak + Profile Service
-│   ├── LlmService.cs               # OllamaSharp Chat, 5-step pipeline
-│   ├── QuestionService.cs          # Pipeline → ContentAssembler → question-svc POST
-│   ├── AnswerService.cs            # Pipeline → ContentAssembler → question-svc POST
-│   ├── ContentAssembler.cs         # DTO fields → HTML; output validation
-│   └── VotingService.cs            # Random vote casting
-│
-├── Clients/
-│   ├── IQuestionApiClient.cs       # Refit — question-svc
-│   ├── IProfileApiClient.cs        # Refit — profile-svc
-│   ├── IVoteApiClient.cs           # Refit — vote-svc
-│   ├── IKeycloakAdminClient.cs     # Refit — Keycloak Admin API
-│   ├── IKeycloakTokenClient.cs     # Refit — Keycloak token endpoint
-│   └── AdminBearerTokenHandler.cs  # Injects admin JWT into Keycloak admin requests
-│
-├── Keycloak/
-│   ├── KeycloakAdminService.cs     # User CRUD via Admin API
-│   └── SeederUserService.cs        # Seeder-specific user creation logic
-│
-├── Models/
-│   ├── SeederOptions.cs            # Config POCO
-│   ├── Dtos.cs                     # API request/response DTOs
-│   ├── LlmGenerationDtos.cs        # Pipeline DTOs (TopicSeedDto, QuestionGenerationDto, …)
-│   └── GenerationOptions.cs        # ComplexityLevel, AnswerStyle enums
-│
-└── Templates/
-    └── LlmPrompts.cs               # All 5-step pipeline prompt templates
+  Program.cs                           — Service entry point (Wolverine + RabbitMQ setup)
+  AiUserBootstrapService.cs            — Hosted service: ensures AI user exists on startup
+  Clients/
+    AdminBearerTokenHandler.cs         — Injects admin token into Keycloak Admin API calls
+    IKeycloakAdminClient.cs            — Refit client: Keycloak Admin REST API
+    IKeycloakTokenClient.cs            — Refit client: Keycloak token endpoint
+    IProfileApiClient.cs               — Refit client: ProfileService (profile auto-creation)
+    IQuestionApiClient.cs              — Refit client: QuestionService (post answers)
+  Keycloak/
+    KeycloakAdminService.cs            — Keycloak admin operations (create user, get token)
+  MessageHandlers/
+    QuestionCreatedHandler.cs          — Wolverine handler: QuestionCreated → AI answer
+  Models/
+    AiAnswerOptions.cs                 — Configuration options
+    Dtos.cs                            — Request/response DTOs + AiUser model
+    LlmGenerationDtos.cs              — LLM structured output DTOs
+  Services/
+    AiAnswerService.cs                 — Orchestrates answer generation + posting
+    AiUserProvider.cs                  — Singleton: manages AI user lifecycle + token refresh
+    LlmService.cs                      — LLM interaction: generate variants, rank, render HTML
 ```
 
 ---
 
 ## Local Development
 
-### With Aspire (recommended)
-
 ```bash
-cd Overflow.AppHost
-dotnet run
+# Start all services via Aspire (includes Ollama, Keycloak, RabbitMQ)
+cd Overflow.AppHost && dotnet run
 ```
 
-Logs and traces are available at **http://localhost:18888**.
+The service starts automatically via Aspire. It will:
 
-### Ollama setup
+1. Wait for Keycloak, RabbitMQ, QuestionService, ProfileService, and Ollama to be ready
+2. Bootstrap the AI user in Keycloak
+3. Begin listening for `QuestionCreated` events
 
-```bash
-ollama serve
-ollama pull qwen2.5:3b
-```
-
-Set `LlmApiUrl` in `appsettings.Development.json` to `http://localhost:11434`.
-
-### Speed up for local iteration
-
-```json
-"QuestionIntervalMinutes": 5,
-"AnswerIntervalMinutes": 2,
-"AcceptIntervalMinutes": 3,
-"EnableCriticPass": false,
-"EnableRepairPass": false
-```
-
-### Keycloak requirements
-
-- `overflow-admin` — Service Accounts enabled, `realm-admin` role (user creation + password set)
-- `overflow-web` — Direct Access Grants enabled (password grant for user tokens)
-
-See [Keycloak Setup](../docs/KEYCLOAK_SETUP.md).
-
----
-
-## Troubleshooting
-
-### Questions fail after users are created
-
-- Verify at least one tag exists in the Question Service.
-- Check Question Service: `kubectl logs -n apps-staging -l app=question-svc -f`
-
-### LLM requests time out or always fail
-
-- First request after pod start can take several minutes (model cold-loading).
-- Check Ollama: `kubectl logs -n apps-staging -l app=ollama -f`
-- Ensure the model is pulled: `kubectl exec -n apps-staging deploy/ollama -- ollama pull qwen2.5:3b`
-
-### Generation always skipped
-
-- Look for `[TopicSeed]`, `[StructuredQuestion]`, `[StructuredAnswer]` warnings in logs.
-- Try increasing `MaxGenerationRetries` to 3.
-- Try a larger model — small models sometimes ignore `format: "json"`.
-
-### AcceptBestAnswerJob never accepts
-
-- Questions need at least one answer first.
-- The question author must be in the seeder pool — externally-created questions are skipped.
-
-### Users created but tokens fail
-
-- Ensure Direct Access Grants are enabled for `overflow-web` in Keycloak.
-- Verify `SeederUserPassword` matches the password set during initial user creation.
-
-### Useful commands
-
-```bash
-# Follow seeder logs
-kubectl logs -n apps-staging -l app=data-seeder-svc -f
-
-# Restart seeder
-kubectl rollout restart deployment/data-seeder-svc -n apps-staging
-
-# Speed up intervals temporarily
-kubectl set env deployment/data-seeder-svc -n apps-staging \
-  SeederOptions__QuestionIntervalMinutes=10 \
-  SeederOptions__AnswerIntervalMinutes=5 \
-  SeederOptions__AcceptIntervalMinutes=8
-
-# Disable critic + repair (faster generation)
-kubectl set env deployment/data-seeder-svc -n apps-staging \
-  SeederOptions__EnableCriticPass=false \
-  SeederOptions__EnableRepairPass=false
-
-# Pull model into Ollama pod
-kubectl exec -n apps-staging deploy/ollama -- ollama pull qwen2.5:3b
-```
-
----
-
-## Possible Improvements
-
-- **Add a seeding progress dashboard endpoint** — Expose a simple `/status` HTTP endpoint (or health check detail) that
-  reports the current state of the seeder: number of questions/answers generated, last run timestamps per job, LLM
-  failure rate, and pool readiness. This would simplify monitoring without digging through logs.
-- **Support pluggable LLM backends** — Currently the service is tightly coupled to Ollama via OllamaSharp. Abstracting
-  the LLM interaction behind an `ILlmClient` interface would allow swapping in OpenAI-compatible APIs (e.g., Azure
-  OpenAI, Anthropic) for faster or higher-quality generation without changing the pipeline logic.
-- **Add content diversity tracking** — Track which tags, complexity levels, and answer styles have been used recently
-  and bias the random selection toward underrepresented combinations. This prevents the seeder from repeatedly
-  generating similar content and ensures staging data covers a broader range of topics.
+To test: post a question via the webapp at `http://localhost:3000` — the AI answer should appear within seconds to
+minutes (depending on LLM speed).

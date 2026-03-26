@@ -6,7 +6,7 @@
 - [Infrastructure Overview](./INFRASTRUCTURE.md) — Full infrastructure reference
 - [Keycloak Setup](./KEYCLOAK_SETUP.md) — Realm/client configuration
 - [Infisical Setup](./INFISICAL_SETUP.md) — Secrets management
-- [Data Seeder](../Overflow.DataSeederService/README.md) — LLM-powered staging content generator
+- [AI Answer Service](../Overflow.DataSeederService/README.md) — Event-driven AI answer generation
 
 ---
 
@@ -153,15 +153,15 @@ The pipeline:
 
 ## Environments & CI/CD
 
-| | Local | Staging | Production |
-|---|---|---|---|
-| **URL** | http://localhost:3000 | https://staging.devoverflow.org | https://devoverflow.org |
-| **Aspire Dashboard** | http://localhost:18888 | — | — |
-| **Keycloak** | http://localhost:6001 | https://keycloak.devoverflow.org | https://keycloak.devoverflow.org |
-| **Branch** | — | `development` | `main` |
-| **K8s namespace** | — | `apps-staging` | `apps-production` |
-| **Infisical env** | — | `staging` | `production` |
-| **Data Seeder** | ✅ | ✅ | ❌ |
+|                       | Local                  | Staging                          | Production                       |
+|-----------------------|------------------------|----------------------------------|----------------------------------|
+| **URL**               | http://localhost:3000  | https://staging.devoverflow.org  | https://devoverflow.org          |
+| **Aspire Dashboard**  | http://localhost:18888 | —                                | —                                |
+| **Keycloak**          | http://localhost:6001  | https://keycloak.devoverflow.org | https://keycloak.devoverflow.org |
+| **Branch**            | —                      | `development`                    | `main`                           |
+| **K8s namespace**     | —                      | `apps-staging`                   | `apps-production`                |
+| **Infisical env**     | —                      | `staging`                        | `production`                     |
+| **AI Answer Service** | ✅                      | ✅                                | ❌                                |
 
 ---
 
@@ -214,13 +214,13 @@ terraform apply -var-file="terraform.secret.tfvars"
 
 ## Further Reading
 
-| Document | Description |
-|---|---|
-| [Infrastructure](./INFRASTRUCTURE.md) | Architecture deep-dive, request flow, ingress routing |
-| [Network Architecture](./NETWORK_ARCHITECTURE.md) | Detailed network diagrams and connection flows |
-| [Keycloak Setup](./KEYCLOAK_SETUP.md) | Realm/client config, audience mappers, Google SSO |
-| [Google Auth Setup](./GOOGLE_AUTH_SETUP.md) | Google OAuth via Keycloak Identity Brokering |
-| [Infisical Setup](./INFISICAL_SETUP.md) | All 33 secrets, how they flow from Infisical to services |
-| [Data Seeder](../Overflow.DataSeederService/README.md) | LLM-powered staging content generation |
-| [Kubernetes Manifests](../k8s/README.md) | Kustomize structure and manifest reference |
-| [Terraform](../terraform/README.md) | Project-specific Terraform reference |
+| Document                                                     | Description                                              |
+|--------------------------------------------------------------|----------------------------------------------------------|
+| [Infrastructure](./INFRASTRUCTURE.md)                        | Architecture deep-dive, request flow, ingress routing    |
+| [Network Architecture](./NETWORK_ARCHITECTURE.md)            | Detailed network diagrams and connection flows           |
+| [Keycloak Setup](./KEYCLOAK_SETUP.md)                        | Realm/client config, audience mappers, Google SSO        |
+| [Google Auth Setup](./GOOGLE_AUTH_SETUP.md)                  | Google OAuth via Keycloak Identity Brokering             |
+| [Infisical Setup](./INFISICAL_SETUP.md)                      | All 33 secrets, how they flow from Infisical to services |
+| [AI Answer Service](../Overflow.DataSeederService/README.md) | Event-driven AI answer generation                        |
+| [Kubernetes Manifests](../k8s/README.md)                     | Kustomize structure and manifest reference               |
+| [Terraform](../terraform/README.md)                          | Project-specific Terraform reference                     |
