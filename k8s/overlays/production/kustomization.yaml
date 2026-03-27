@@ -26,6 +26,7 @@ resources:
   - ../../base/vote-svc
   - ../../base/estimation-svc
   - ../../base/notification-svc
+  - ../../base/data-seeder-svc
   - ../../base/overflow-webapp
   - ingress.yaml
 
@@ -51,6 +52,9 @@ images:
     newTag: latest
   - name: ghcr.io/placeholder/overflow-notification
     newName: ghcr.io/GITHUB_USERNAME/overflow-notification
+    newTag: latest
+  - name: ghcr.io/placeholder/overflow-data-seeder
+    newName: ghcr.io/GITHUB_USERNAME/overflow-data-seeder
     newTag: latest
   - name: ghcr.io/placeholder/overflow-webapp
     newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
@@ -83,6 +87,8 @@ replicas:
   - name: notification-svc
     count: 1
   - name: overflow-webapp
+    count: 1
+  - name: data-seeder-svc
     count: 1
 
 # ====================================================================================
@@ -146,6 +152,13 @@ patches:
   - target:
       kind: Deployment
       name: overflow-webapp
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: data-seeder-svc
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
