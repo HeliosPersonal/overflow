@@ -9,16 +9,19 @@
 #   2. Drops & recreates 5 PostgreSQL databases (via a temporary pod):
 #        staging_questions, staging_profiles, staging_votes, staging_stats, staging_estimations
 #   3. Drops & recreates the Typesense collection: staging_questions
-#   4. Scales deployments back up to 1
+#   4. Deletes all queues and exchanges in RabbitMQ vhost: overflow-staging
+#        (Wolverine auto-recreates them on next startup)
+#   5. Scales deployments back up to 1
 #
 # Prerequisites:
 #   - kubectl configured and pointing at the correct cluster
 #   - postgres.infra-production.svc.cluster.local reachable from the cluster
 #   - typesense.infra-production.svc.cluster.local reachable from the cluster
-#   - PGPASSWORD and TYPESENSE_API_KEY available (env vars or passed as params)
+#   - rabbitmq.infra-production.svc.cluster.local:15672 (management API) reachable
+#   - PGPASSWORD, TYPESENSE_API_KEY, RABBITMQ_USER, RABBITMQ_PASSWORD available
 #
 # Usage:
-#   $env:PGPASSWORD="<pw>"; $env:TYPESENSE_API_KEY="<key>"; .\reset-staging.ps1
+#   $env:PGPASSWORD="<pw>"; $env:TYPESENSE_API_KEY="<key>"; $env:RABBITMQ_USER="<user>"; $env:RABBITMQ_PASSWORD="<pw>"; .\reset-staging.ps1
 #   .\reset-staging.ps1 -DryRun
 # ====================================================================================
 
@@ -35,6 +38,9 @@ $PG_USER              = "postgres"
 $TYPESENSE_HOST       = "typesense.infra-production.svc.cluster.local"
 $TYPESENSE_PORT       = "8108"
 $TYPESENSE_COLLECTION = "staging_questions"
+$RABBITMQ_HOST        = "rabbitmq.infra-production.svc.cluster.local"
+$RABBITMQ_MGMT_PORT   = "15672"
+$RABBITMQ_VHOST       = "overflow-staging"
 
 $PG_DATABASES = @(
     "staging_questions"
@@ -54,7 +60,6 @@ $DEPLOYMENTS = @(
     "data-seeder-svc"
     "overflow-webapp"
     "notification-svc"
-    "ollama"
 )
 
 if ($DryRun) {
@@ -95,10 +100,14 @@ if ($LASTEXITCODE -ne 0) {
 
 Require-Env "PGPASSWORD"
 Require-Env "TYPESENSE_API_KEY"
+Require-Env "RABBITMQ_USER"
+Require-Env "RABBITMQ_PASSWORD"
 
 Write-Host "  ✅ Namespace $NAMESPACE exists"
 Write-Host "  ✅ PGPASSWORD is set"
 Write-Host "  ✅ TYPESENSE_API_KEY is set"
+Write-Host "  ✅ RABBITMQ_USER is set"
+Write-Host "  ✅ RABBITMQ_PASSWORD is set"
 
 # ============================================================================
 # 1. Scale down all deployments
@@ -107,7 +116,7 @@ Write-Host ""
 Write-Host "⏬ Scaling down deployments in $NAMESPACE..."
 
 foreach ($DEPLOY in $DEPLOYMENTS) {
-    $check = kubectl get deployment $DEPLOY -n $NAMESPACE 2>&1
+    kubectl get deployment $DEPLOY -n $NAMESPACE *>$null
     if ($LASTEXITCODE -eq 0) {
         Run-Command @("kubectl", "scale", "deployment", $DEPLOY, "-n", $NAMESPACE, "--replicas=0")
         Write-Host "  ✅ scaled down $DEPLOY"
@@ -210,13 +219,98 @@ if ($DryRun) {
 }
 
 # ============================================================================
-# 4. Scale deployments back up
+# 4. Purge RabbitMQ queues and exchanges
+# ============================================================================
+Write-Host ""
+Write-Host "🐇 Purging RabbitMQ vhost '$RABBITMQ_VHOST'..."
+
+$RABBITMQ_MGMT_URL = "http://${RABBITMQ_HOST}:${RABBITMQ_MGMT_PORT}"
+
+if ($DryRun) {
+    Write-Host "  [dry-run] DELETE all queues in vhost $RABBITMQ_VHOST via $RABBITMQ_MGMT_URL"
+    Write-Host "  [dry-run] DELETE all non-default exchanges in vhost $RABBITMQ_VHOST"
+    Write-Host "  [dry-run] (queues/exchanges will be auto-recreated by Wolverine on next startup)"
+} else {
+    $POD_NAME = "staging-reset-rmq-$PID"
+    Write-Host "  ▶ Launching temporary pod $POD_NAME..."
+
+    kubectl run $POD_NAME `
+        --namespace=infra-production `
+        --image=python:3.12-alpine `
+        --restart=Never `
+        --command -- sleep 300 2>&1 | Out-Null
+
+    kubectl wait --for=condition=Ready "pod/$POD_NAME" `
+        --namespace=infra-production --timeout=60s
+
+    $PYTHON_SCRIPT = @"
+import urllib.request, urllib.parse, json, base64, sys
+
+url      = '$RABBITMQ_MGMT_URL'
+user     = '$($env:RABBITMQ_USER)'
+password = '$($env:RABBITMQ_PASSWORD)'
+vhost    = '$RABBITMQ_VHOST'
+vhost_enc = urllib.parse.quote(vhost, safe='')
+
+creds   = base64.b64encode(f'{user}:{password}'.encode()).decode()
+headers = {'Authorization': f'Basic {creds}', 'Content-Type': 'application/json'}
+
+def api(method, path):
+    req = urllib.request.Request(f'{url}{path}', headers=headers, method=method)
+    try:
+        urllib.request.urlopen(req)
+        return True
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        print(f'  HTTP {e.code} on {method} {path}', file=sys.stderr)
+        return False
+
+def api_get(path):
+    req = urllib.request.Request(f'{url}{path}', headers=headers)
+    return json.loads(urllib.request.urlopen(req).read())
+
+# Delete all queues in vhost
+queues = api_get(f'/api/queues/{vhost_enc}')
+if not queues:
+    print('  No queues found')
+for q in queues:
+    name = q['name']
+    enc  = urllib.parse.quote(name, safe='')
+    if api('DELETE', f'/api/queues/{vhost_enc}/{enc}'):
+        print(f'  Deleted queue: {name}')
+
+# Delete all non-built-in exchanges in vhost
+exchanges = api_get(f'/api/exchanges/{vhost_enc}')
+for ex in exchanges:
+    name = ex['name']
+    if not name or name.startswith('amq.'):  # skip default and built-in exchanges
+        continue
+    enc = urllib.parse.quote(name, safe='')
+    if api('DELETE', f'/api/exchanges/{vhost_enc}/{enc}'):
+        print(f'  Deleted exchange: {name}')
+
+print('Done')
+"@
+
+    Write-Host "  ▶ Deleting queues and exchanges in '$RABBITMQ_VHOST'..."
+    kubectl exec $POD_NAME --namespace=infra-production -- python3 -c $PYTHON_SCRIPT
+
+    Write-Host "  ▶ Cleaning up temporary pod..."
+    kubectl delete pod $POD_NAME --namespace=infra-production --ignore-not-found 2>&1 | Out-Null
+
+    Write-Host "  ✅ RabbitMQ vhost '$RABBITMQ_VHOST' purged"
+    Write-Host "  ℹ️  Queues and exchanges will be auto-recreated by Wolverine on next startup"
+}
+
+# ============================================================================
+# 5. Scale deployments back up
 # ============================================================================
 Write-Host ""
 Write-Host "⬆️  Scaling deployments back up..."
 
 foreach ($DEPLOY in $DEPLOYMENTS) {
-    $check = kubectl get deployment $DEPLOY -n $NAMESPACE 2>&1
+    kubectl get deployment $DEPLOY -n $NAMESPACE *>$null
     if ($LASTEXITCODE -eq 0) {
         Run-Command @("kubectl", "scale", "deployment", $DEPLOY, "-n", $NAMESPACE, "--replicas=1")
         Write-Host "  ✅ scaled up $DEPLOY"
@@ -235,6 +329,7 @@ Write-Host ""
 Write-Host "   Namespace : $NAMESPACE"
 Write-Host "   Postgres  : $($PG_DATABASES -join ' ')"
 Write-Host "   Typesense : $TYPESENSE_COLLECTION"
+Write-Host "   RabbitMQ  : vhost '$RABBITMQ_VHOST' (queues + exchanges purged)"
 Write-Host ""
 Write-Host "   Services are starting up. Monitor with:"
 Write-Host "   kubectl rollout status deployment -n $NAMESPACE"
@@ -242,4 +337,3 @@ Write-Host "=================================="
 if ($DryRun) {
     Write-Host "   (dry-run — nothing was changed)"
 }
-
