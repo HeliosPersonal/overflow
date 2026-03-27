@@ -1,109 +1,105 @@
+using CSharpFunctionalExtensions;
 using Overflow.DataSeederService.Clients;
 using Overflow.DataSeederService.Models;
 
 namespace Overflow.DataSeederService.Services;
 
-/// <summary>Orchestrates AI answer generation and posting to QuestionService.</summary>
 public class AiAnswerService(
     IQuestionApiClient questionApi,
     LlmService llm,
     AiUserProvider aiUserProvider,
     ILogger<AiAnswerService> logger)
 {
-    /// <summary>
-    ///     Generates the best AI answer for a question and posts it. Returns the created answer or null on failure.
-    ///     Throws exceptions for infrastructure failures (will be retried by Wolverine).
-    /// </summary>
-    public async Task<Answer?> GenerateAndPostAnswerAsync(
+    public async Task<Result<Answer>> GenerateAndPostAnswerAsync(
         string questionId, string questionTitle, string questionContent,
         List<string> tags, CancellationToken ct = default)
     {
-        var aiUser = await aiUserProvider.GetUserAsync(ct);
-        if (aiUser == null)
+        var userResult = await aiUserProvider.GetUserAsync(ct);
+        if (userResult.IsFailure)
         {
-            // Infrastructure failure - AI user should exist but doesn't
-            logger.LogError("AI user not available — cannot answer question {QuestionId}", questionId);
-            throw new InvalidOperationException("AI user is not available - check bootstrap logs");
+            return Result.Failure<Answer>(userResult.Error);
         }
 
-        logger.LogInformation("Generating AI answer for question '{Title}' ({QuestionId})",
-            questionTitle, questionId);
+        logger.LogInformation("Generating AI answer for '{Title}' ({Id})", questionTitle, questionId);
 
-        string? html;
+        var htmlResult = await GenerateHtmlSafe(questionTitle, questionContent, tags);
+        if (htmlResult.IsFailure)
+        {
+            return Result.Failure<Answer>(htmlResult.Error);
+        }
+
+        return await PostWithTokenRefresh(questionId, questionTitle, htmlResult.Value, userResult.Value);
+    }
+
+    private async Task<Result<Answer>> PostWithTokenRefresh(
+        string questionId, string title, string html, AiUser user)
+    {
+        // Try with the cached token first
+        var result = await PostAnswerSafe(questionId, html, user.Token);
+        if (result.IsSuccess)
+        {
+            logger.LogInformation("AI answered '{Title}' — {AnswerId}", title, result.Value.Id);
+            return result;
+        }
+
+        // If the cached token failed, refresh and retry once
+        logger.LogWarning("Post failed with cached token for {Id}, refreshing: {Error}", questionId, result.Error);
+
+        var tokenResult = await aiUserProvider.GetFreshTokenAsync();
+        if (tokenResult.IsFailure)
+        {
+            logger.LogError("Token refresh failed for {Id}: {Error}", questionId, tokenResult.Error);
+            return Result.Failure<Answer>(tokenResult.Error);
+        }
+
+        result = await PostAnswerSafe(questionId, html, tokenResult.Value);
+        if (result.IsSuccess)
+        {
+            logger.LogInformation("AI answered '{Title}' — {AnswerId} (after token refresh)", title, result.Value.Id);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<string>> GenerateHtmlSafe(
+        string title, string content, List<string> tags)
+    {
         try
         {
-            html = await llm.GenerateBestAnswerAsync(questionTitle, questionContent, tags, ct);
+            return await llm.GenerateBestAnswerAsync(title, content, tags);
         }
-        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException)
         {
-            logger.LogError(ex,
-                "LLM request timed out or was canceled for question '{Title}' ({QuestionId}). Check if Ollama is running and accessible.",
-                questionTitle, questionId);
-            // This could be infrastructure (Ollama down) or just a slow question
-            // Throw to retry - if it keeps failing, will go to DLQ
-            throw;
+            return Result.Failure<string>("LLM generation cancelled");
         }
         catch (HttpRequestException ex)
         {
-            // Infrastructure failure - Ollama unreachable
-            logger.LogError(ex, "Cannot connect to Ollama for question '{Title}' ({QuestionId})", questionTitle, questionId);
-            throw;
+            logger.LogError(ex, "Ollama unreachable");
+            return Result.Failure<string>($"Ollama unreachable: {ex.Message}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "LLM request failed for question '{Title}' ({QuestionId})",
-                questionTitle, questionId);
-            // Unknown exception - let Wolverine retry
-            throw;
+            logger.LogError(ex, "LLM generation error");
+            return Result.Failure<string>(ex.Message);
         }
+    }
 
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            // Business failure - LLM couldn't generate a good answer
-            // This is expected for some questions - don't retry
-            logger.LogWarning("LLM produced no usable answer for question '{Title}' ({QuestionId})",
-                questionTitle, questionId);
-            return null;
-        }
-
-        logger.LogInformation(
-            "LLM generated answer for question '{Title}' ({QuestionId}), obtaining Keycloak token to post...",
-            questionTitle, questionId);
-
-        var token = await aiUserProvider.GetFreshTokenAsync(ct);
-        if (token == null)
-        {
-            // Infrastructure failure - should have a token but don't
-            logger.LogError(
-                "Could not obtain Keycloak token for AI user — cannot post answer for {QuestionId}. " +
-                "Answer content was successfully generated but not posted. " +
-                "Check KeycloakAdminService logs above for the specific cause (timeout, bad credentials, or connectivity).",
-                questionId);
-            throw new InvalidOperationException("Failed to obtain Keycloak token for AI user");
-        }
-
+    private async Task<Result<Answer>> PostAnswerSafe(string questionId, string html, string token)
+    {
         try
         {
             var answer = await questionApi.CreateAnswerAsync(
-                questionId,
-                new CreateAnswerDto { Content = html },
-                $"Bearer {token}", ct);
+                questionId, new CreateAnswerDto { Content = html }, $"Bearer {token}");
 
-            logger.LogInformation("AI answered question '{Title}' — answer ID: {AnswerId}",
-                questionTitle, answer.Id);
             return answer;
         }
         catch (HttpRequestException ex)
         {
-            // Infrastructure failure - QuestionService unreachable
-            logger.LogError(ex, "Cannot connect to QuestionService to post answer for question {QuestionId}", questionId);
-            throw;
+            return Result.Failure<Answer>($"QuestionService HTTP error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            // Could be 4xx (bad request) or infrastructure failure
-            logger.LogError(ex, "Failed to post AI answer for question {QuestionId}", questionId);
-            throw;
+            return Result.Failure<Answer>($"Post failed: {ex.Message}");
         }
     }
 }

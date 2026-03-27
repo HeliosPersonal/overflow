@@ -3,10 +3,6 @@ using Refit;
 
 namespace Overflow.DataSeederService.Clients;
 
-/// <summary>
-///     Refit client for the Question Service REST API.
-///     Used to post AI-generated answers.
-/// </summary>
 [Headers("Content-Type: application/json")]
 public interface IQuestionApiClient
 {
@@ -15,5 +11,5 @@ public interface IQuestionApiClient
         string questionId,
         [Body] CreateAnswerDto body,
         [Header("Authorization")] string authorization,
-        CancellationToken cancellationToken = default);
+        CancellationToken ct = default);
 }

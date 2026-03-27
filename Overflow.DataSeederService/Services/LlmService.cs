@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
 using OllamaSharp.Models;
@@ -7,320 +9,266 @@ using Overflow.DataSeederService.Models;
 
 namespace Overflow.DataSeederService.Services;
 
-/// <summary>
-///     Generates AI answers via Ollama. Produces N variants and picks the best one.
-/// </summary>
 public class LlmService(
     IOllamaApiClient ollama,
     IOptions<AiAnswerOptions> options,
     ILogger<LlmService> logger)
 {
-    private static readonly JsonSerializerOptions JsonOptions =
+    private const int MaxGenerationTokens = 1024;
+    private const int MaxRankingTokens = 8;
+
+    private static readonly JsonSerializerOptions JsonOpts =
         new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
-    private readonly AiAnswerOptions _options = options.Value;
+    private readonly AiAnswerOptions _opts = options.Value;
+    private bool _modelChecked;
 
-    /// <summary>
-    ///     Generates <see cref="AiAnswerOptions.AnswerVariants" /> answer variants for the given question,
-    ///     scores them, and returns the best rendered HTML. Returns null if all attempts fail.
-    /// </summary>
-    public async Task<string?> GenerateBestAnswerAsync(
-        string questionTitle, string questionContent, List<string> tags, CancellationToken ct = default)
+    public async Task<Result<string>> GenerateBestAnswerAsync(
+        string title, string content, List<string> tags, CancellationToken ct = default)
     {
+        await EnsureModelAvailableAsync(ct);
+
         var variants = new List<AnswerWithScore>();
 
-        for (var i = 0; i < _options.AnswerVariants; i++)
+        for (var i = 0; i < _opts.AnswerVariants; i++)
         {
-            logger.LogInformation("[Variant {Index}/{Total}] Generating answer for '{Title}'",
-                i + 1, _options.AnswerVariants, questionTitle);
+            logger.LogInformation("[Variant {I}/{N}] Generating for '{Title}'",
+                i + 1, _opts.AnswerVariants, title);
 
-            var answer = await GenerateAnswerAsync(questionTitle, questionContent, tags, ct);
-            if (answer == null) continue;
-
-            var issues = ValidateAnswer(answer);
-            if (issues.Count > 0)
+            var dto = await GenerateSingleAnswerAsync(title, content, tags, ct);
+            if (dto == null)
             {
-                logger.LogDebug("[Variant {Index}/{Total}] Validation failed: {Issues}",
-                    i + 1, _options.AnswerVariants, string.Join("; ", issues));
                 continue;
             }
 
-            var html = BuildAnswerHtml(answer);
-            if (html.Length < 150)
+            var html = AnswerHtmlRenderer.RenderIfValid(dto);
+            if (html == null)
             {
-                logger.LogDebug("[Variant {Index}/{Total}] Rendered HTML too short ({Length} chars)",
-                    i + 1, _options.AnswerVariants, html.Length);
+                logger.LogDebug("[Variant {I}/{N}] Rejected by validation/length", i + 1, _opts.AnswerVariants);
                 continue;
             }
 
-            variants.Add(new AnswerWithScore { Answer = answer, RenderedHtml = html });
+            variants.Add(new AnswerWithScore(dto, html));
         }
 
-        if (variants.Count == 0)
+        switch (variants.Count)
         {
-            logger.LogWarning("All {Count} answer variants failed for '{Title}'",
-                _options.AnswerVariants, questionTitle);
-            return null;
+            case 0:
+                return Result.Failure<string>($"All {_opts.AnswerVariants} variants failed");
+            case 1:
+                return variants[0].RenderedHtml;
         }
 
-        if (variants.Count == 1)
-            return variants[0].RenderedHtml;
-
-        // Ask the LLM to rank the variants
-        var bestIndex = await SelectBestVariantAsync(questionTitle, variants, ct);
-        logger.LogInformation("Selected variant {Index}/{Total} as best answer for '{Title}'",
-            bestIndex + 1, variants.Count, questionTitle);
-
-        return variants[bestIndex].RenderedHtml;
+        var bestIdx = await RankVariantsAsync(title, variants, ct);
+        logger.LogInformation("Selected variant {I}/{N} for '{Title}'", bestIdx + 1, variants.Count, title);
+        return variants[bestIdx].RenderedHtml;
     }
 
-    // ── Answer generation ─────────────────────────────────────────────────────
+    // ── Model management ──────────────────────────────────────────────────
 
-    private async Task<AnswerGenerationDto?> GenerateAnswerAsync(
+    private async Task EnsureModelAvailableAsync(CancellationToken ct)
+    {
+        switch (_modelChecked)
+        {
+            case true:
+                return;
+            default:
+                try
+                {
+                    var models = await ollama.ListLocalModelsAsync(ct);
+                    if (models.Any(m => m.Name.StartsWith(_opts.LlmModel, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _modelChecked = true;
+                        return;
+                    }
+
+                    logger.LogInformation("Pulling model '{Model}'...", _opts.LlmModel);
+                    await foreach (var s in ollama.PullModelAsync(new PullModelRequest { Model = _opts.LlmModel }, ct))
+                        if (!string.IsNullOrWhiteSpace(s?.Status))
+                        {
+                            logger.LogInformation("[Pull] {Status}", s.Status);
+                        }
+
+                    _modelChecked = true;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Cannot verify model '{Model}' — proceeding anyway", _opts.LlmModel);
+                }
+
+                break;
+        }
+    }
+
+    // ── Single answer generation ──────────────────────────────────────────
+
+    private async Task<AnswerGenerationDto?> GenerateSingleAnswerAsync(
         string title, string content, List<string> tags, CancellationToken ct)
     {
-        var maxAttempts = _options.MaxGenerationRetries + 1;
+        var maxAttempts = _opts.MaxGenerationRetries + 1;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var prompt = BuildAnswerPrompt(title, content, tags);
-            var chat = new Chat(ollama, prompt.System)
-            {
-                Options = new RequestOptions { Temperature = 0.6f }
-            };
+            var raw = await ChatWithTimeout(
+                BuildAnswerPrompt(title, content, tags),
+                TimeSpan.FromSeconds(_opts.GenerationTimeoutSeconds),
+                MaxGenerationTokens, ct);
 
-            var sb = new StringBuilder();
+            if (raw == null)
+            {
+                logger.LogWarning("[Answer] {A}/{Max}: empty or timed out", attempt, maxAttempts);
+                continue;
+            }
+
+            var cleaned = CleanJson(raw);
             try
             {
-                // Add per-attempt timeout (2 minutes) to prevent hanging on slow/stuck generations
-                using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                attemptCts.CancelAfter(TimeSpan.FromMinutes(2));
-                
-                var started = DateTime.UtcNow;
-                await chat.SendAsync(prompt.User, tools: null, imagesAsBase64: null, format: "json", attemptCts.Token)
-                    .StreamToEndAsync(t => sb.Append(t));
+                var dto = JsonSerializer.Deserialize<AnswerGenerationDto>(cleaned, JsonOpts);
+                if (dto != null)
+                {
+                    return dto;
+                }
 
-                logger.LogDebug("[Answer] LLM responded in {Elapsed:F1}s",
-                    (DateTime.UtcNow - started).TotalSeconds);
-            }
-            catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
-            {
-                logger.LogWarning("[Answer] Attempt {A}/{Max}: LLM request timed out (2min limit). Question may be too complex for the model.", 
-                    attempt, maxAttempts);
-                continue;
-            }
-            catch (HttpRequestException ex)
-            {
-                logger.LogError(ex, "[Answer] Attempt {A}/{Max}: Could not connect to Ollama. Check if the service is accessible at the configured URL.", 
-                    attempt, maxAttempts);
-                continue;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[Answer] Attempt {A}/{Max}: LLM request failed with unexpected error", 
-                    attempt, maxAttempts);
-                continue;
-            }
-
-            var responseText = sb.ToString().Trim();
-            if (string.IsNullOrWhiteSpace(responseText))
-            {
-                logger.LogWarning("[Answer] Attempt {A}/{Max}: LLM returned empty response", attempt, maxAttempts);
-                continue;
-            }
-
-            // Clean up common JSON issues from LLM output
-            responseText = CleanJsonResponse(responseText);
-
-            try
-            {
-                var dto = JsonSerializer.Deserialize<AnswerGenerationDto>(responseText, JsonOptions);
-                if (dto != null) return dto;
-
-                logger.LogWarning("[Answer] Attempt {A}/{Max}: deserialised to null", attempt, maxAttempts);
+                logger.LogWarning("[Answer] {A}/{Max}: deserialized to null", attempt, maxAttempts);
             }
             catch (JsonException ex)
             {
-                logger.LogWarning("[Answer] Attempt {A}/{Max}: JSON parse error — {Msg}. Response preview: {Preview}",
-                    attempt, maxAttempts, ex.Message, responseText.Length > 200 ? responseText[..200] + "..." : responseText);
+                var preview = cleaned.Length > 200 ? cleaned[..200] + "..." : cleaned;
+                logger.LogWarning("[Answer] {A}/{Max}: JSON error — {Msg}. Preview: {P}",
+                    attempt, maxAttempts, ex.Message, preview);
             }
         }
 
         return null;
     }
 
-    /// <summary>Cleans common JSON formatting issues from LLM output.</summary>
-    private static string CleanJsonResponse(string response)
+    // ── Variant ranking ───────────────────────────────────────────────────
+
+    private async Task<int> RankVariantsAsync(
+        string title, List<AnswerWithScore> variants, CancellationToken ct)
     {
-        // Remove markdown code fences if present
-        if (response.StartsWith("```json"))
-            response = response["```json".Length..];
-        else if (response.StartsWith("```"))
-            response = response["```".Length..];
-        
-        if (response.EndsWith("```"))
-            response = response[..^3];
+        if (variants.Count <= 1)
+        {
+            return 0;
+        }
 
-        // Trim whitespace
-        response = response.Trim();
-
-        // If response has trailing text after closing brace, remove it
-        var lastBrace = response.LastIndexOf('}');
-        if (lastBrace > 0 && lastBrace < response.Length - 1)
-            response = response[..(lastBrace + 1)];
-
-        return response;
-    }
-
-    /// <summary>Returns the 0-based index of the best variant. Falls back to 0 on failure.</summary>
-    private async Task<int> SelectBestVariantAsync(
-        string questionTitle, List<AnswerWithScore> variants, CancellationToken ct)
-    {
-        if (variants.Count <= 1) return 0;
-
-        var answersText = string.Join("\n\n---\n\n",
+        var answersBlock = string.Join("\n\n---\n\n",
             variants.Select((v, i) => $"Answer {i}:\n{v.RenderedHtml}"));
 
-        const string system =
-            "You evaluate technical answers. Respond with ONLY a single number — the index of the best answer.";
-        var user =
-            $"Question: {questionTitle}\n\n{answersText}\n\n" +
-            $"Which answer (0-{variants.Count - 1}) is the most correct and helpful? Reply with the number only.";
+        var prompt = (
+            System: "You evaluate technical answers. Respond with ONLY a single number — the index of the best answer.",
+            User: $"Question: {title}\n\n{answersBlock}\n\nBest answer (0-{variants.Count - 1})? Number only."
+        );
 
-        var chat = new Chat(ollama, system)
+        var raw = await ChatWithTimeout(prompt, TimeSpan.FromSeconds(_opts.RankingTimeoutSeconds),
+            MaxRankingTokens, ct);
+        return int.TryParse(raw?.Trim(), out var idx) && idx >= 0 && idx < variants.Count ? idx : 0;
+    }
+
+    // ── Chat helper ───────────────────────────────────────────────────────
+
+    private async Task<string?> ChatWithTimeout(
+        (string System, string User) prompt, TimeSpan timeout, int maxTokens, CancellationToken ct)
+    {
+        var chat = new Chat(ollama, prompt.System)
         {
-            Options = new RequestOptions { Temperature = 0.1f }
+            Options = new RequestOptions { Temperature = 0.6f, NumPredict = maxTokens }
         };
 
         var sb = new StringBuilder();
         try
         {
-            // Add 30 second timeout for ranking (simpler task)
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(30));
-            
-            await chat.SendAsync(user, cts.Token).StreamToEndAsync(t => sb.Append(t));
+            cts.CancelAfter(timeout);
+            await chat.SendAsync(prompt.User, tools: null, imagesAsBase64: null, format: "json", cts.Token)
+                .StreamToEndAsync(t => sb.Append(t));
         }
-        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            logger.LogWarning("[SelectBest] LLM ranking request timed out (30s limit). Falling back to first variant.");
-            return 0;
+            logger.LogWarning("LLM chat timed out after {Timeout}s — salvaging {Len} chars of partial response",
+                timeout.TotalSeconds, sb.Length);
         }
         catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "[SelectBest] Could not connect to Ollama for variant ranking. Falling back to first variant. Check if the service is accessible.");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "[SelectBest] LLM ranking request failed with unexpected error. Falling back to first variant.");
-            return 0;
+            logger.LogError(ex, "Ollama unreachable during chat");
+            return null;
         }
 
-        return int.TryParse(sb.ToString().Trim(), out var idx) && idx >= 0 && idx < variants.Count
-            ? idx
-            : 0;
+        var result = sb.ToString().Trim();
+        return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
-    // ── Prompt ────────────────────────────────────────────────────────────────
+    // ── Prompt ────────────────────────────────────────────────────────────
 
     private static (string System, string User) BuildAnswerPrompt(
         string title, string content, List<string> tags)
     {
-        const string system =
-            "You are an experienced software developer providing technical help.\n" +
-            "\n" +
-            "IMPORTANT:\n" +
-            "- Respond with ONLY valid JSON\n" +
-            "- No markdown code fences (```)\n" +
-            "- No extra text before or after the JSON object\n" +
-            "- Use plain text in all fields - no markdown formatting\n" +
-            "- Keep code examples short and focused\n" +
-            "- Be direct and helpful";
+        const string system = """
+                              You are an experienced software developer providing technical help.
+
+                              Rules:
+                              - Respond with ONLY valid JSON — no markdown, no fences, no extra text
+                              - Keep the ENTIRE response under 800 tokens
+                              - explanation: 1-2 sentences max
+                              - fix_steps: 1-3 short steps
+                              - code_snippet: under 15 lines, no boilerplate
+                              - notes: 1 sentence or empty string
+                              """;
 
         var tagsHint = tags.Count > 0 ? $"\nTags: {string.Join(", ", tags)}" : "";
 
-        var user =
-            $"Question: {title}{tagsHint}\n\n{content}\n\n" +
-            "Provide a helpful answer in this exact JSON format:\n" +
-            "{\n" +
-            "  \"explanation\": \"Brief explanation of the issue\",\n" +
-            "  \"fix_steps\": [\"Step 1\", \"Step 2\"],\n" +
-            "  \"code_snippet\": \"example code without backticks\",\n" +
-            "  \"language\": \"language name\",\n" +
-            "  \"notes\": \"optional tip or empty string\"\n" +
-            "}";
+        var user = $$"""
+                     Question: {{title}}{{tagsHint}}
+
+                     {{content}}
+
+                     Respond in this exact JSON format:
+                     {
+                       "explanation": "Brief explanation of the issue",
+                       "fix_steps": ["Step 1", "Step 2"],
+                       "code_snippet": "short example code",
+                       "language": "language name",
+                       "notes": "optional tip or empty string"
+                     }
+                     """;
 
         return (system, user);
     }
 
-    // ── Validation & HTML rendering ───────────────────────────────────────────
+    // ── JSON cleanup ──────────────────────────────────────────────────────
 
-    private static List<string> ValidateAnswer(AnswerGenerationDto dto)
+    private static string CleanJson(string raw)
     {
-        var issues = new List<string>();
-        if (string.IsNullOrWhiteSpace(dto.Explanation)) issues.Add("explanation is empty");
-        if (string.IsNullOrWhiteSpace(dto.CodeSnippet)) issues.Add("code_snippet is empty");
-        else if (dto.CodeSnippet.Trim().Split('\n').Length > 40)
-            issues.Add("code_snippet too long");
-        return issues;
-    }
+        raw = raw.Trim();
 
-    private static string BuildAnswerHtml(AnswerGenerationDto dto)
-    {
-        var sb = new StringBuilder();
-
-        if (!string.IsNullOrWhiteSpace(dto.Explanation))
-            sb.Append("<p>").Append(dto.Explanation.Trim()).Append("</p>");
-
-        var steps = dto.FixSteps.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        if (steps.Count > 0)
+        if (raw.StartsWith("```json"))
         {
-            sb.Append("<h3>Fix</h3><ol>");
-            foreach (var step in steps)
-                sb.Append("<li>").Append(step.Trim()).Append("</li>");
-            sb.Append("</ol>");
+            raw = raw["```json".Length..];
+        }
+        else if (raw.StartsWith("```"))
+        {
+            raw = raw["```".Length..];
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.CodeSnippet))
+        if (raw.EndsWith("```"))
         {
-            var lang = NormaliseLanguage(dto.Language);
-            sb.Append($"<pre><code class=\"language-{lang}\">")
-                .Append(System.Net.WebUtility.HtmlEncode(dto.CodeSnippet.Trim()))
-                .Append("</code></pre>");
+            raw = raw[..^3];
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.Notes))
-            sb.Append("<h3>Notes</h3><p>").Append(dto.Notes.Trim()).Append("</p>");
+        raw = raw.Trim();
 
-        return sb.ToString();
-    }
-
-    private static string NormaliseLanguage(string? raw) =>
-        raw?.Trim().ToLowerInvariant() switch
+        var first = raw.IndexOf('{');
+        var last = raw.LastIndexOf('}');
+        if (first >= 0 && last > first)
         {
-            "c#" or "csharp" or "cs" => "csharp",
-            "js" or "javascript" => "javascript",
-            "ts" or "typescript" => "typescript",
-            "py" or "python" => "python",
-            "rb" or "ruby" => "ruby",
-            "go" or "golang" => "go",
-            "rs" or "rust" => "rust",
-            "java" => "java",
-            "kotlin" or "kt" => "kotlin",
-            "swift" => "swift",
-            "cpp" or "c++" => "cpp",
-            "c" => "c",
-            "php" => "php",
-            "sh" or "bash" or "shell" => "bash",
-            "ps" or "powershell" => "powershell",
-            "sql" => "sql",
-            "html" => "html",
-            "css" => "css",
-            "yaml" or "yml" => "yaml",
-            "json" => "json",
-            "xml" => "xml",
-            "dockerfile" => "dockerfile",
-            _ => ""
-        };
+            raw = raw[first..(last + 1)];
+        }
+
+        raw = Regex.Replace(raw,
+            @"(?<=:""\s*)([^""]*?)(?<!\\)\n([^""]*?"")",
+            m => m.Value.Replace("\n", "\\n"),
+            RegexOptions.Singleline);
+
+        return raw;
+    }
 }

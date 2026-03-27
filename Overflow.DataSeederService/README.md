@@ -1,9 +1,8 @@
 # AI Answer Service (Data Seeder)
 
-An event-driven .NET service that generates AI-powered answers for user questions.
-When a user posts a question, this service receives a `QuestionCreated` event via RabbitMQ,
-generates an answer using [OllamaSharp](https://github.com/awaescher/OllamaSharp), and posts it
-as a dedicated AI user account.
+Event-driven .NET service that generates AI-powered answers for user questions.
+Consumes `QuestionCreated` events via RabbitMQ, generates answers using
+[OllamaSharp](https://github.com/awaescher/OllamaSharp), and posts them as a dedicated AI user account.
 
 ### Related docs
 
@@ -13,30 +12,17 @@ as a dedicated AI user account.
 
 ---
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [How It Works](#how-it-works)
-3. [AI User](#ai-user)
-4. [Answer Generation](#answer-generation)
-5. [Configuration](#configuration)
-6. [Project Structure](#project-structure)
-7. [Local Development](#local-development)
-
----
-
 ## Overview
 
-|                  |                                                                                 |
-|------------------|---------------------------------------------------------------------------------|
-| **Type**         | .NET 10 Web App (Wolverine message handler)                                     |
-| **Purpose**      | Automatically answer user questions with AI-generated content                   |
-| **LLM**          | [OllamaSharp](https://github.com/awaescher/OllamaSharp) → Ollama (`qwen2.5:3b`) |
-| **AI User**      | Single Keycloak account (`AI Assistant`)                                        |
-| **Messaging**    | RabbitMQ via Wolverine — consumes `QuestionCreated` events                      |
-| **Environments** | Staging (K8s) and local (Aspire)                                                |
-
-The service is **not** deployed to production.
+|                  |                                                                       |
+|------------------|-----------------------------------------------------------------------|
+| **Type**         | .NET 10 Web App (Wolverine message handler)                           |
+| **Purpose**      | Automatically answer user questions with AI-generated content         |
+| **LLM**          | OllamaSharp → Ollama (model configured via `LlmModel`)                |
+| **AI User**      | Single Keycloak account (display name configured via `AiDisplayName`) |
+| **Messaging**    | RabbitMQ via Wolverine — consumes `QuestionCreated` events            |
+| **Result**       | Uses `CSharpFunctionalExtensions.Result<T>` throughout all services   |
+| **Environments** | Staging (K8s) and local (Aspire). **Not** deployed to production.     |
 
 ---
 
@@ -44,27 +30,39 @@ The service is **not** deployed to production.
 
 ```
 User asks a question
-  → QuestionService publishes QuestionCreated event to RabbitMQ
-    → DataSeederService receives the event (Wolverine handler)
-      → LLM generates 3 answer variants
-        → LLM picks the best variant
-          → Posts the answer to QuestionService as "AI Assistant"
+  → QuestionService publishes QuestionCreated to RabbitMQ
+    → QuestionCreatedHandler receives the event
+      → AiAnswerService orchestrates the pipeline:
+          1. AiUserProvider — ensure AI user is bootstrapped
+          2. LlmService    — generate N variants, pick the best
+          3. Post answer to QuestionService via HTTP
+      → On failure: Result.Failure → handler throws → Wolverine retries → DLQ
 ```
-
-The entire flow is **event-driven** — no polling, no timers. The AI responds as soon as the
-LLM finishes generating (typically 10-60 seconds depending on the model and hardware).
 
 ---
 
 ## AI User
 
-On startup, the service:
+Bootstrap is **best-effort** — if Keycloak is unreachable the service starts anyway.
 
-1. Creates (or finds) a Keycloak account: `ai-assistant@overflow.local`
-2. Authenticates to get a JWT token
-3. Calls `GET /profiles/me` to trigger profile auto-creation in ProfileService
+**Startup (AiUserBootstrapService):**
 
-This AI user appears in the frontend like any other user — with the display name **"AI Assistant"**.
+1. Validates `AiEmail` / `AiPassword` are configured (logs critical and skips if empty)
+2. Attempts up to 3 retries with exponential backoff
+3. If all retries fail, logs an error — bootstrap will be retried lazily on the first event
+
+**Lazy bootstrap (AiUserProvider):**
+
+- If startup bootstrap failed, `GetUserAsync()` attempts one lazy bootstrap on the first `QuestionCreated` message
+- Thread-safe via `SemaphoreSlim`
+
+**Bootstrap steps:**
+
+1. Creates (or finds) a Keycloak account via Admin API
+2. Authenticates via password grant to get a JWT
+3. Calls `GET /profiles/me` to trigger profile auto-creation (best-effort)
+
+**LLM model** is checked/pulled lazily on the first LLM call, not at startup.
 
 ---
 
@@ -72,15 +70,14 @@ This AI user appears in the frontend like any other user — with the display na
 
 For each `QuestionCreated` event:
 
-1. **Generate N variants** (default: 3) — each is an independent LLM call that produces a structured JSON answer with
-   explanation, fix steps, code snippet, and notes.
-2. **Validate** each variant — checks for non-empty fields, reasonable code length.
-3. **Render to HTML** — converts the structured answer to HTML with proper code blocks.
-4. **Pick the best** — if multiple valid variants exist, asks the LLM to rank them and select the most correct/helpful
-   one.
-5. **Post** — sends the winning answer to QuestionService via HTTP as the AI user.
+1. **Generate N variants** — each is an independent LLM call producing structured JSON (explanation, fix steps, code
+   snippet, notes)
+2. **Validate + render** — `AnswerHtmlRenderer` checks for non-empty fields, reasonable code length, minimum HTML length
+3. **Pick the best** — if multiple valid variants exist, asks the LLM to rank them
+4. **Post** — sends the winning answer to QuestionService via HTTP
 
-If all variants fail validation, the answer is skipped with a warning log.
+If all variants fail validation, the handler throws and Wolverine retries. After max retries the message moves to the
+dead-letter queue.
 
 ---
 
@@ -88,23 +85,22 @@ If all variants fail validation, the answer is skipped with a warning log.
 
 ### `AiAnswerOptions` (in `appsettings.json`)
 
-| Key                    | Default                       | Description                           |
-|------------------------|-------------------------------|---------------------------------------|
-| `QuestionServiceUrl`   | `http://localhost:5000`       | Base URL for posting answers          |
-| `ProfileServiceUrl`    | `http://localhost:5002`       | Base URL for profile auto-creation    |
-| `LlmApiUrl`            | `http://localhost:11434`      | Ollama API endpoint                   |
-| `LlmModel`             | `qwen2.5:3b`                  | Ollama model name                     |
-| `AiDisplayName`        | `AI Assistant`                | Display name for the AI user          |
-| `AiEmail`              | (from Infisical/config)       | Keycloak email for the AI user (`ai-assistant@staging.overflow.dev` in staging, `ai-assistant@overflow.local` locally) |
-| `AiPassword`           | (from Infisical/config)       | Keycloak password for the AI user     |
-| `AnswerVariants`       | `3`                           | Number of answer variants to generate |
+All numeric options are **required** — no defaults. The service fails fast at startup if any is missing.
 
-**Staging/Production:** `AiEmail` and `AiPassword` must be set in **Infisical** under `/app/services`:
-- `AI_ANSWER_OPTIONS__AI_EMAIL` (e.g., `ai-assistant@overflow.local`)
-- `AI_ANSWER_OPTIONS__AI_PASSWORD` (secure password for the Keycloak AI user)
-
-**Local Development:** Set them as environment variables or in `appsettings.Development.json` (not committed).
-| `MaxGenerationRetries` | `2`                           | Max LLM retries per variant           |
+| Key                        | Description                                                                       |
+|----------------------------|-----------------------------------------------------------------------------------|
+| `QuestionServiceUrl`       | Base URL for posting answers                                                      |
+| `ProfileServiceUrl`        | Base URL for profile auto-creation                                                |
+| `LlmApiUrl`                | Ollama API endpoint                                                               |
+| `LlmModel`                 | Ollama model name                                                                 |
+| `AiDisplayName`            | Display name for the AI user                                                      |
+| `AiEmail`                  | Keycloak email (Infisical: `AI_ANSWER_OPTIONS__AI_EMAIL`). Empty = disabled       |
+| `AiPassword`               | Keycloak password (Infisical: `AI_ANSWER_OPTIONS__AI_PASSWORD`). Empty = disabled |
+| `AnswerVariants`           | Number of answer variants to generate                                             |
+| `MaxGenerationRetries`     | Max LLM retries per variant                                                       |
+| `LlmTimeoutSeconds`        | HTTP client timeout for the Ollama HttpClient                                     |
+| `GenerationTimeoutSeconds` | Per-attempt timeout for answer generation LLM calls                               |
+| `RankingTimeoutSeconds`    | Timeout for the variant ranking LLM call                                          |
 
 ### `KeycloakOptions`
 
@@ -116,26 +112,30 @@ Standard Keycloak configuration — see other services for reference.
 
 ```
 Overflow.DataSeederService/
-  Program.cs                           — Service entry point (Wolverine + RabbitMQ setup)
-  AiUserBootstrapService.cs            — Hosted service: ensures AI user exists on startup
+  Program.cs                              — Entry point, wires up DI via extension methods
+  AiUserBootstrapService.cs               — Hosted service: best-effort AI user bootstrap on startup
   Clients/
-    AdminBearerTokenHandler.cs         — Injects admin token into Keycloak Admin API calls
-    IKeycloakAdminClient.cs            — Refit client: Keycloak Admin REST API
-    IKeycloakTokenClient.cs            — Refit client: Keycloak token endpoint
-    IProfileApiClient.cs               — Refit client: ProfileService (profile auto-creation)
-    IQuestionApiClient.cs              — Refit client: QuestionService (post answers)
+    AdminBearerTokenHandler.cs            — AsyncLocal-based admin token injection for Keycloak Admin API
+    IKeycloakAdminClient.cs               — Refit: Keycloak Admin REST API + request/response DTOs
+    IKeycloakTokenClient.cs               — Refit: Keycloak token endpoint + grant DTOs
+    IProfileApiClient.cs                  — Refit: ProfileService
+    IQuestionApiClient.cs                 — Refit: QuestionService
+  Extensions/
+    HttpClientExtensions.cs               — Resilience handler with extended timeouts for K8s calls
+    ServiceCollectionExtensions.cs        — DI registration: Ollama, Keycloak, API clients, app services
   Keycloak/
-    KeycloakAdminService.cs            — Keycloak admin operations (create user, get token)
+    KeycloakAdminService.cs               — Keycloak admin operations with Result<T> pattern
   MessageHandlers/
-    QuestionCreatedHandler.cs          — Wolverine handler: QuestionCreated → AI answer
+    QuestionCreatedHandler.cs             — Wolverine handler: throws on failure → retry → DLQ
   Models/
-    AiAnswerOptions.cs                 — Configuration options
-    Dtos.cs                            — Request/response DTOs + AiUser model
-    LlmGenerationDtos.cs              — LLM structured output DTOs
+    AiAnswerOptions.cs                    — Configuration (all numeric fields required, no defaults)
+    Dtos.cs                               — CreateAnswerDto, Answer, AiUser record
+    LlmGenerationDtos.cs                  — AnswerGenerationDto, AnswerWithScore record
   Services/
-    AiAnswerService.cs                 — Orchestrates answer generation + posting
-    AiUserProvider.cs                  — Singleton: manages AI user lifecycle + token refresh
-    LlmService.cs                      — LLM interaction: generate variants, rank, render HTML
+    AiAnswerService.cs                    — Orchestrates: user → LLM → token → post (Result<Answer>)
+    AiUserProvider.cs                     — Singleton: bootstrap + lazy retry + token refresh
+    AnswerHtmlRenderer.cs                 — Static: validation, HTML rendering, language normalisation
+    LlmService.cs                         — LLM: generate variants, rank, model management
 ```
 
 ---
@@ -150,8 +150,10 @@ cd Overflow.AppHost && dotnet run
 The service starts automatically via Aspire. It will:
 
 1. Wait for Keycloak, RabbitMQ, QuestionService, ProfileService, and Ollama to be ready
-2. Bootstrap the AI user in Keycloak
+2. Bootstrap the AI user in Keycloak (best-effort — service starts even if Keycloak is slow)
 3. Begin listening for `QuestionCreated` events
 
-To test: post a question via the webapp at `http://localhost:3000` — the AI answer should appear within seconds to
-minutes (depending on LLM speed).
+Credentials for local dev are in `appsettings.Development.json` (committed).
+
+To test: post a question via the webapp at `http://localhost:3000` — the AI answer should appear
+within seconds to minutes depending on LLM speed.

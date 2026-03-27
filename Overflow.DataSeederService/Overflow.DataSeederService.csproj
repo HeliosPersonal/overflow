@@ -5,6 +5,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CSharpFunctionalExtensions"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
         <PackageReference Include="Microsoft.Extensions.ServiceDiscovery"/>
         <PackageReference Include="OllamaSharp" />

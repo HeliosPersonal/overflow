@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Options;
 using Overflow.Common.Options;
 using Overflow.DataSeederService.Clients;
@@ -6,7 +7,6 @@ using Refit;
 
 namespace Overflow.DataSeederService.Keycloak;
 
-/// <summary>Wraps Keycloak Admin REST API — token management, user creation, user lookup.</summary>
 public class KeycloakAdminService(
     IKeycloakTokenClient tokenClient,
     IKeycloakAdminClient adminClient,
@@ -17,127 +17,39 @@ public class KeycloakAdminService(
     private string? _adminToken;
     private DateTime _adminTokenExpiry = DateTime.MinValue;
 
-    private async Task<string?> GetAdminTokenAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<string>> GetUserTokenAsync(
+        string username, string password, CancellationToken ct = default)
     {
-        if (!string.IsNullOrEmpty(_adminToken) && DateTime.UtcNow < _adminTokenExpiry.AddMinutes(-1))
-        {
-            return _adminToken;
-        }
-
-        try
-        {
-            var response = await tokenClient.GetClientCredentialsTokenAsync(
-                new ClientCredentialsRequest
-                {
-                    ClientId = _kc.AdminClientId
-                               ?? throw new InvalidOperationException("AdminClientId is required"),
-                    ClientSecret = _kc.AdminClientSecret
-                                   ?? throw new InvalidOperationException("AdminClientSecret is required")
-                },
-                cancellationToken);
-
-            if (response.AccessToken == null)
-            {
-                logger.LogError("Admin token response did not contain an access token");
-                return null;
-            }
-
-            _adminToken = response.AccessToken;
-            _adminTokenExpiry = DateTime.UtcNow.AddSeconds(response.ExpiresIn);
-            logger.LogDebug("Obtained admin token (expires in {Seconds}s)", response.ExpiresIn);
-            return _adminToken;
-        }
-        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
-        {
-            logger.LogError(
-                "Admin token request timed out or was canceled (Keycloak URL: {Url}). " +
-                "This usually means the Keycloak endpoint is unreachable or the resilience pipeline timeout was exceeded.",
-                $"{_kc.Url}/realms/{_kc.Realm}");
-            return null;
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex,
-                "HTTP error obtaining admin token (Keycloak URL: {Url}). Check network connectivity and Keycloak health.",
-                $"{_kc.Url}/realms/{_kc.Realm}");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error obtaining admin token");
-            return null;
-        }
-    }
-
-    public async Task<string?> GetUserTokenAsync(
-        string username, string password, CancellationToken cancellationToken = default)
-    {
-        try
+        return await ExecuteKeycloakRequest("GetUserToken", async () =>
         {
             var response = await tokenClient.GetPasswordGrantTokenAsync(
                 new PasswordGrantRequest
                 {
-                    ClientId = _kc.NextJsClientId
-                               ?? throw new InvalidOperationException("NextJsClientId is required"),
-                    ClientSecret = string.IsNullOrEmpty(_kc.NextJsClientSecret)
-                        ? null
-                        : _kc.NextJsClientSecret,
+                    ClientId = _kc.NextJsClientId ?? throw new InvalidOperationException("NextJsClientId is required"),
+                    ClientSecret = string.IsNullOrEmpty(_kc.NextJsClientSecret) ? null : _kc.NextJsClientSecret,
                     Username = username,
                     Password = password
-                },
-                cancellationToken);
+                }, ct);
 
-            if (response.AccessToken == null)
-            {
-                logger.LogError("Token response for {Username} did not contain an access token", username);
-                return null;
-            }
-
-            logger.LogDebug("Obtained token for user {Username}", username);
-            return response.AccessToken;
-        }
-        catch (ApiException ex)
-        {
-            logger.LogError("Failed to obtain token for {Username}: {Status} — {Content}",
-                username, ex.StatusCode, ex.Content);
-            return null;
-        }
-        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
-        {
-            logger.LogError(
-                "Token request for {Username} timed out or was canceled (Keycloak URL: {Url}). " +
-                "This usually means the Keycloak endpoint is unreachable or the resilience pipeline timeout was exceeded.",
-                username, $"{_kc.Url}/realms/{_kc.Realm}");
-            return null;
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex,
-                "HTTP error obtaining token for {Username} (Keycloak URL: {Url}). " +
-                "Check network connectivity and Keycloak health.",
-                username, $"{_kc.Url}/realms/{_kc.Realm}");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error obtaining token for {Username}", username);
-            return null;
-        }
+            return response.AccessToken != null
+                ? Result.Success(response.AccessToken)
+                : Result.Failure<string>("Token response missing access_token");
+        });
     }
 
-    public async Task<string?> CreateUserAsync(
+    public async Task<Result<string>> CreateUserAsync(
         string email, string firstName, string lastName, string password,
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
     {
-        var adminToken = await GetAdminTokenAsync(cancellationToken);
-        if (adminToken == null)
+        var tokenResult = await GetAdminTokenAsync(ct);
+        if (tokenResult.IsFailure)
         {
-            return null;
+            return tokenResult;
         }
 
-        AdminTokenAccessor.Current = adminToken;
+        AdminTokenAccessor.Current = tokenResult.Value;
 
-        try
+        return await ExecuteKeycloakRequest("CreateUser", async () =>
         {
             var body = new KeycloakCreateUserRequest
             {
@@ -150,58 +62,106 @@ public class KeycloakAdminService(
                 Credentials = [new KeycloakCredentialDto { Value = password }]
             };
 
-            var response = await adminClient.CreateUserAsync(body, cancellationToken);
+            var response = await adminClient.CreateUserAsync(body, ct);
 
             if (response.StatusCode == HttpStatusCode.Conflict)
             {
-                logger.LogWarning("User {Email} already exists", email);
-                return await GetUserIdByUsernameAsync(email, cancellationToken);
+                logger.LogInformation("User {Email} already exists — looking up ID", email);
+                return await LookupUserIdAsync(email, ct);
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogError("Failed to create user {Email}: {Status} — {Error}", email, response.StatusCode, error);
-                return null;
+                var error = await response.Content.ReadAsStringAsync(ct);
+                return Result.Failure<string>($"HTTP {(int)response.StatusCode}: {error}");
             }
 
             var location = response.Headers.Location?.ToString();
             if (location != null)
             {
                 var userId = location.Split('/').Last();
-                logger.LogInformation("Created user {Email} (ID: {Id})", email, userId);
-                return userId;
+                logger.LogInformation("Created Keycloak user {Email} (ID: {Id})", email, userId);
+                return Result.Success(userId);
             }
 
-            return await GetUserIdByUsernameAsync(email, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error creating user {Email}", email);
-            return null;
-        }
+            return await LookupUserIdAsync(email, ct);
+        });
     }
 
-    private async Task<string?> GetUserIdByUsernameAsync(
-        string username, CancellationToken cancellationToken = default)
+    private async Task<Result<string>> GetAdminTokenAsync(CancellationToken ct)
     {
-        var adminToken = await GetAdminTokenAsync(cancellationToken);
-        if (adminToken == null)
+        if (!string.IsNullOrEmpty(_adminToken) && DateTime.UtcNow < _adminTokenExpiry.AddMinutes(-1))
         {
-            return null;
+            return _adminToken;
         }
 
-        AdminTokenAccessor.Current = adminToken;
+        return await ExecuteKeycloakRequest("GetAdminToken", async () =>
+        {
+            var response = await tokenClient.GetClientCredentialsTokenAsync(
+                new ClientCredentialsRequest
+                {
+                    ClientId = _kc.AdminClientId ?? throw new InvalidOperationException("AdminClientId is required"),
+                    ClientSecret = _kc.AdminClientSecret ??
+                                   throw new InvalidOperationException("AdminClientSecret is required")
+                }, ct);
 
+            if (response.AccessToken == null)
+            {
+                return Result.Failure<string>("Admin token response missing access_token");
+            }
+
+            _adminToken = response.AccessToken;
+            _adminTokenExpiry = DateTime.UtcNow.AddSeconds(response.ExpiresIn);
+            return Result.Success(_adminToken);
+        });
+    }
+
+    private async Task<Result<string>> LookupUserIdAsync(string username, CancellationToken ct)
+    {
+        var tokenResult = await GetAdminTokenAsync(ct);
+        if (tokenResult.IsFailure)
+        {
+            return tokenResult;
+        }
+
+        AdminTokenAccessor.Current = tokenResult.Value;
+
+        var users = await adminClient.GetUserByUsernameExactAsync(username, true, ct);
+        var userId = users.FirstOrDefault()?.Id;
+
+        return userId != null
+            ? Result.Success(userId)
+            : Result.Failure<string>($"User '{username}' not found after creation");
+    }
+
+    private async Task<Result<string>> ExecuteKeycloakRequest(
+        string operation, Func<Task<Result<string>>> action)
+    {
         try
         {
-            var users = await adminClient.GetUserByUsernameExactAsync(username, true, cancellationToken);
-            return users.FirstOrDefault()?.Id;
+            return await action();
+        }
+        catch (ApiException ex)
+        {
+            logger.LogError("{Op} failed: {Status} — {Content}", operation, ex.StatusCode, ex.Content);
+            return Result.Failure<string>($"{operation}: HTTP {(int)ex.StatusCode}");
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogError("{Op} timed out (Keycloak: {Url})", operation, KeycloakUrl);
+            return Result.Failure<string>($"{operation}: request timed out");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "{Op} HTTP error (Keycloak: {Url})", operation, KeycloakUrl);
+            return Result.Failure<string>($"{operation}: {ex.Message}");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error looking up user {Username}", username);
-            return null;
+            logger.LogError(ex, "{Op} unexpected error", operation);
+            return Result.Failure<string>($"{operation}: {ex.Message}");
         }
     }
+
+    private string KeycloakUrl => $"{_kc.Url}/realms/{_kc.Realm}";
 }

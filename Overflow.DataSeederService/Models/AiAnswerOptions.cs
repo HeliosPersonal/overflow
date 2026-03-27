@@ -7,34 +7,20 @@ public class AiAnswerOptions
     public const string SectionName = nameof(AiAnswerOptions);
 
     [Required] public required string QuestionServiceUrl { get; set; }
-
     [Required] public required string ProfileServiceUrl { get; set; }
-
     [Required] public required string LlmApiUrl { get; set; }
-
     [Required] public required string LlmModel { get; set; }
+    [Required] public required string AiDisplayName { get; set; }
 
-    /// <summary>Display name shown on the AI user's profile and answers.</summary>
-    [Required]
-    public required string AiDisplayName { get; set; }
+    /// <summary>Set via Infisical: AI_ANSWER_OPTIONS__AI_EMAIL. Empty = AI answers disabled.</summary>
+    public string AiEmail { get; set; } = "";
 
-    /// <summary>Email used for the AI Keycloak account.</summary>
-    [Required]
-    public required string AiEmail { get; set; }
+    /// <summary>Set via Infisical: AI_ANSWER_OPTIONS__AI_PASSWORD. Empty = AI answers disabled.</summary>
+    public string AiPassword { get; set; } = "";
 
-    /// <summary>Password for the AI Keycloak account.</summary>
-    [Required]
-    public required string AiPassword { get; set; }
-
-    /// <summary>Number of answer variants to generate; the best one is posted.</summary>
-    [Range(1, 10)]
-    public int AnswerVariants { get; set; } = 3;
-
-    /// <summary>Max LLM retries per variant.</summary>
-    [Range(0, 5)]
-    public int MaxGenerationRetries { get; set; } = 2;
-
-    /// <summary>HTTP timeout in seconds for LLM requests (model pull + chat). Default 10 minutes.</summary>
-    [Range(30, 3600)]
-    public int LlmTimeoutSeconds { get; set; } = 600;
+    [Required, Range(1, 10)] public required int AnswerVariants { get; set; }
+    [Required, Range(0, 5)] public required int MaxGenerationRetries { get; set; }
+    [Required, Range(30, 3600)] public required int LlmTimeoutSeconds { get; set; }
+    [Required, Range(30, 600)] public required int GenerationTimeoutSeconds { get; set; }
+    [Required, Range(10, 120)] public required int RankingTimeoutSeconds { get; set; }
 }
