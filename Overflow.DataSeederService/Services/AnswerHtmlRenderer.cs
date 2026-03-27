@@ -92,7 +92,7 @@ public static class AnswerHtmlRenderer
                 .Append("</code></pre>");
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.Notes))
+        if (!string.IsNullOrWhiteSpace(dto.Notes) && !IsPlaceholder(dto.Notes))
         {
             sb.Append("<h3>Notes</h3><p>").Append(dto.Notes.Trim()).Append("</p>");
         }
@@ -105,4 +105,14 @@ public static class AnswerHtmlRenderer
         var key = raw?.Trim().ToLowerInvariant();
         return key != null && LanguageAliases.TryGetValue(key, out var lang) ? lang : "";
     }
+
+    private static readonly HashSet<string> KnownPlaceholders =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "empty string", "n/a", "none", "optional tip or empty string",
+            "no notes", "no additional notes"
+        };
+
+    private static bool IsPlaceholder(string value) =>
+        KnownPlaceholders.Contains(value.Trim());
 }

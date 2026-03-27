@@ -228,7 +228,7 @@ public class LlmService(
                        "fix_steps": ["Step 1", "Step 2"],
                        "code_snippet": "short example code",
                        "language": "language name",
-                       "notes": "optional tip or empty string"
+                       "notes": ""
                      }
                      """;
 
