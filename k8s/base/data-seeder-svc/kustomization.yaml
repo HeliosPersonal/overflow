@@ -1,7 +1,9 @@
 ﻿# ====================================================================================
 # DATA SEEDER SERVICE (AI ANSWER SERVICE) - Kustomization
 # ====================================================================================
+
 # Base kustomization for the AI Answer Service
+=======
 #
 # This service:
 # - Consumes QuestionCreated events via RabbitMQ (Wolverine)
