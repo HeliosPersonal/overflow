@@ -34,7 +34,7 @@
 | StatsService      | auto | PostgreSQL, RabbitMQ           |
 | VoteService       | auto | PostgreSQL, RabbitMQ, Keycloak |
 | EstimationService | auto | PostgreSQL, Keycloak           |
-| DataSeederService | auto | All services, Keycloak         |
+| DataSeederService | auto | RabbitMQ, Keycloak, Ollama     |
 
 ### Gateway
 
@@ -75,10 +75,11 @@ cd webapp && npm install && npm run dev
 
 On first run, Aspire auto-imports `docs/keycloak/overflow-local-realm.json` with pre-seeded test users:
 
-| Email                  | Password | Role    |
-|------------------------|----------|---------|
-| `admin@overflow.local` | `admin`  | `admin` |
-| `user@overflow.local`  | `user`   | member  |
+| Email                         | Password                    | Role        |
+|-------------------------------|-----------------------------|-------------|
+| `admin@overflow.local`        | `admin`                     | `admin`     |
+| `user@overflow.local`         | `user`                      | member      |
+| `ai-assistant@overflow.local` | `AiAssistant@overflow2024!` | member (AI) |
 
 See [Keycloak Setup](../docs/KEYCLOAK_SETUP.md#local-development-setup) for details.
 
@@ -90,7 +91,7 @@ See [Keycloak Setup](../docs/KEYCLOAK_SETUP.md#local-development-setup) for deta
   have running locally. Adding a configuration flag (e.g., `--no-seeder`) or an environment variable to skip launching
   it would speed up Aspire startup for frontend-focused development.
 - **Add seed data fixtures for offline development** — Provide a SQL seed script or EF Core data seeding that populates
-  a minimal set of questions, answers, and tags without requiring the LLM-powered DataSeederService. This would make
+  a minimal set of questions, answers, and tags without requiring the LLM-powered AI answer service. This would make
   local development fully self-contained with no external dependencies.
 
 ---

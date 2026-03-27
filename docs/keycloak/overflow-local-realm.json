@@ -345,6 +345,27 @@
       "groups": [
         "/member"
       ]
+    },
+    {
+      "username": "ai-assistant@overflow.local",
+      "email": "ai-assistant@overflow.local",
+      "firstName": "AI",
+      "lastName": "Assistant",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "AiAssistant@overflow2024!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-overflow"
+      ],
+      "groups": [
+        "/member"
+      ]
     }
   ],
   "clientScopes": [

@@ -6,6 +6,7 @@ COPY ["Directory.Build.props", "./"]
 COPY ["Directory.Packages.props", "./"]
 COPY ["Overflow.DataSeederService/Overflow.DataSeederService.csproj", "Overflow.DataSeederService/"]
 COPY ["Overflow.Common/Overflow.Common.csproj", "Overflow.Common/"]
+COPY ["Overflow.Contracts/Overflow.Contracts.csproj", "Overflow.Contracts/"]
 COPY ["Overflow.ServiceDefaults/Overflow.ServiceDefaults.csproj", "Overflow.ServiceDefaults/"]
 
 # Restore dependencies

@@ -59,23 +59,23 @@ keycloak.devoverflow.org
     ├── overflow-web         — confidential, webapp (staging.devoverflow.org)
     ├── overflow-web-local   — confidential, webapp running locally against staging
     ├── overflow-postman     — public, API testing with Postman
-    ├── overflow-admin       — confidential + service account, webapp user management + DataSeederService
+    ├── overflow-admin       — confidential + service account, webapp user management + AI Answer Service
     └── overflow-staging     — public, audience target (JWT aud claim)
 ```
 
 ### Client Roster
 
-| Realm | Client ID | Type | Used by | Secret in |
-|---|---|---|---|---|
-| `overflow` | `overflow-web` | Confidential | `devoverflow.org` webapp | Infisical `production` |
-| `overflow` | `overflow-admin` | Confidential + service account | Webapp user management (Admin API) | Infisical `production` |
-| `overflow` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
-| `overflow` | `overflow` | Public (audience target) | JWT `aud` claim for all tokens | — |
-| `overflow-staging` | `overflow-web` | Confidential | `staging.devoverflow.org` webapp | Infisical `staging` |
-| `overflow-staging` | `overflow-web-local` | Confidential | Local dev (`localhost:3000`) | `.env.development` |
-| `overflow-staging` | `overflow-postman` | Public | Postman / API testing | — (no secret) |
-| `overflow-staging` | `overflow-admin` | Confidential + service account | Webapp user management + DataSeederService (Admin API) | Infisical `staging` |
-| `overflow-staging` | `overflow-staging` | Public (audience target) | JWT `aud` claim for all tokens | — |
+| Realm              | Client ID            | Type                           | Used by                                                | Secret in              |
+|--------------------|----------------------|--------------------------------|--------------------------------------------------------|------------------------|
+| `overflow`         | `overflow-web`       | Confidential                   | `devoverflow.org` webapp                               | Infisical `production` |
+| `overflow`         | `overflow-admin`     | Confidential + service account | Webapp user management (Admin API)                     | Infisical `production` |
+| `overflow`         | `overflow-postman`   | Public                         | Postman / API testing                                  | — (no secret)          |
+| `overflow`         | `overflow`           | Public (audience target)       | JWT `aud` claim for all tokens                         | —                      |
+| `overflow-staging` | `overflow-web`       | Confidential                   | `staging.devoverflow.org` webapp                       | Infisical `staging`    |
+| `overflow-staging` | `overflow-web-local` | Confidential                   | Local dev (`localhost:3000`)                           | `.env.development`     |
+| `overflow-staging` | `overflow-postman`   | Public                         | Postman / API testing                                  | — (no secret)          |
+| `overflow-staging` | `overflow-admin`     | Confidential + service account | Webapp user management + AI Answer Service (Admin API) | Infisical `staging`    |
+| `overflow-staging` | `overflow-staging`   | Public (audience target)       | JWT `aud` claim for all tokens                         | —                      |
 
 ---
 
@@ -236,7 +236,7 @@ Exists purely so other clients' audience mappers can reference it — tokens get
 .NET services validate the JWT `aud` claim matches `KeycloakOptions.Audience`
 via [`AuthExtensions.cs`](../Overflow.Common/CommonExtensions/AuthExtensions.cs).
 
-### `overflow-admin` — Webapp User Management + DataSeederService (Confidential + Service Account)
+### `overflow-admin` — Webapp User Management + AI Answer Service (Confidential + Service Account)
 
 Exists in **both realms**. Used for Keycloak Admin API operations:
 
@@ -248,9 +248,10 @@ Exists in **both realms**. Used for Keycloak Admin API operations:
    Keycloak accounts with real email/password.
 4. **Password reset** — [`reset-password/route.ts`](../webapp/src/app/api/auth/reset-password/route.ts) resets
    user passwords via the Admin API.
-5. **DataSeederService** (staging only) — [`KeycloakAdminService.cs`](../Overflow.DataSeederService/Services/KeycloakAdminService.cs)
-   creates realistic users via the same Admin API. It also obtains user tokens via `overflow-web`
-   to call backend services as those users.
+5. **AI Answer Service** (staging only) — [
+   `KeycloakAdminService.cs`](../Overflow.DataSeederService/Keycloak/KeycloakAdminService.cs)
+   creates a single AI user account via the Admin API. It also obtains user tokens via `overflow-web`
+   to post answers as the AI user.
 
 | Setting | Value |
 |---|---|
@@ -461,14 +462,14 @@ after 5 minutes — see [Token Settings](#token-settings)).
 
 After importing a realm and generating client secrets, store them in Infisical:
 
-| Infisical Key | Folder | Environments | Value | Consumer |
-|---|---|---|---|---|
-| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-web` client secret | Webapp (NextAuth.js) |
-| `AUTH__SECRET` | `/app/auth` | staging + production | `openssl rand -base64 32` | Webapp (session encryption) |
-| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID` | `/app/auth` | staging + production | `overflow-admin` | Webapp user management + DataSeederService |
-| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET` | `/app/auth` | staging + production | `overflow-admin` client secret | Webapp user management + DataSeederService |
-| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID` | `/app/auth` | staging only | `overflow-web` | DataSeederService |
-| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `/app/auth` | staging only | `overflow-web` client secret | DataSeederService |
+| Infisical Key                             | Folder      | Environments         | Value                          | Consumer                                   |
+|-------------------------------------------|-------------|----------------------|--------------------------------|--------------------------------------------|
+| `NEXTAUTH__KEYCLOAK_CLIENT_SECRET`        | `/app/auth` | staging + production | `overflow-web` client secret   | Webapp (NextAuth.js)                       |
+| `AUTH__SECRET`                            | `/app/auth` | staging + production | `openssl rand -base64 32`      | Webapp (session encryption)                |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_ID`       | `/app/auth` | staging + production | `overflow-admin`               | Webapp user management + AI Answer Service |
+| `KEYCLOAK_OPTIONS__ADMIN_CLIENT_SECRET`   | `/app/auth` | staging + production | `overflow-admin` client secret | Webapp user management + AI Answer Service |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_ID`     | `/app/auth` | staging only         | `overflow-web`                 | AI Answer Service                          |
+| `KEYCLOAK_OPTIONS__NEXT_JS_CLIENT_SECRET` | `/app/auth` | staging only         | `overflow-web` client secret   | AI Answer Service                          |
 
 ---
 
@@ -534,10 +535,15 @@ The local realm comes pre-configured with:
 
 **Pre-seeded test users** (created automatically on import):
 
-| Email | Password | Role | Use |
-|---|---|---|---|
-| `admin@overflow.local` | `admin` | `admin` | Test admin features (Edit tags, etc.) |
-| `user@overflow.local` | `user` | _(member only)_ | Test regular user flow |
+| Email                         | Password                    | Role            | Use                                        |
+|-------------------------------|-----------------------------|-----------------|--------------------------------------------|
+| `admin@overflow.local`        | `admin`                     | `admin`         | Test admin features (Edit tags, etc.)      |
+| `user@overflow.local`         | `user`                      | _(member only)_ | Test regular user flow                     |
+| `ai-assistant@overflow.local` | `AiAssistant@overflow2024!` | _(member only)_ | AI Answer Service — auto-answers questions |
+
+> **Important:** The AI user credentials in `overflow-local-realm.json` must match 
+> `AiAnswerOptions:AiEmail` and `AiAnswerOptions:AiPassword` in 
+> `Overflow.DataSeederService/appsettings.Development.json`. If you change one, update the other.
 
 Update `webapp/.env.development` to use the local Keycloak:
 

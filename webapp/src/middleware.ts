@@ -18,5 +18,6 @@ export const config = {
         '/questions/:id/edit',
         '/session',
         '/tags/manage',
+        '/profiles',
     ]
 }

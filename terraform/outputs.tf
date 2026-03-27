@@ -20,7 +20,7 @@ output "staging_config" {
     typesense_url  = local.typesense_url
     keycloak_url   = local.keycloak_external_url
     otlp_endpoint  = local.otlp_http_endpoint
-    ollama_url     = local.ollama_staging_url
+    ollama_url     = local.ollama_url
   }
 }
 

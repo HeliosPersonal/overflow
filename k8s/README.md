@@ -8,7 +8,7 @@ This directory contains Kubernetes manifests for deploying the Overflow applicat
 ```
 k8s/
 ├── base/                      # Base manifests for all services
-│   ├── data-seeder-svc/      # Data seeding service
+│   ├── data-seeder-svc/      # AI answer service (event-driven, RabbitMQ)
 │   ├── estimation-svc/        # Planning Poker estimation rooms
 │   ├── infisical/             # Infisical secret credentials
 │   ├── notification-svc/      # Notification dispatch service

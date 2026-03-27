@@ -2,7 +2,6 @@ using CommandFlow;
 using CSharpFunctionalExtensions;
 using Ganss.Xss;
 using Overflow.QuestionService.Data;
-using Overflow.QuestionService.Models;
 
 namespace Overflow.QuestionService.Features.Questions.Commands;
 

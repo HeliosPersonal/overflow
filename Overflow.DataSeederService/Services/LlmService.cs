@@ -1,174 +1,274 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
 using OllamaSharp.Models;
 using Overflow.DataSeederService.Models;
-using Overflow.DataSeederService.Templates;
 
 namespace Overflow.DataSeederService.Services;
 
-/// <summary>Orchestrates the multi-step LLM generation pipeline.</summary>
 public class LlmService(
     IOllamaApiClient ollama,
-    IOptions<SeederOptions> options,
+    IOptions<AiAnswerOptions> options,
     ILogger<LlmService> logger)
 {
-    private static readonly JsonSerializerOptions JsonOptions =
+    private const int MaxGenerationTokens = 1024;
+    private const int MaxRankingTokens = 8;
+
+    private static readonly JsonSerializerOptions JsonOpts =
         new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
-    private readonly SeederOptions _options = options.Value;
+    private readonly AiAnswerOptions _opts = options.Value;
+    private bool _modelChecked;
 
-    public async Task<TopicSeedDto?> GenerateTopicSeedAsync(
-        string tag, ComplexityLevel complexity, CancellationToken ct = default)
+    public async Task<Result<string>> GenerateBestAnswerAsync(
+        string title, string content, List<string> tags, CancellationToken ct = default)
     {
-        var result = await CallStructuredAsync<TopicSeedDto>(
-            LlmPrompts.TopicSeed(tag, complexity), "TopicSeed", ct);
+        await EnsureModelAvailableAsync(ct);
 
-        if (result != null)
-            logger.LogInformation("[TopicSeed] topic={Topic}, difficulty={Difficulty}, type={Type}",
-                result.Topic, result.Difficulty, result.ProblemType);
+        var variants = new List<AnswerWithScore>();
 
-        return result;
+        for (var i = 0; i < _opts.AnswerVariants; i++)
+        {
+            logger.LogInformation("[Variant {I}/{N}] Generating for '{Title}'",
+                i + 1, _opts.AnswerVariants, title);
+
+            var dto = await GenerateSingleAnswerAsync(title, content, tags, ct);
+            if (dto == null)
+            {
+                continue;
+            }
+
+            var html = AnswerHtmlRenderer.RenderIfValid(dto);
+            if (html == null)
+            {
+                logger.LogDebug("[Variant {I}/{N}] Rejected by validation/length", i + 1, _opts.AnswerVariants);
+                continue;
+            }
+
+            variants.Add(new AnswerWithScore(dto, html));
+        }
+
+        switch (variants.Count)
+        {
+            case 0:
+                return Result.Failure<string>($"All {_opts.AnswerVariants} variants failed");
+            case 1:
+                return variants[0].RenderedHtml;
+        }
+
+        var bestIdx = await RankVariantsAsync(title, variants, ct);
+        logger.LogInformation("Selected variant {I}/{N} for '{Title}'", bestIdx + 1, variants.Count, title);
+        return variants[bestIdx].RenderedHtml;
     }
 
-    public async Task<QuestionGenerationDto?> GenerateQuestionAsync(
-        TopicSeedDto seed, CancellationToken ct = default)
+    // ── Model management ──────────────────────────────────────────────────
+
+    private async Task EnsureModelAvailableAsync(CancellationToken ct)
     {
-        var result = await CallStructuredAsync<QuestionGenerationDto>(
-            LlmPrompts.StructuredQuestion(seed), "StructuredQuestion", ct);
+        switch (_modelChecked)
+        {
+            case true:
+                return;
+            default:
+                try
+                {
+                    var models = await ollama.ListLocalModelsAsync(ct);
+                    if (models.Any(m => m.Name.StartsWith(_opts.LlmModel, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _modelChecked = true;
+                        return;
+                    }
 
-        if (result != null)
-            logger.LogInformation("[Question] title='{Title}', lang={Lang}",
-                result.Title, result.Language);
+                    logger.LogInformation("Pulling model '{Model}'...", _opts.LlmModel);
+                    await foreach (var s in ollama.PullModelAsync(new PullModelRequest { Model = _opts.LlmModel }, ct))
+                        if (!string.IsNullOrWhiteSpace(s?.Status))
+                        {
+                            logger.LogInformation("[Pull] {Status}", s.Status);
+                        }
 
-        return result;
+                    _modelChecked = true;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Cannot verify model '{Model}' — proceeding anyway", _opts.LlmModel);
+                }
+
+                break;
+        }
     }
 
-    public async Task<AnswerGenerationDto?> GenerateAnswerAsync(
-        QuestionGenerationDto question, ComplexityLevel complexity, CancellationToken ct = default)
+    // ── Single answer generation ──────────────────────────────────────────
+
+    private async Task<AnswerGenerationDto?> GenerateSingleAnswerAsync(
+        string title, string content, List<string> tags, CancellationToken ct)
     {
-        var style = ComplexityLevelExtensions.RandomStyle();
-        var result = await CallStructuredAsync<AnswerGenerationDto>(
-            LlmPrompts.StructuredAnswer(question, style, complexity), "StructuredAnswer", ct);
+        var maxAttempts = _opts.MaxGenerationRetries + 1;
 
-        if (result != null)
-            logger.LogInformation("[Answer] style={Style}, complexity={Complexity}, lang={Lang}",
-                style, complexity, result.Language);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var raw = await ChatWithTimeout(
+                BuildAnswerPrompt(title, content, tags),
+                TimeSpan.FromSeconds(_opts.GenerationTimeoutSeconds),
+                MaxGenerationTokens, ct);
 
-        return result;
+            if (raw == null)
+            {
+                logger.LogWarning("[Answer] {A}/{Max}: empty or timed out", attempt, maxAttempts);
+                continue;
+            }
+
+            var cleaned = CleanJson(raw);
+            try
+            {
+                var dto = JsonSerializer.Deserialize<AnswerGenerationDto>(cleaned, JsonOpts);
+                if (dto != null)
+                {
+                    return dto;
+                }
+
+                logger.LogWarning("[Answer] {A}/{Max}: deserialized to null", attempt, maxAttempts);
+            }
+            catch (JsonException ex)
+            {
+                var preview = cleaned.Length > 200 ? cleaned[..200] + "..." : cleaned;
+                logger.LogWarning("[Answer] {A}/{Max}: JSON error — {Msg}. Preview: {P}",
+                    attempt, maxAttempts, ex.Message, preview);
+            }
+        }
+
+        return null;
     }
 
-    public async Task<CriticResultDto?> EvaluateAsync(
-        QuestionGenerationDto question, AnswerGenerationDto answer, CancellationToken ct = default)
+    // ── Variant ranking ───────────────────────────────────────────────────
+
+    private async Task<int> RankVariantsAsync(
+        string title, List<AnswerWithScore> variants, CancellationToken ct)
     {
-        var result = await CallStructuredAsync<CriticResultDto>(
-            LlmPrompts.Critic(question, answer), "Critic", ct);
-
-        if (result != null)
-            logger.LogInformation("[Critic] valid={Valid}, issues={Count}", result.Valid, result.Issues.Count);
-
-        return result;
-    }
-
-    public async Task<RepairResultDto?> RepairAsync(
-        QuestionGenerationDto question, AnswerGenerationDto answer,
-        CriticResultDto critic, CancellationToken ct = default)
-    {
-        var result = await CallStructuredAsync<RepairResultDto>(
-            LlmPrompts.Repair(question, answer, critic), "Repair", ct);
-
-        if (result != null)
-            logger.LogInformation("[Repair] question={HasQ}, answer={HasA}",
-                result.Question != null, result.Answer != null);
-
-        return result;
-    }
-
-    /// <summary>Returns the 0-based index of the best answer. Falls back to random on failure.</summary>
-    public async Task<int> SelectBestAnswerIndexAsync(
-        string questionTitle, List<string> answerContents, CancellationToken ct = default)
-    {
-        if (answerContents.Count <= 1)
+        if (variants.Count <= 1)
+        {
             return 0;
+        }
 
-        var prompt = LlmPrompts.SelectBestAnswer(questionTitle, answerContents);
-        var chat = CreateChat(prompt.SystemPrompt);
+        var answersBlock = string.Join("\n\n---\n\n",
+            variants.Select((v, i) => $"Answer {i}:\n{v.RenderedHtml}"));
+
+        var prompt = (
+            System: "You evaluate technical answers. Respond with ONLY a single number — the index of the best answer.",
+            User: $"Question: {title}\n\n{answersBlock}\n\nBest answer (0-{variants.Count - 1})? Number only."
+        );
+
+        var raw = await ChatWithTimeout(prompt, TimeSpan.FromSeconds(_opts.RankingTimeoutSeconds),
+            MaxRankingTokens, ct);
+        return int.TryParse(raw?.Trim(), out var idx) && idx >= 0 && idx < variants.Count ? idx : 0;
+    }
+
+    // ── Chat helper ───────────────────────────────────────────────────────
+
+    private async Task<string?> ChatWithTimeout(
+        (string System, string User) prompt, TimeSpan timeout, int maxTokens, CancellationToken ct)
+    {
+        var chat = new Chat(ollama, prompt.System)
+        {
+            Options = new RequestOptions { Temperature = 0.6f, NumPredict = maxTokens }
+        };
 
         var sb = new StringBuilder();
         try
         {
-            await chat.SendAsync(prompt.UserPrompt, ct)
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+            await chat.SendAsync(prompt.User, tools: null, imagesAsBase64: null, format: "json", cts.Token)
                 .StreamToEndAsync(t => sb.Append(t));
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            logger.LogError(ex, "[SelectBestAnswer] LLM request failed");
-            return Random.Shared.Next(answerContents.Count);
+            logger.LogWarning("LLM chat timed out after {Timeout}s — salvaging {Len} chars of partial response",
+                timeout.TotalSeconds, sb.Length);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Ollama unreachable during chat");
+            return null;
         }
 
-        return int.TryParse(sb.ToString().Trim(), out var idx) && idx >= 0 && idx < answerContents.Count
-            ? idx
-            : Random.Shared.Next(answerContents.Count);
+        var result = sb.ToString().Trim();
+        return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
-    // ── Pipeline internals ────────────────────────────────────────────────────
+    // ── Prompt ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    ///     Calls the LLM with <c>format:"json"</c> so Ollama guarantees valid JSON output,
-    ///     then deserialises it as <typeparamref name="T"/>. Retries on deserialisation failure.
-    /// </summary>
-    private async Task<T?> CallStructuredAsync<T>(
-        LlmPrompt prompt, string stepName, CancellationToken ct) where T : class
+    private static (string System, string User) BuildAnswerPrompt(
+        string title, string content, List<string> tags)
     {
-        var maxAttempts = _options.MaxGenerationRetries + 1;
+        const string system = """
+                              You are an experienced software developer providing technical help.
 
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var chat = CreateChat(prompt.SystemPrompt);
-            var sb = new StringBuilder();
+                              Rules:
+                              - Respond with ONLY valid JSON — no markdown, no fences, no extra text
+                              - Keep the ENTIRE response under 800 tokens
+                              - explanation: 1-2 sentences max
+                              - fix_steps: 1-3 short steps
+                              - code_snippet: under 15 lines, no boilerplate
+                              - notes: 1 sentence or empty string
+                              """;
 
-            try
-            {
-                var started = DateTime.UtcNow;
+        var tagsHint = tags.Count > 0 ? $"\nTags: {string.Join(", ", tags)}" : "";
 
-                // format:"json" instructs Ollama to emit only valid JSON — no fences, no prose.
-                await chat.SendAsync(prompt.UserPrompt, tools: null, imagesAsBase64: null, format: "json", ct)
-                    .StreamToEndAsync(t => sb.Append(t));
+        var user = $$"""
+                     Question: {{title}}{{tagsHint}}
 
-                logger.LogDebug("[{Step}] LLM responded in {Elapsed:F1}s",
-                    stepName, (DateTime.UtcNow - started).TotalSeconds);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[{Step}] Attempt {A}/{Max}: LLM request failed",
-                    stepName, attempt, maxAttempts);
-                continue;
-            }
+                     {{content}}
 
-            try
-            {
-                var dto = JsonSerializer.Deserialize<T>(sb.ToString(), JsonOptions);
-                if (dto != null)
-                    return dto;
+                     Respond in this exact JSON format:
+                     {
+                       "explanation": "Brief explanation of the issue",
+                       "fix_steps": ["Step 1", "Step 2"],
+                       "code_snippet": "short example code",
+                       "language": "language name",
+                       "notes": ""
+                     }
+                     """;
 
-                logger.LogWarning("[{Step}] Attempt {A}/{Max}: deserialised to null", stepName, attempt, maxAttempts);
-            }
-            catch (JsonException ex)
-            {
-                logger.LogWarning("[{Step}] Attempt {A}/{Max}: JSON parse error — {Msg}",
-                    stepName, attempt, maxAttempts, ex.Message);
-            }
-        }
-
-        logger.LogError("[{Step}] All {Max} attempts failed", stepName, maxAttempts);
-        return null;
+        return (system, user);
     }
 
-    /// <summary>Creates a fresh independent chat with optional temperature from the prompt.</summary>
-    private Chat CreateChat(string systemPrompt) =>
-        new(ollama, systemPrompt)
+    // ── JSON cleanup ──────────────────────────────────────────────────────
+
+    private static string CleanJson(string raw)
+    {
+        raw = raw.Trim();
+
+        if (raw.StartsWith("```json"))
         {
-            Options = new RequestOptions { Temperature = 0.7f }
-        };
+            raw = raw["```json".Length..];
+        }
+        else if (raw.StartsWith("```"))
+        {
+            raw = raw["```".Length..];
+        }
+
+        if (raw.EndsWith("```"))
+        {
+            raw = raw[..^3];
+        }
+
+        raw = raw.Trim();
+
+        var first = raw.IndexOf('{');
+        var last = raw.LastIndexOf('}');
+        if (first >= 0 && last > first)
+        {
+            raw = raw[first..(last + 1)];
+        }
+
+        raw = Regex.Replace(raw,
+            @"(?<=:""\s*)([^""]*?)(?<!\\)\n([^""]*?"")",
+            m => m.Value.Replace("\n", "\\n"),
+            RegexOptions.Singleline);
+
+        return raw;
+    }
 }

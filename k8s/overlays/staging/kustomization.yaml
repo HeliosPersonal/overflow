@@ -45,7 +45,7 @@ resources:
   - ../../base/vote-svc          # Voting system for Q&A
   - ../../base/estimation-svc    # Planning Poker estimation rooms
   - ../../base/notification-svc  # Notification dispatch (email, Telegram, etc.)
-  - ../../base/data-seeder-svc   # AI-powered test data generation
+  - ../../base/data-seeder-svc   # AI answer generation (event-driven via RabbitMQ)
   - ../../base/overflow-webapp   # Next.js frontend application
   - ingress.yaml                 # Staging-specific ingress rules
 

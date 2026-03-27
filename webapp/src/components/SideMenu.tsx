@@ -17,7 +17,7 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle 
         {key: 'poker', icon: Dices, text: 'Planning Poker', href: '/'},
         {key: 'home', icon: GraduationCap, text: 'Questions', href: '/questions'},
         ...(isAdmin ? [{key: 'tags', icon: Tag, text: 'Tags', href: '/tags'}] : []),
-        {key: 'leaderboard', icon: Trophy, text: 'Leaderboard', href: '/profiles'},
+        ...(isAdmin ? [{key: 'leaderboard', icon: Trophy, text: 'Leaderboard', href: '/profiles'}] : []),
     ];
 
     const isActive = (href: string) => {

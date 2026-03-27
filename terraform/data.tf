@@ -87,8 +87,8 @@ locals {
   otlp_grpc_endpoint = data.terraform_remote_state.infra.outputs.otlp_grpc_endpoint # grafana-alloy.monitoring.svc.cluster.local:4317
   otlp_http_endpoint = data.terraform_remote_state.infra.outputs.otlp_http_endpoint # http://grafana-alloy.monitoring.svc.cluster.local:4318
 
-  # ---------- Ollama (staging only) ----------
-  ollama_staging_url = data.terraform_remote_state.infra.outputs.ollama_staging_url # http://ollama.apps-staging.svc.cluster.local:11434
+  # ---------- Ollama (shared infra, infra-production namespace) ----------
+  ollama_url = "http://ollama.infra-production.svc.cluster.local:11434"
 
   # ---------- Domains ----------
   base_domain     = data.terraform_remote_state.infra.outputs.base_domain     # devoverflow.org

@@ -1,31 +1,31 @@
 ﻿# ====================================================================================
-# DATA SEEDER SERVICE - Kustomization
+# DATA SEEDER SERVICE (AI ANSWER SERVICE) - Kustomization
 # ====================================================================================
-# Base kustomization for the Data Seeder Service (development/staging only)
+# Base kustomization for the AI Answer Service (staging only, not production)
 #
-# This service provides:
-# - AI-generated test data using Ollama LLM
-# - Realistic question/answer content generation
-# - Tag and category seeding
-# - User profile generation
+# This service:
+# - Consumes QuestionCreated events via RabbitMQ (Wolverine)
+# - Generates AI answers using Ollama LLM (3 variants, picks the best)
+# - Posts answers to QuestionService as a single "AI Assistant" user
 #
-# NOTE: This is a background worker, NOT exposed via Ingress
-# It runs as a one-time job or scheduled task to populate test data
+# NOTE: Not exposed via Ingress — no service.yaml needed
+# Health probes are served on port 8080 for K8s liveness/readiness only
 #
 # Dependencies:
-# - Ollama LLM service (configured in appsettings.Staging.json)
-# - Keycloak for user management (URL/realm from overflow-infra-config ConfigMap)
+# - RabbitMQ for QuestionCreated event consumption (from overflow-infra-config ConfigMap)
+# - Ollama LLM service (URL in appsettings.Staging.json)
+# - Keycloak for AI user auth (URL/realm from overflow-infra-config ConfigMap)
 # - Keycloak admin secrets from Infisical (/app/auth)
-# - Question, Profile, Vote services (URLs in appsettings.Staging.json)
+# - QuestionService and ProfileService (URLs in appsettings.Staging.json)
 # ====================================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - deployment.yaml    # Note: No service.yaml - not exposed externally
+  - deployment.yaml    # Note: No service.yaml — not exposed externally
 
 labels:
   - pairs:
       app.kubernetes.io/name: data-seeder-svc
-      app.kubernetes.io/component: worker
+      app.kubernetes.io/component: api
