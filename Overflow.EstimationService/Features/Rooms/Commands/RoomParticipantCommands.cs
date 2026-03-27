@@ -1,6 +1,5 @@
 using CommandFlow;
 using CSharpFunctionalExtensions;
-using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Exceptions;

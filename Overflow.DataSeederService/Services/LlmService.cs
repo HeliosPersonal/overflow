@@ -92,8 +92,12 @@ public class LlmService(
             var sb = new StringBuilder();
             try
             {
+                // Add per-attempt timeout (2 minutes) to prevent hanging on slow/stuck generations
+                using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                attemptCts.CancelAfter(TimeSpan.FromMinutes(2));
+                
                 var started = DateTime.UtcNow;
-                await chat.SendAsync(prompt.User, tools: null, imagesAsBase64: null, format: "json", ct)
+                await chat.SendAsync(prompt.User, tools: null, imagesAsBase64: null, format: "json", attemptCts.Token)
                     .StreamToEndAsync(t => sb.Append(t));
 
                 logger.LogDebug("[Answer] LLM responded in {Elapsed:F1}s",
@@ -101,7 +105,7 @@ public class LlmService(
             }
             catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
             {
-                logger.LogError(ex, "[Answer] Attempt {A}/{Max}: LLM request timed out or was canceled. Check if Ollama is running at the configured endpoint.", 
+                logger.LogWarning("[Answer] Attempt {A}/{Max}: LLM request timed out (2min limit). Question may be too complex for the model.", 
                     attempt, maxAttempts);
                 continue;
             }
@@ -118,21 +122,54 @@ public class LlmService(
                 continue;
             }
 
+            var responseText = sb.ToString().Trim();
+            if (string.IsNullOrWhiteSpace(responseText))
+            {
+                logger.LogWarning("[Answer] Attempt {A}/{Max}: LLM returned empty response", attempt, maxAttempts);
+                continue;
+            }
+
+            // Clean up common JSON issues from LLM output
+            responseText = CleanJsonResponse(responseText);
+
             try
             {
-                var dto = JsonSerializer.Deserialize<AnswerGenerationDto>(sb.ToString(), JsonOptions);
+                var dto = JsonSerializer.Deserialize<AnswerGenerationDto>(responseText, JsonOptions);
                 if (dto != null) return dto;
 
                 logger.LogWarning("[Answer] Attempt {A}/{Max}: deserialised to null", attempt, maxAttempts);
             }
             catch (JsonException ex)
             {
-                logger.LogWarning("[Answer] Attempt {A}/{Max}: JSON parse error — {Msg}",
-                    attempt, maxAttempts, ex.Message);
+                logger.LogWarning("[Answer] Attempt {A}/{Max}: JSON parse error — {Msg}. Response preview: {Preview}",
+                    attempt, maxAttempts, ex.Message, responseText.Length > 200 ? responseText[..200] + "..." : responseText);
             }
         }
 
         return null;
+    }
+
+    /// <summary>Cleans common JSON formatting issues from LLM output.</summary>
+    private static string CleanJsonResponse(string response)
+    {
+        // Remove markdown code fences if present
+        if (response.StartsWith("```json"))
+            response = response["```json".Length..];
+        else if (response.StartsWith("```"))
+            response = response["```".Length..];
+        
+        if (response.EndsWith("```"))
+            response = response[..^3];
+
+        // Trim whitespace
+        response = response.Trim();
+
+        // If response has trailing text after closing brace, remove it
+        var lastBrace = response.LastIndexOf('}');
+        if (lastBrace > 0 && lastBrace < response.Length - 1)
+            response = response[..(lastBrace + 1)];
+
+        return response;
     }
 
     /// <summary>Returns the 0-based index of the best variant. Falls back to 0 on failure.</summary>
@@ -158,11 +195,15 @@ public class LlmService(
         var sb = new StringBuilder();
         try
         {
-            await chat.SendAsync(user, ct).StreamToEndAsync(t => sb.Append(t));
+            // Add 30 second timeout for ranking (simpler task)
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(30));
+            
+            await chat.SendAsync(user, cts.Token).StreamToEndAsync(t => sb.Append(t));
         }
         catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
         {
-            logger.LogError(ex, "[SelectBest] LLM ranking request timed out or was canceled. Falling back to first variant. Check if Ollama is running at the configured endpoint.");
+            logger.LogWarning("[SelectBest] LLM ranking request timed out (30s limit). Falling back to first variant.");
             return 0;
         }
         catch (HttpRequestException ex)
@@ -187,29 +228,27 @@ public class LlmService(
         string title, string content, List<string> tags)
     {
         const string system =
-            "You are an experienced software developer answering a StackOverflow question.\n" +
+            "You are an experienced software developer providing technical help.\n" +
             "\n" +
-            "STRICT RULES:\n" +
-            "1. Return ONLY valid JSON. No markdown fences. No text outside the JSON object.\n" +
-            "2. Each field contains RAW TEXT ONLY — no markdown formatting inside field values.\n" +
-            "3. 'explanation': prose only. No code. 1-3 sentences on the root cause.\n" +
-            "4. 'fix_steps': array of 1-5 action sentences. Each step is one sentence.\n" +
-            "5. 'code_snippet': plain corrected code only. No backticks, no fences.\n" +
-            "6. 'notes': one or two sentences of extra tips, or empty string.\n" +
-            "7. NEVER write: 'Hope this helps', 'Let me know', 'Thanks', 'Good luck'.\n" +
-            "8. NEVER generate vote counts, usernames, badges, or any StackOverflow UI text.";
+            "IMPORTANT:\n" +
+            "- Respond with ONLY valid JSON\n" +
+            "- No markdown code fences (```)\n" +
+            "- No extra text before or after the JSON object\n" +
+            "- Use plain text in all fields - no markdown formatting\n" +
+            "- Keep code examples short and focused\n" +
+            "- Be direct and helpful";
 
-        var tagsHint = tags.Count > 0 ? $"Tags: {string.Join(", ", tags)}\n" : "";
+        var tagsHint = tags.Count > 0 ? $"\nTags: {string.Join(", ", tags)}" : "";
 
         var user =
-            $"Answer this question.\nTitle: {title}\n{tagsHint}\n{content}\n\n" +
-            "Return ONLY this JSON object:\n" +
+            $"Question: {title}{tagsHint}\n\n{content}\n\n" +
+            "Provide a helpful answer in this exact JSON format:\n" +
             "{\n" +
-            "  \"explanation\": \"1-3 sentences on the root cause. No code.\",\n" +
-            "  \"fix_steps\": [\"First do this.\", \"Then do that.\"],\n" +
-            "  \"code_snippet\": \"corrected plain code, no backticks\",\n" +
-            "  \"language\": \"language of the code\",\n" +
-            "  \"notes\": \"optional extra tip or empty string\"\n" +
+            "  \"explanation\": \"Brief explanation of the issue\",\n" +
+            "  \"fix_steps\": [\"Step 1\", \"Step 2\"],\n" +
+            "  \"code_snippet\": \"example code without backticks\",\n" +
+            "  \"language\": \"language name\",\n" +
+            "  \"notes\": \"optional tip or empty string\"\n" +
             "}";
 
         return (system, user);

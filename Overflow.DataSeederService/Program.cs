@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using OllamaSharp;
 using Overflow.Common.CommonExtensions;
@@ -7,9 +6,9 @@ using Overflow.DataSeederService;
 using Overflow.DataSeederService.Clients;
 using Overflow.DataSeederService.Keycloak;
 using Overflow.DataSeederService.Models;
+using Overflow.DataSeederService.Extensions;
 using Overflow.DataSeederService.Services;
 using Overflow.ServiceDefaults;
-using Polly;
 using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +48,7 @@ builder.Services.AddHealthChecks()
     .AddRabbitMqHealthCheck();
 
 // Wolverine + RabbitMQ for consuming QuestionCreated events
+// Wolverine automatically retries failed messages (3 attempts by default) and moves to DLQ on permanent failure
 await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
 
 // ── Refit HTTP clients ─────────────────────────────────────────────────
@@ -64,14 +64,7 @@ builder.Services.AddRefitClient<IKeycloakTokenClient>()
         c.BaseAddress = new Uri($"{keycloakOptions.Url}/realms/{keycloakOptions.Realm}");
         c.Timeout = TimeSpan.FromSeconds(60);
     })
-    .AddStandardResilienceHandler(o =>
-    {
-        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
-        o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
-        o.Retry.MaxRetryAttempts = 2;
-        o.Retry.BackoffType = DelayBackoffType.Exponential;
-    });
+    .AddDataSeederResilienceHandler();
 
 builder.Services.AddRefitClient<IKeycloakAdminClient>()
     .ConfigureHttpClient((sp, c) =>
@@ -81,14 +74,7 @@ builder.Services.AddRefitClient<IKeycloakAdminClient>()
         c.Timeout = TimeSpan.FromSeconds(60);
     })
     .AddHttpMessageHandler<AdminBearerTokenHandler>()
-    .AddStandardResilienceHandler(o =>
-    {
-        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
-        o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60); 
-        o.Retry.MaxRetryAttempts = 2;
-        o.Retry.BackoffType = DelayBackoffType.Exponential;
-    });
+    .AddDataSeederResilienceHandler();
 
 builder.Services.AddRefitClient<IQuestionApiClient>()
     .ConfigureHttpClient((sp, c) =>
@@ -97,14 +83,7 @@ builder.Services.AddRefitClient<IQuestionApiClient>()
         c.BaseAddress = new Uri(aiOptions.QuestionServiceUrl);
         c.Timeout = TimeSpan.FromSeconds(60);
     })
-    .AddStandardResilienceHandler(o =>
-    {
-        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
-        o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
-        o.Retry.MaxRetryAttempts = 2;
-        o.Retry.BackoffType = DelayBackoffType.Exponential;
-    });
+    .AddDataSeederResilienceHandler();
 
 builder.Services.AddRefitClient<IProfileApiClient>()
     .ConfigureHttpClient((sp, c) =>
@@ -113,14 +92,7 @@ builder.Services.AddRefitClient<IProfileApiClient>()
         c.BaseAddress = new Uri(aiOptions.ProfileServiceUrl);
         c.Timeout = TimeSpan.FromSeconds(60);
     })
-    .AddStandardResilienceHandler(o =>
-    {
-        o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-        o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
-        o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
-        o.Retry.MaxRetryAttempts = 2;
-        o.Retry.BackoffType = DelayBackoffType.Exponential;
-    });
+    .AddDataSeederResilienceHandler();
 
 // Services
 builder.Services.AddSingleton<KeycloakAdminService>();
@@ -143,3 +115,5 @@ logger.LogInformation(
     options.AiDisplayName, options.LlmModel, options.AnswerVariants);
 
 app.Run();
+
+
