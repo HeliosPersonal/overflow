@@ -41,10 +41,10 @@ const TITLE_MAX_LENGTH = 80;
 const NAME_LABEL_WIDTH = 96; // px — width of the name label below each avatar seat
 
 // PokerTableScene layout — responsive via useSceneSize()
-// Base dimensions define the "ideal" 900×560 design; the scene scales to fill
-// whatever container it's placed in while preserving the aspect-ratio of its
-// elements. Positions are expressed as **offsets from the container center**,
-// so the table is always perfectly centred regardless of viewport size.
+// Base dimensions define the "ideal" 900×620 design; the scene scales to fill
+// whatever container it's placed in. Horizontal and vertical axes scale
+// independently so the ellipse adapts to the actual container shape,
+// but element sizes (cards, avatars) use a uniform scale to stay proportional.
 const BASE_SCENE_W = 900;
 const BASE_SCENE_H = 620;
 const BASE_CENTER_RX = 230;
@@ -55,13 +55,15 @@ const BASE_CARD_W = 54;
 const BASE_CARD_H = 74;
 const BASE_AVATAR_SIZE = 44;
 const BASE_CARD_INWARD = 42;
+/** Extra vertical padding (base-space px) so names at top/bottom never touch edges */
+const VERTICAL_PADDING = 50;
 
 
 /**
- * Measures the container and returns pixel sizes for every scene element,
- * scaled proportionally so the whole table fits.  All orbit / element sizes
- * are in pixels; the caller positions them relative to the container centre
- * using CSS `left:50%; top:50%; translate(offsetX, offsetY)`.
+ * Measures the container and returns pixel sizes for every scene element.
+ * The orbit radii scale independently (X with width, Y with height) so the
+ * table fills the space naturally. Element sizes use the smaller of the two
+ * scales so cards/avatars stay proportional.
  */
 function useSceneSize(containerRef: React.RefObject<HTMLDivElement | null>) {
     const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -78,16 +80,16 @@ function useSceneSize(containerRef: React.RefObject<HTMLDivElement | null>) {
     }, [containerRef]);
 
     const { w, h } = dims;
-    // Scale so the ideal scene fits inside the measured container.
-    const s = w > 0 && h > 0
-        ? Math.min(1, w / BASE_SCENE_W, h / BASE_SCENE_H)
-        : (typeof window !== 'undefined' ? Math.min(1, window.innerWidth / BASE_SCENE_W) : 0.5);
+    const sx = w > 0 ? Math.min(1, w / BASE_SCENE_W) : (typeof window !== 'undefined' ? Math.min(1, window.innerWidth / BASE_SCENE_W) : 0.5);
+    const sy = h > 0 ? Math.min(1, h / BASE_SCENE_H) : sx;
+    // Uniform scale for element sizes (cards, avatars, text)
+    const s = Math.min(sx, sy);
 
     return {
-        centerRx: BASE_CENTER_RX * s,
-        centerRy: BASE_CENTER_RY * s,
-        orbitRx: BASE_ORBIT_RX * s,
-        orbitRy: BASE_ORBIT_RY * s,
+        centerRx: BASE_CENTER_RX * sx,
+        centerRy: BASE_CENTER_RY * sy,
+        orbitRx: BASE_ORBIT_RX * sx,
+        orbitRy: (BASE_ORBIT_RY - VERTICAL_PADDING) * sy,
         cardW: BASE_CARD_W * s,
         cardH: BASE_CARD_H * s,
         avatarSize: BASE_AVATAR_SIZE * s,
