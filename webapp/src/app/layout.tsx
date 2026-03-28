@@ -25,7 +25,7 @@ export default function RootLayout({
           {children}
           <BuildVersion />
           <CookieBanner />
-          <div className="fixed bottom-4 right-4 z-50">
+          <div className="fixed bottom-16 right-3 sm:bottom-4 sm:right-4 z-40">
             <CookieSettingsButton />
           </div>
         </Providers>

@@ -27,9 +27,9 @@ export default function AnswersHeader({answerCount}: Props) {
     }
     
     return (
-        <div className='flex items-center justify-between pt-3 w-full px-6'>
-            <h2>{answerCount} {answerCount === 1 ? 'Answer' : 'Answers'}</h2>
-            <div className='flex items-center gap-3 justify-end w-auto max-w-[240px] ml-auto'>
+        <div className='flex items-center justify-between pt-3 w-full px-3 sm:px-6'>
+            <h2 className='text-base sm:text-xl'>{answerCount} {answerCount === 1 ? 'Answer' : 'Answers'}</h2>
+            <div className='flex items-center gap-3 justify-end w-auto max-w-[200px] sm:max-w-[240px] ml-auto'>
                 <Select
                     aria-label='Select sorting'
                     selectedKeys={selectedKeys}

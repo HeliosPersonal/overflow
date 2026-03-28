@@ -1,3 +1,5 @@
+using Overflow.ProfileService.Models;
+
 namespace Overflow.ProfileService.DTOs;
 
 public record ProfileDto(
@@ -6,4 +8,5 @@ public record ProfileDto(
     string? Description,
     string? AvatarUrl,
     int Reputation,
-    DateTime JoinedAt);
+    DateTime JoinedAt,
+    ThemePreference ThemePreference);

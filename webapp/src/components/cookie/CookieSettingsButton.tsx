@@ -14,9 +14,14 @@ export default function CookieSettingsButton() {
         <>
             <button
                 onClick={openPreferences}
-                className="text-xs text-foreground-400 hover:text-foreground-600 transition-colors"
+                className="flex items-center justify-center
+                    w-8 h-8 rounded-full bg-content2 border border-content3 shadow-sm text-sm
+                    sm:w-auto sm:h-auto sm:rounded-lg sm:bg-transparent sm:border-0 sm:shadow-none sm:text-xs
+                    text-foreground-400 hover:text-foreground-600 transition-colors"
+                aria-label="Cookie Settings"
             >
-                🍪 Cookie Settings
+                <span className="sm:hidden">🍪</span>
+                <span className="hidden sm:inline">🍪 Cookie Settings</span>
             </button>
             {showPreferences && <CookiePreferencesModal />}
         </>

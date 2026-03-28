@@ -57,7 +57,7 @@ export default function ProfileDetailed({
 
       {/* Profile card */}
       <div className="bg-content2 border border-content3 shadow-raise-sm rounded-2xl">
-        <div className="flex justify-between items-center px-5 pt-5 pb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4">
           <div className="flex items-center gap-3">
             {currentUserProfile ? (
               <AvatarPicker
@@ -92,20 +92,20 @@ export default function ProfileDetailed({
                 name={profile.displayName?.charAt(0)}
               />
             )}
-            <span className="text-2xl font-bold">{profile.displayName}</span>
+            <span className="text-xl sm:text-2xl font-bold break-words">{profile.displayName}</span>
           </div>
           {currentUserProfile && (
-            <Button onPress={() => setEditMode((prev) => !prev)} variant="bordered">
+            <Button onPress={() => setEditMode((prev) => !prev)} variant="bordered" size="sm" className="shrink-0 self-start sm:self-auto">
               {editMode ? "Cancel" : "Edit profile"}
             </Button>
           )}
         </div>
         <Divider />
-        <div className="px-5 py-5">
+        <div className="px-4 sm:px-5 py-4 sm:py-5">
           {editMode ? (
             <EditProfileForm profile={profile} setEditMode={setEditMode} />
           ) : (
-            <p className="text-lg text-foreground-500">
+            <p className="text-base sm:text-lg text-foreground-500">
               {profile?.description || "No profile description added yet"}
             </p>
           )}

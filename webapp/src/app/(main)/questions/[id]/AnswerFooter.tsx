@@ -30,7 +30,7 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
     }
     
     return (
-        <div className='flex justify-between mt-4'>
+        <div className='flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-4'>
             <div className='flex items-center mt-auto'>
                 {currentUser?.id === answer.userId &&
                 <>

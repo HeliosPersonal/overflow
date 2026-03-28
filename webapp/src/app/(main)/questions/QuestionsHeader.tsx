@@ -33,26 +33,30 @@ export default function QuestionsHeader({tag, total}: Props) {
 
     return (
         <div className='flex flex-col w-full border-b border-content2 gap-3 pb-3 pt-3'>
-            <div className='flex justify-between px-6'>
+            <div className='flex flex-col sm:flex-row sm:justify-between gap-3 px-4 sm:px-6'>
                 <div className='flex flex-col items-start gap-1'>
-                    <h1>
+                    <h1 className='text-lg sm:text-2xl'>
                         {tag ? `[${tag}]` : 'Newest Questions'}
                     </h1>
                     <p className='font-light text-sm text-foreground-500'>{selectedTag?.description}</p>
                 </div>
-                <Link href='/questions/ask'>
-                    <Button color='primary'>
+                <Link href='/questions/ask' className='shrink-0 self-start'>
+                    <Button color='primary' size='sm' className='sm:hidden'>
+                        Ask
+                    </Button>
+                    <Button color='primary' className='hidden sm:flex'>
                         Ask Question
                     </Button>
                 </Link>
             </div>
-            <div className='px-6'>
+            <div className='px-4 sm:px-6'>
                 <SearchInput />
             </div>
-            <div className='flex justify-between px-6 items-center'>
-                <div>{total} {total === 1 ? 'Question' : 'Questions'}</div>
+            <div className='flex flex-col sm:flex-row sm:justify-between gap-2 px-4 sm:px-6 items-start sm:items-center'>
+                <div className='text-sm sm:text-base'>{total} {total === 1 ? 'Question' : 'Questions'}</div>
                 <div className='flex items-center gap-4'>
                     <Tabs
+                        size='sm'
                         selectedKey={selected}
                         onSelectionChange={handleTabChange}
                     >

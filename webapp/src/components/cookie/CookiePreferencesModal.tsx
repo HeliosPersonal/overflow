@@ -34,8 +34,8 @@ export default function CookiePreferencesModal() {
         setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
-            <div className="mx-4 w-full max-w-md rounded-xl border border-divider bg-content1 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-overlay/50 backdrop-blur-sm">
+            <div className="mx-0 sm:mx-4 w-full max-w-md rounded-t-xl sm:rounded-xl border border-divider bg-content1 p-5 sm:p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
                 <h2 className="text-base font-semibold text-foreground">Cookie Preferences</h2>
                 <p className="mt-1 text-xs text-foreground-500">
                     Choose which cookies you&apos;d like to allow. Necessary cookies are always
@@ -88,7 +88,7 @@ export default function CookiePreferencesModal() {
                     ))}
                 </div>
 
-                <div className="mt-6 flex justify-end gap-2">
+                <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
                     <button
                         onClick={closePreferences}
                         className="rounded-lg border border-default-300 px-4 py-2 text-xs font-medium text-foreground-600 transition-colors hover:bg-content2"

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Overflow.ProfileService.Models;
 
@@ -10,4 +11,6 @@ public class UserProfile
     [MaxLength(2000)] public string? AvatarUrl { get; set; }
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public int Reputation { get; set; }
+
+    [Column(TypeName = "varchar(10)")] public ThemePreference ThemePreference { get; set; } = ThemePreference.System;
 }

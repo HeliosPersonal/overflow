@@ -33,7 +33,19 @@ public class ProfilesController(ISender sender) : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
-        var result = await sender.Send(new EditProfileCommand(userId, dto.DisplayName, dto.Description, dto.AvatarUrl));
+        var result = await sender.Send(new EditProfileCommand(userId, dto.DisplayName, dto.Description, dto.AvatarUrl,
+            dto.ThemePreference));
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
+    }
+
+    [HttpPut("theme")]
+    [Authorize]
+    public async Task<IActionResult> UpdateTheme([FromBody] UpdateThemeDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await sender.Send(new UpdateThemePreferenceCommand(userId, dto.ThemePreference));
         return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 

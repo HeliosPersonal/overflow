@@ -29,10 +29,10 @@ export default function LayoutShell({
             {topNav}
 
             <div className="flex flex-1 overflow-hidden mt-14">
-                {/* ── Collapsible Sidebar (hidden in poker rooms) ── */}
+                {/* ── Collapsible Sidebar (hidden in poker rooms + mobile) ── */}
                 {!isPokerRoom && (
                     <aside
-                        className={`shrink-0 bg-content1 border-r border-content3/50 py-4
+                        className={`hidden md:block shrink-0 bg-content1 border-r border-content3/50 py-4
                             transition-all duration-300 ease-out overflow-hidden
                             ${collapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
                     >
@@ -47,9 +47,22 @@ export default function LayoutShell({
                     {children}
                 </main>
 
-                {/* ── Right sidebar (only on non-poker pages) ── */}
-                {!isPokerRoom && rightSidebar}
+                {/* ── Right sidebar (only on non-poker pages, hidden on mobile) ── */}
+                {!isPokerRoom && (
+                    <div className="hidden lg:contents">
+                        {rightSidebar}
+                    </div>
+                )}
             </div>
+
+            {/* ── Mobile bottom navigation (hidden in poker rooms) ── */}
+            {!isPokerRoom && (
+                <div className="md:hidden shrink-0">
+                    {React.isValidElement<{ collapsed?: boolean; mobile?: boolean }>(sideMenu)
+                        ? React.cloneElement(sideMenu, { collapsed: true, mobile: true })
+                        : null}
+                </div>
+            )}
         </div>
     );
 }

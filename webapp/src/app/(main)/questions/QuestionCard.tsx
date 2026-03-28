@@ -12,8 +12,9 @@ type Props = {
 
 export default function QuestionCard({question}: Props) {
     return (
-        <div className='flex gap-0 w-full rounded-xl overflow-hidden'>
-            <div className='flex flex-col items-end justify-start text-sm gap-3 min-w-16 bg-content3 px-4 py-4 text-foreground-500'>
+        <div className='flex flex-col sm:flex-row gap-0 w-full rounded-xl overflow-hidden'>
+            {/* Stats — horizontal on mobile, vertical sidebar on desktop */}
+            <div className='flex sm:flex-col items-center sm:items-end justify-start text-sm gap-3 sm:min-w-16 bg-content3 px-4 py-2 sm:py-4 text-foreground-500'>
                 <div className='flex items-center gap-1'>
                     <ThumbsUp className='h-4 w-4' />
                     <span>{question.votes}</span>
@@ -33,19 +34,19 @@ export default function QuestionCard({question}: Props) {
                     <span>{question.viewCount}</span>
                 </div>
             </div>
-            <div className='flex flex-1 justify-between min-h-32 px-6 py-4'>
-                <div className='flex flex-col gap-2 w-full'>
+            <div className='flex flex-1 justify-between min-h-24 sm:min-h-32 px-4 sm:px-6 py-3 sm:py-4'>
+                <div className='flex flex-col gap-2 w-full min-w-0'>
                     <Link
                         href={`/questions/${question.id}`}
-                        className='text-primary font-semibold hover:underline first-letter:uppercase'
+                        className='text-primary font-semibold hover:underline first-letter:uppercase line-clamp-2'
                     >
                         {question.title}
                     </Link>
-                    <div className='line-clamp-2 text-sm text-foreground-500'>
+                    <div className='line-clamp-2 text-sm text-foreground-500 hidden sm:block'>
                         {htmlToExcerpt(question.content)}
                     </div>
-                    <div className='flex justify-between pt-2'>
-                        <div className='flex gap-2'>
+                    <div className='flex flex-col sm:flex-row sm:justify-between gap-2 pt-2'>
+                        <div className='flex flex-wrap gap-1.5 sm:gap-2'>
                             {question.tagSlugs.map(slug => (
                                 <Link href={`/questions?tag=${slug}`} key={slug}>
                                     <Chip variant='flat' size='sm' className='bg-content3 text-foreground-600 hover:bg-content4 transition-colors'>
@@ -56,18 +57,18 @@ export default function QuestionCard({question}: Props) {
                             ))}
                         </div>
                         
-                        <div className='text-sm flex items-center gap-2'>
+                        <div className='text-xs sm:text-sm flex items-center gap-2 shrink-0'>
                             <DiceBearAvatar 
-                                className='h-6 w-6'
+                                className='h-5 w-5 sm:h-6 sm:w-6'
                                 borderClass='border-2 border-primary'
                                 userId={question.askerId}
                                 avatarJson={question.author?.avatarUrl}
                                 name={question.author?.displayName?.charAt(0)}
                             />
-                            <Link href={`/profiles/${question.askerId}`}>
+                            <Link href={`/profiles/${question.askerId}`} className='truncate max-w-[100px] sm:max-w-none'>
                                 {question.author?.displayName}
                             </Link>
-                            <span>asked {timeAgo(question.createdAt)}</span>
+                            <span className='text-foreground-400'>asked {timeAgo(question.createdAt)}</span>
                         </div>
                     </div>
                 </div>
