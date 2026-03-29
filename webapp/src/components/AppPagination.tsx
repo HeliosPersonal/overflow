@@ -27,9 +27,9 @@ export default function AppPagination({totalCount}: Props) {
     };
 
     return (
-        <div className='bg-content1 border-t border-content2 flex justify-between items-center pt-3 pb-4 px-6'>
+        <div className='bg-content1 border-t border-content2 flex flex-col sm:flex-row sm:justify-between items-center gap-3 pt-3 pb-4 px-4 sm:px-6'>
             <div className='flex items-center gap-2'>
-                <span className='text-sm text-foreground-500'>Page size: </span>
+                <span className='text-xs sm:text-sm text-foreground-500'>Page size: </span>
                 <div className='flex items-center gap-1'>
                     {PAGE_SIZES.map(size => (
                         <Button
@@ -46,14 +46,15 @@ export default function AppPagination({totalCount}: Props) {
                     ))}
                 </div>
             </div>
-            <div className='flex items-center gap-3'>
-                <span className='text-sm text-default-500'>
+            <div className='flex items-center gap-2 sm:gap-3'>
+                <span className='text-xs sm:text-sm text-default-500'>
                     Page {currentPage} of {totalPages}
                 </span>
                 <Pagination
                     total={totalPages}
                     onChange={(page) => updateURL(page, pageSize)}
                     page={currentPage}
+                    size='sm'
                     className='cursor-pointer'
                     classNames={{
                         cursor: 'bg-default-200 text-default-800 shadow-none',

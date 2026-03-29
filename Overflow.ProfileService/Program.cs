@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Overflow.Common.CommonExtensions;
 using Overflow.Common.Options;
 using Overflow.ProfileService.Data;
@@ -10,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddEnvVariablesAndConfigureSecrets();
 builder.ConfigureKeycloakFromSettings();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddOpenApi();
 builder.AddServiceDefaults();
 builder.AddKeyCloakAuthentication();

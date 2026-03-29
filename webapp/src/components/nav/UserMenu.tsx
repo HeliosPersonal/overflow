@@ -50,13 +50,13 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
             size="md"
             name={displayName?.charAt(0)}
           />
-          {displayName}
+          <span className="hidden sm:inline">{displayName}</span>
           {isAnonymous && (
             <Chip
               size="sm"
               variant="flat"
               color="warning"
-              className="text-xs"
+              className="text-xs hidden sm:inline-flex"
             >
               Guest
             </Chip>

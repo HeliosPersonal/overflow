@@ -6,6 +6,7 @@ import {useRouter} from "next/navigation";
 import {ThemeProvider} from "next-themes";
 import {useTagStore} from "@/lib/hooks/useTagStore";
 import {getTags} from "@/lib/actions/tag-actions";
+import ThemeSyncer from "@/components/ThemeSyncer";
 
 export default function Providers({children}: {children: ReactNode}) {
     const router = useRouter();
@@ -29,6 +30,7 @@ export default function Providers({children}: {children: ReactNode}) {
                 enableSystem
                 storageKey='overflow-theme'
             >
+                <ThemeSyncer />
                 {children}
             </ThemeProvider>
         </HeroUIProvider>

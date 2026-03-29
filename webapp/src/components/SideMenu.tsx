@@ -6,10 +6,11 @@ import {Tooltip} from "@heroui/react";
 import {usePathname} from "next/navigation";
 import Link from "next/link";
 
-export default function SideMenu({ isAdmin = false, collapsed = false, onToggle }: {
+export default function SideMenu({ isAdmin = false, collapsed = false, onToggle, mobile = false }: {
     isAdmin?: boolean;
     collapsed?: boolean;
     onToggle?: () => void;
+    mobile?: boolean;
 }) {
     const pathname = usePathname();
 
@@ -25,6 +26,30 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle 
         if (href === '/profiles') return pathname === '/profiles';
         return pathname.startsWith(href);
     };
+
+    // Mobile bottom navigation bar
+    if (mobile) {
+        return (
+            <nav className="flex items-center justify-around bg-content1 border-t border-content3/50 px-2 py-1.5 safe-area-bottom">
+                {navLinks.map(({key, href, icon: Icon, text}) => {
+                    const active = isActive(href);
+                    return (
+                        <Link
+                            key={key}
+                            href={href}
+                            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors min-w-0
+                                ${active
+                                    ? 'text-primary'
+                                    : 'text-foreground-400'}`}
+                        >
+                            <Icon size={22} className="shrink-0"/>
+                            <span className="text-[10px] font-medium truncate">{text}</span>
+                        </Link>
+                    );
+                })}
+            </nav>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full gap-2">

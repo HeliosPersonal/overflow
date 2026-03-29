@@ -12,37 +12,37 @@ type Props = {
 export default function QuestionDetailedHeader({question, currentUserId}: Props) {
 
     return (
-        <div className='flex flex-col w-full border-b border-content3 gap-4 pb-4 px-6 pt-5'>
-            <div className='flex justify-between gap-4'>
-                <h1 className='first-letter:uppercase'>
+        <div className='flex flex-col w-full border-b border-content3 gap-3 sm:gap-4 pb-4 px-4 sm:px-6 pt-4 sm:pt-5'>
+            <div className='flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4'>
+                <h1 className='first-letter:uppercase text-lg sm:text-2xl'>
                     {question.title}
                 </h1>
-                <Link href='/questions/ask'>
-                    <Button color='primary'>
+                <Link href='/questions/ask' className='shrink-0 self-start'>
+                    <Button color='primary' size='sm'>
                         Ask Question
                     </Button>
                 </Link>
             </div>
-            <div className='flex justify-between items-center'>
-                <div className='flex items-center gap-6'>
-                    <div className='flex items-center gap-3'>
+            <div className='flex flex-col sm:flex-row sm:justify-between gap-2 sm:items-center'>
+                <div className='flex flex-wrap items-center gap-x-4 gap-y-1 text-sm'>
+                    <div className='flex items-center gap-1.5'>
                         <span className='text-foreground-500'>Asked</span>
                         <span>{fuzzyTimeAgo(question.createdAt)}</span>
                     </div>
                     {question.updatedAt && (
-                        <div className='flex items-center gap-3'>
+                        <div className='flex items-center gap-1.5'>
                             <span className='text-foreground-500'>Modified</span>
                             <span>{fuzzyTimeAgo(question.updatedAt)}</span>
                         </div>
                     )}
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-1.5'>
                         <span className='text-foreground-500'>Viewed</span>
                         <span>{question.viewCount + 1} times</span>
                     </div>
                 </div>
 
                 {currentUserId === question.askerId &&
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-2 sm:gap-3'>
                         <Link href={`/questions/${question.id}/edit`}>
                             <Button
                                 size='sm'

@@ -25,7 +25,7 @@ export default async function QuestionsPage({searchParams}: {searchParams?: Prom
                     Could not load questions. The backend may be starting up — please refresh in a moment.
                 </div>
             )}
-            <div className='flex flex-col gap-2 p-4 flex-1'>
+            <div className='flex flex-col gap-2 p-2 sm:p-4 flex-1'>
                 {questions?.items.map(question => (
                     <div key={question.id} className='w-full flex bg-content2 border border-content3 rounded-xl shadow-raise-sm hover:shadow-raise-lg transition-shadow duration-200'>
                         <QuestionCard key={question.id} question={question} />

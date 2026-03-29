@@ -55,6 +55,8 @@ export type TrendingTag = {
     count: number
 }
 
+export type ThemePreference = 'System' | 'Light' | 'Dark'
+
 export type Profile = {
     userId: string
     displayName: string
@@ -62,6 +64,7 @@ export type Profile = {
     reputation: number
     avatarUrl?: string | null
     joinedAt?: string
+    themePreference?: ThemePreference
 }
 
 export type FetchResponse<T> = {

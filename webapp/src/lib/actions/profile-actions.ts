@@ -1,7 +1,7 @@
 'use server';
 
 import {fetchClient} from "@/lib/fetchClient";
-import {FetchResponse, Profile, TopUser, TopUserWithProfile} from "@/lib/types";
+import {FetchResponse, Profile, ThemePreference, TopUser, TopUserWithProfile} from "@/lib/types";
 import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 import {auth} from "@/auth";
@@ -46,6 +46,15 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
     }
 
     return result;
+}
+
+export async function updateThemePreference(themePreference: ThemePreference) {
+    return fetchClient<void>('/profiles/theme', 'PUT', {body: {themePreference}});
+}
+
+export async function getMyThemePreference(): Promise<ThemePreference | null> {
+    const {data} = await fetchClient<Profile>('/profiles/me', 'GET');
+    return data?.themePreference ?? null;
 }
 
 export async function getTopUsers(): Promise<FetchResponse<TopUserWithProfile[]>> {

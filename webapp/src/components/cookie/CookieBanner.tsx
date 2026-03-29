@@ -20,7 +20,7 @@ export default function CookieBanner() {
                 <div
                     role="dialog"
                     aria-label="Cookie consent"
-                    className="fixed inset-x-0 bottom-0 z-[100] flex justify-center p-4 animate-in slide-in-from-bottom-4 duration-300"
+                    className="fixed inset-x-0 bottom-0 z-[100] flex justify-center p-4 pb-16 sm:pb-4 animate-in slide-in-from-bottom-4 duration-300"
                 >
                     <div className="w-full max-w-3xl rounded-xl border border-divider bg-content1/95 p-5 shadow-2xl backdrop-blur">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
