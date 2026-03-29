@@ -19,6 +19,6 @@ public class UpdateThemePreferenceHandler(ProfileDbContext db)
                 s => s.SetProperty(p => p.ThemePreference, request.ThemePreference),
                 cancellationToken);
 
-        return rows > 0 ? Result.Success() : Result.Failure("Profile not found");
+        return rows > 0 ? Result.Success() : Result.Failure(DomainErrors.ProfileNotFound);
     }
 }

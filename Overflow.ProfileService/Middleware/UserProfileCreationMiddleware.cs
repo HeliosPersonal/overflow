@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Overflow.Common.CommonExtensions;
 using Overflow.ProfileService.Data;
 using Overflow.ProfileService.Models;
 
@@ -10,7 +11,7 @@ public class UserProfileCreationMiddleware(RequestDelegate next)
     {
         if (context.User.Identity?.IsAuthenticated is true)
         {
-            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = context.User.GetUserId();
 
             var givenName = context.User.FindFirstValue("given_name") ?? "";
             var familyName = context.User.FindFirstValue("family_name") ?? "";

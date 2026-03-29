@@ -26,19 +26,19 @@ builder.Services.AddControllers()
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
-// ── EF Core + PostgreSQL ─────────────────────────────────────────────────
+// ── EF Core + PostgreSQL ──
 builder.AddNpgsqlDbContext<EstimationDbContext>("estimationDb");
 
-// ── FusionCache (L1 in-memory + L2 Redis + backplane for cross-pod invalidation) ──
+// ── FusionCache (L1 in-memory + L2 Redis + backplane) ──
 builder.AddFusionCacheWithRedis();
 
-// ── Services ─────────────────────────────────────────────────────────────
+// ── Services ──
 builder.Services.AddScoped<EstimationRoomService>();
 builder.Services.AddSingleton<WebSocketBroadcaster>();
 builder.Services.AddSingleton<CrossPodBroadcastService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CrossPodBroadcastService>());
 
-// ── Profile Service (display name resolution) ───────────────────────────
+// ── Profile Service client ──
 builder.Services.AddHttpClient<ProfileServiceClient>(client =>
 {
     var profileUrl = builder.Configuration[ConfigurationKeys.ProfileServiceUrl]
@@ -50,10 +50,10 @@ builder.Services.AddHttpClient<ProfileServiceClient>(client =>
 });
 builder.Services.AddScoped<IdentityResolver>();
 
-// ── CommandFlow CQRS ─────────────────────────────────────────────────────
+// ── CommandFlow CQRS ──
 builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
-// ── Archived room cleanup ────────────────────────────────────────────────
+// ── Archived room cleanup ──
 builder.Services
     .AddOptions<RoomCleanupOptions>()
     .BindConfiguration(RoomCleanupOptions.SectionName)

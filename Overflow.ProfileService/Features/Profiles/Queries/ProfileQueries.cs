@@ -11,10 +11,12 @@ public record GetProfilesQuery(string? SortBy) : IQuery<List<ProfileDto>>;
 
 public class GetProfilesHandler(ProfileDbContext db) : IRequestHandler<GetProfilesQuery, List<ProfileDto>>
 {
+    private const string SortByReputation = "reputation";
+
     public async Task<List<ProfileDto>> Handle(GetProfilesQuery request, CancellationToken cancellationToken)
     {
         var query = db.UserProfiles.AsNoTracking().AsQueryable();
-        query = request.SortBy == "reputation"
+        query = request.SortBy == SortByReputation
             ? query.OrderByDescending(x => x.Reputation)
             : query.OrderBy(x => x.DisplayName);
 

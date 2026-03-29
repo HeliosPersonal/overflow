@@ -25,8 +25,7 @@ public class KeycloakAdminClient(HttpClient http, ILogger<KeycloakAdminClient> l
     private DateTime _tokenExpiry = DateTime.MinValue;
 
     /// <summary>
-    /// Acquires an admin access token via client_credentials grant.
-    /// Caches the token until it expires.
+    /// Acquires an admin access token via client_credentials grant. Caches until expiry.
     /// </summary>
     public async Task AuthenticateAsync(string tokenUrl, string clientId, string clientSecret,
         CancellationToken ct = default)
@@ -73,9 +72,6 @@ public class KeycloakAdminClient(HttpClient http, ILogger<KeycloakAdminClient> l
             .ToList();
     }
 
-    /// <summary>
-    /// Deletes a user from Keycloak by user ID.
-    /// </summary>
     public async Task DeleteUserAsync(string adminBaseUrl, string userId, CancellationToken ct = default)
     {
         var request = new HttpRequestMessage(HttpMethod.Delete, $"{adminBaseUrl}/users/{userId}");

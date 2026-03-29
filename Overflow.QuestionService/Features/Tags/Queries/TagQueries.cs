@@ -16,13 +16,14 @@ public class GetTagsHandler(QuestionDbContext db, IFusionCache cache)
 {
     public async Task<List<Tag>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = CacheKeys.TagList(request.Sort ?? "name");
+        var sort = request.Sort ?? TagSortModes.Name;
+        var cacheKey = CacheKeys.TagList(sort);
 
         return (await cache.GetOrSetAsync(cacheKey, async _ =>
         {
             var query = db.Tags.AsNoTracking().AsQueryable();
 
-            query = request.Sort == "popular"
+            query = sort == TagSortModes.Popular
                 ? query.OrderByDescending(x => x.UsageCount).ThenBy(x => x.Name)
                 : query.OrderBy(x => x.Name);
 

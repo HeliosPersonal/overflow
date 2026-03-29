@@ -18,7 +18,7 @@ public class EditProfileHandler(ProfileDbContext db) : IRequestHandler<EditProfi
     public async Task<Result> Handle(EditProfileCommand request, CancellationToken cancellationToken)
     {
         var profile = await db.UserProfiles.FindAsync([request.UserId], cancellationToken);
-        if (profile is null) return Result.Failure("Profile not found");
+        if (profile is null) return Result.Failure(DomainErrors.ProfileNotFound);
 
         profile.DisplayName = request.DisplayName ?? profile.DisplayName;
         profile.Description = request.Description ?? profile.Description;

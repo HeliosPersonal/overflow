@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Overflow.Common;
 using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.Data;
 using Overflow.EstimationService.Mapping;
@@ -56,7 +57,7 @@ public class WebSocketBroadcaster(
 
     private readonly ConcurrentDictionary<(Guid RoomId, string ParticipantId), Connection> _connections = new();
 
-    private string BaseUrl => configuration["APP_BASE_URL"] ?? "http://localhost:3000";
+    private string BaseUrl => configuration[ConfigurationKeys.AppBaseUrl] ?? "http://localhost:3000";
 
     public Connection AddConnection(Guid roomId, string participantId, WebSocket socket)
     {

@@ -22,12 +22,12 @@ public class CastVoteHandler(VoteDbContext db, IMessageBus bus) : IRequestHandle
     public async Task<Result> Handle(CastVoteCommand request, CancellationToken cancellationToken)
     {
         if (!VoteTargetType.IsValid(request.TargetType))
-            return Result.Failure("Invalid target type");
+            return Result.Failure(DomainErrors.InvalidTargetType);
 
         var alreadyVoted = await db.Votes.AsNoTracking()
             .AnyAsync(x => x.UserId == request.UserId && x.TargetId == request.TargetId, cancellationToken);
         if (alreadyVoted)
-            return Result.Failure("Already voted");
+            return Result.Failure(DomainErrors.AlreadyVoted);
 
         db.Votes.Add(new Vote
         {

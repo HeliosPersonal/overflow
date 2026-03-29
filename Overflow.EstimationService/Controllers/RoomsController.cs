@@ -1,8 +1,9 @@
-using System.Security.Claims;
 using CommandFlow;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Overflow.Common;
+using Overflow.Common.CommonExtensions;
 using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.DTOs;
 using Overflow.EstimationService.Extensions;
@@ -20,7 +21,7 @@ public class RoomsController(
     IOptions<RoomCleanupOptions> cleanupOptions,
     IConfiguration configuration) : ControllerBase
 {
-    private string BaseUrl => configuration["APP_BASE_URL"] ?? "http://localhost:3000";
+    private string BaseUrl => configuration[ConfigurationKeys.AppBaseUrl] ?? "http://localhost:3000";
     private int ArchivedDaysBeforeDelete => cleanupOptions.Value.ArchivedDaysBeforeDelete;
     private int InactiveDaysBeforeArchive => cleanupOptions.Value.InactiveDaysBeforeArchive;
 
@@ -39,8 +40,7 @@ public class RoomsController(
     [HttpPost("claim-guest")]
     public async Task<IActionResult> ClaimGuest()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var identity = await identityResolver.ResolveAsync(HttpContext);
         var guestId = GuestIdentity.GetGuestId(HttpContext);
@@ -59,8 +59,7 @@ public class RoomsController(
     [HttpGet("rooms/my")]
     public async Task<IActionResult> GetMyRooms()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var summaries =
             await sender.Send(new GetMyRoomsQuery(userId, ArchivedDaysBeforeDelete, InactiveDaysBeforeArchive,
@@ -174,8 +173,7 @@ public class RoomsController(
     [HttpPost("rooms/{roomId:guid}/reveal")]
     public async Task<IActionResult> RevealVotes(Guid roomId)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new RevealVotesCommand(roomId, userId, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -187,8 +185,7 @@ public class RoomsController(
     [HttpPost("rooms/{roomId:guid}/reset")]
     public async Task<IActionResult> ResetRound(Guid roomId)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new ResetRoundCommand(roomId, userId, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -200,8 +197,7 @@ public class RoomsController(
     [HttpPost("rooms/{roomId:guid}/revote")]
     public async Task<IActionResult> Revote(Guid roomId, [FromBody] RevoteRequest? req = null)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new RevoteCommand(roomId, userId, req?.RoundNumber, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -213,8 +209,7 @@ public class RoomsController(
     [HttpPut("rooms/{roomId:guid}/tasks")]
     public async Task<IActionResult> UpdateTasks(Guid roomId, [FromBody] UpdateTasksRequest req)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new UpdateTasksCommand(roomId, userId, req.Tasks, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -226,8 +221,7 @@ public class RoomsController(
     [HttpPost("rooms/{roomId:guid}/archive")]
     public async Task<IActionResult> ArchiveRoom(Guid roomId)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new ArchiveRoomCommand(roomId, userId, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -239,8 +233,7 @@ public class RoomsController(
     [HttpPut("rooms/{roomId:guid}/title")]
     public async Task<IActionResult> RenameRoom(Guid roomId, [FromBody] RenameRoomRequest req)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new RenameRoomCommand(roomId, userId, req.Title, BaseUrl, AccessToken));
         return result.IsSuccess ? Ok(result.Value) : result.Error.ToActionResult();
@@ -252,8 +245,7 @@ public class RoomsController(
     [HttpDelete("rooms/{roomId:guid}")]
     public async Task<IActionResult> DeleteRoom(Guid roomId)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
+        var userId = User.GetRequiredUserId();
 
         var result = await sender.Send(new DeleteRoomCommand(roomId, userId));
         return result.IsSuccess ? NoContent() : result.Error.ToActionResult();

@@ -389,16 +389,17 @@ kubectl kustomize k8s/overlays/staging
 
 1. **Namespace** — all resources deployed to target namespace
 2. **Images** — CI/CD replaces `GITHUB_USERNAME` and `SHA_REPLACED_BY_CICD` at deploy time
-3. **Replicas** — 1 per service for staging, 0 for production (scale up manually)
+3. **Replicas** — 1 per service for both staging and production (base defaults to 2)
 4. **Labels** — automatic `environment` and `managed-by` labels
 5. **ConfigMaps** — `app-config` with `ASPNETCORE_ENVIRONMENT`
 
 ### Resource Cleanup
 
 `cleanup-k8s-resources.sh` removes:
-- ReplicaSets older than 3 days
-- ConfigMaps older than 7 days (keeps last 3)
-- Secrets older than 14 days (keeps last 3)
+
+- ReplicaSets with 0 desired replicas (not backing any live pod)
+- Failed or Evicted pods
+- Completed Jobs older than 1 hour
 
 ---
 
