@@ -9,6 +9,7 @@ public static class ConfigurationKeys
     public const string OtelServiceName = "OTEL_SERVICE_NAME";
 
     public const string ProfileServiceUrl = "PROFILE_SERVICE_URL";
+    public const string AppBaseUrl = "APP_BASE_URL";
 
     public const string NotificationInternalApiKey = "Notification:InternalApiKey";
 

@@ -17,9 +17,10 @@ state and provisions Overflow's own slice of each shared service.
 
 ### ConfigMap keys injected into pods
 
-All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core maps
-`__`-delimited keys to nested config (e.g. `CONNECTION_STRINGS__QUESTION_DB` → `ConnectionStrings:QuestionDb`).
-.NET config is case-insensitive.
+All `.NET` services mount `overflow-infra-config` via `envFrom`. ASP.NET Core's environment variable
+provider replaces `__` with `:` (e.g. `CONNECTION_STRINGS__QUESTION_DB` → `ConnectionStrings:QUESTION_DB`).
+In staging/production, Infisical loads the same keys and applies PascalCase conversion
+(`ConnectionStrings:QuestionDb`) which takes precedence. .NET config is case-insensitive.
 
 | Key | Description |
 |---|---|

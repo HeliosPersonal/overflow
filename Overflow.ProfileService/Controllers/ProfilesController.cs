@@ -1,7 +1,7 @@
-﻿using System.Security.Claims;
-using CommandFlow;
+﻿using CommandFlow;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Overflow.Common.CommonExtensions;
 using Overflow.ProfileService.DTOs;
 using Overflow.ProfileService.Features.Profiles.Commands;
 using Overflow.ProfileService.Features.Profiles.Queries;
@@ -30,9 +30,7 @@ public class ProfilesController(ISender sender) : ControllerBase
     [Authorize]
     public async Task<IActionResult> EditProfile(EditProfileDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new EditProfileCommand(userId, dto.DisplayName, dto.Description, dto.AvatarUrl,
             dto.ThemePreference));
         return result.IsSuccess ? NoContent() : NotFound(result.Error);
@@ -42,9 +40,7 @@ public class ProfilesController(ISender sender) : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateTheme([FromBody] UpdateThemeDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new UpdateThemePreferenceCommand(userId, dto.ThemePreference));
         return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
@@ -53,9 +49,7 @@ public class ProfilesController(ISender sender) : ControllerBase
     [Authorize]
     public async Task<ActionResult<ProfileDto>> GetMe()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
+        var userId = User.GetRequiredUserId();
         var profile = await sender.Send(new GetProfileByIdQuery(userId));
         return profile is null ? NotFound() : Ok(profile);
     }

@@ -1,13 +1,13 @@
 using System.Security.Claims;
+using Overflow.Common.CommonExtensions;
 using Overflow.EstimationService.Clients;
 
 namespace Overflow.EstimationService.Auth;
 
 /// <summary>
-/// Resolves the participant identity from the current HTTP context.
-/// For authenticated users, fetches the display name from the Profile Service
-/// (falling back to JWT claims if the profile service is unreachable).
-/// For guests, uses a stable cookie-based ID.
+/// Resolves participant identity from the current HTTP context.
+/// Authenticated users get display names from ProfileService (JWT claims as fallback).
+/// Guests use a stable cookie-based ID.
 /// </summary>
 public class IdentityResolver(ProfileServiceClient profileClient)
 {
@@ -20,7 +20,7 @@ public class IdentityResolver(ProfileServiceClient profileClient)
 
     public async Task<ParticipantIdentity> ResolveAsync(HttpContext ctx, string? guestDisplayName = null)
     {
-        var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = ctx.User.GetUserId();
         if (userId is not null)
         {
             // Try Profile Service first (single source of truth for display names)

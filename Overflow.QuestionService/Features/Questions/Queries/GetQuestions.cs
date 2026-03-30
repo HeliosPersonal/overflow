@@ -17,7 +17,7 @@ public class GetQuestionsHandler(
     public async Task<PaginationResult<Question>> Handle(GetQuestionsQuery request, CancellationToken ct)
     {
         var q = request.Params;
-        var cacheKey = CacheKeys.QuestionList(q.Sort ?? "newest", q.Tag, q.SafePage, q.CappedPageSize);
+        var cacheKey = CacheKeys.QuestionList(q.Sort ?? SortModes.Newest, q.Tag, q.SafePage, q.CappedPageSize);
 
         return await cache.GetOrSetAsync(cacheKey, async _ =>
         {
@@ -28,15 +28,15 @@ public class GetQuestionsHandler(
 
             query = q.Sort switch
             {
-                "newest" => query.OrderByDescending(x => x.CreatedAt),
-                "active" => query.OrderByDescending(x => new[]
+                SortModes.Newest => query.OrderByDescending(x => x.CreatedAt),
+                SortModes.Active => query.OrderByDescending(x => new[]
                 {
                     x.CreatedAt,
                     x.UpdatedAt ?? DateTime.MinValue,
                     x.Answers.Max(a => (DateTime?)a.CreatedAt) ?? DateTime.MinValue,
                     x.Answers.Max(a => a.UpdatedAt) ?? DateTime.MinValue,
                 }.Max()),
-                "unanswered" => query.Where(x => x.AnswerCount == 0).OrderByDescending(x => x.CreatedAt),
+                SortModes.Unanswered => query.Where(x => x.AnswerCount == 0).OrderByDescending(x => x.CreatedAt),
                 _ => query.OrderByDescending(x => x.CreatedAt)
             };
 

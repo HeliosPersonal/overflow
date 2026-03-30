@@ -1,8 +1,8 @@
-using System.Security.Claims;
 using CommandFlow;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Overflow.Common;
+using Overflow.Common.CommonExtensions;
 using Overflow.QuestionService.DTOs;
 using Overflow.QuestionService.Features.Questions.Commands;
 using Overflow.QuestionService.Features.Questions.Queries;
@@ -19,9 +19,7 @@ public class QuestionsController(ISender sender) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Question>> CreateQuestion(CreateQuestionDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return BadRequest("Cannot get user details");
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new CreateQuestionCommand(dto.Title, dto.Content, dto.Tags, userId));
         return result.IsSuccess
             ? Created($"/questions/{result.Value.Id}", result.Value)
@@ -45,9 +43,7 @@ public class QuestionsController(ISender sender) : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult> UpdateQuestion(string id, CreateQuestionDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new UpdateQuestionCommand(id, dto.Title, dto.Content, dto.Tags, userId));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
@@ -56,9 +52,7 @@ public class QuestionsController(ISender sender) : ControllerBase
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteQuestion(string id)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return Unauthorized();
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new DeleteQuestionCommand(id, userId));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
@@ -67,9 +61,7 @@ public class QuestionsController(ISender sender) : ControllerBase
     [HttpPost("{questionId}/answers")]
     public async Task<ActionResult> PostAnswer(string questionId, CreateAnswerDto dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return BadRequest("Cannot get user details");
-
+        var userId = User.GetRequiredUserId();
         var result = await sender.Send(new PostAnswerCommand(questionId, dto.Content, userId));
         return result.IsSuccess
             ? Created($"/questions/{questionId}", result.Value)

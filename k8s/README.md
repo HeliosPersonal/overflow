@@ -100,7 +100,7 @@ All backend services are built with .NET and follow the same pattern:
 - **Port:** 8080
 - **Health checks:** `/ready` and `/alive` endpoints
 - **Secrets:** Loaded from Infisical at startup
-- **Replicas:** 2 for high availability
+- **Replicas:** Base manifests default to 2; overlays set to 1 per service (staging and production)
 
 ### Web Application (Next.js)
 - **Port:** 3000
@@ -130,13 +130,15 @@ The `reset-staging.sh` script wipes all staging data for a clean slate:
 - Scales down all deployments in `apps-staging` to 0
 - Drops and recreates all 5 PostgreSQL databases: `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `staging_estimations`
 - Drops the Typesense collection `staging_questions` (auto-recreated by search-svc on startup)
+- Purges all queues and exchanges in RabbitMQ vhost `overflow-staging` (auto-recreated by Wolverine on startup)
 - Scales all deployments back up to 1
-- Pulls the Ollama model so the DataSeeder can generate content
 
 **Usage:**
 ```bash
 export PGPASSWORD=<postgres-password>
 export TYPESENSE_API_KEY=<typesense-api-key>
+export RABBITMQ_USER=<rabbitmq-user>
+export RABBITMQ_PASSWORD=<rabbitmq-password>
 ./k8s/scripts/reset-staging.sh
 
 # Preview without making changes
@@ -152,12 +154,16 @@ The `reset-production.sh` script wipes all production data for a clean slate:
 - Scales down all deployments in `apps-production` to 0
 - Drops and recreates all 5 PostgreSQL databases: `production_questions`, `production_profiles`, `production_votes`, `production_stats`, `production_estimations`
 - Drops the Typesense collection `production_questions` (auto-recreated by search-svc on startup)
+- Purges all queues and exchanges in RabbitMQ vhost `overflow-production` (auto-recreated by Wolverine on startup)
 - Scales all deployments back up to 1
+- Pulls the Ollama model (`qwen2.5:3b`) so the DataSeeder can generate content
 
 **Usage:**
 ```bash
 export PGPASSWORD=<postgres-password>
 export TYPESENSE_API_KEY=<typesense-api-key>
+export RABBITMQ_USER=<rabbitmq-user>
+export RABBITMQ_PASSWORD=<rabbitmq-password>
 ./k8s/scripts/reset-production.sh
 
 # Preview without making changes

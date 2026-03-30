@@ -177,22 +177,22 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
 
   data = {
     # --- PostgreSQL connection strings (one per service database) ---
-    "CONNECTION_STRINGS__QUESTION_DB" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.question};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__PROFILE_DB"  = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.profile};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__VOTE_DB"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.vote};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__STAT_DB"     = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.stats};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__QUESTION_DB"   = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.question};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__PROFILE_DB"    = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.profile};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__VOTE_DB"       = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.vote};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__STAT_DB"       = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.stats};Password=${var.pg_password}"
     "CONNECTION_STRINGS__ESTIMATION_DB" = "${local.postgres_connection_string};Database=${local.pg_staging_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-staging vhost) ---
     "CONNECTION_STRINGS__MESSAGING" = "amqp://admin:${var.rabbit_password}@${local.rabbitmq_host}:${local.rabbitmq_amqp_port}/${local.rabbitmq_vhost_staging}"
 
     # --- Typesense ---
-    "TYPESENSE_OPTIONS__CONNECTION_URL" = local.typesense_url
-    "TYPESENSE_OPTIONS__API_KEY"        = var.typesense_api_key
+    "TYPESENSE_OPTIONS__CONNECTION_URL"  = local.typesense_url
+    "TYPESENSE_OPTIONS__API_KEY"         = var.typesense_api_key
     "TYPESENSE_OPTIONS__COLLECTION_NAME" = "staging_questions"
-    "KEYCLOAK_OPTIONS__URL"      = local.keycloak_internal_url
-    "KEYCLOAK_OPTIONS__REALM"    = "overflow-staging"
-    "KEYCLOAK_OPTIONS__AUDIENCE" = "overflow-staging"
+    "KEYCLOAK_OPTIONS__URL"              = local.keycloak_internal_url
+    "KEYCLOAK_OPTIONS__REALM"            = "overflow-staging"
+    "KEYCLOAK_OPTIONS__AUDIENCE"         = "overflow-staging"
 
     # --- OpenTelemetry ---
     "EnvironmentVariables__Values__OTEL_EXPORTER_OTLP_ENDPOINT" = local.otlp_http_endpoint
@@ -223,10 +223,10 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
 
   data = {
     # --- PostgreSQL ---
-    "CONNECTION_STRINGS__QUESTION_DB" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.question};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__PROFILE_DB"  = "${local.postgres_connection_string};Database=${local.pg_production_dbs.profile};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__VOTE_DB"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.vote};Password=${var.pg_password}"
-    "CONNECTION_STRINGS__STAT_DB"     = "${local.postgres_connection_string};Database=${local.pg_production_dbs.stats};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__QUESTION_DB"   = "${local.postgres_connection_string};Database=${local.pg_production_dbs.question};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__PROFILE_DB"    = "${local.postgres_connection_string};Database=${local.pg_production_dbs.profile};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__VOTE_DB"       = "${local.postgres_connection_string};Database=${local.pg_production_dbs.vote};Password=${var.pg_password}"
+    "CONNECTION_STRINGS__STAT_DB"       = "${local.postgres_connection_string};Database=${local.pg_production_dbs.stats};Password=${var.pg_password}"
     "CONNECTION_STRINGS__ESTIMATION_DB" = "${local.postgres_connection_string};Database=${local.pg_production_dbs.estimation};Password=${var.pg_password}"
 
     # --- RabbitMQ (overflow-production vhost) ---

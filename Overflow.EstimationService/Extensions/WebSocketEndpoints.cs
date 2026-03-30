@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Overflow.Common;
 using Overflow.EstimationService.Auth;
 using Overflow.EstimationService.Clients;
 using Overflow.EstimationService.Mapping;
@@ -52,7 +53,7 @@ public static class WebSocketEndpoints
                 return;
             }
 
-            var baseUrl = configuration["APP_BASE_URL"] ?? "http://localhost:3000";
+            var baseUrl = configuration[ConfigurationKeys.AppBaseUrl] ?? "http://localhost:3000";
             var socket = await ctx.WebSockets.AcceptWebSocketAsync();
 
             var connection = broadcaster.AddConnection(roomId, identity.ParticipantId, socket);

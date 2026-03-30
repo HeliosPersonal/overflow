@@ -8,38 +8,30 @@ using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
+using CacheOptions = Overflow.Common.Options.FusionCacheOptions;
 
 namespace Overflow.Common.CommonExtensions;
 
 public static class FusionCacheExtensions
 {
     /// <summary>
-    /// Registers Redis (<see cref="IConnectionMultiplexer"/>) and FusionCache
-    /// (L1 in-memory + L2 Redis + backplane for cross-pod invalidation).
-    /// Configuration is read from the <c>FusionCache</c> section of appsettings
-    /// and validated at startup via <see cref="IOptions{TOptions}"/>.
-    /// <para>
-    /// All cache keys and backplane channels are automatically prefixed with the
-    /// environment name (e.g. <c>staging:</c>, <c>production:</c>) so that multiple
-    /// environments sharing the same Redis instance are fully isolated.
-    /// </para>
+    /// Registers FusionCache with L1 in-memory, L2 Redis, and Redis backplane.
+    /// Cache keys are auto-prefixed with the environment name for isolation.
     /// </summary>
     public static IHostApplicationBuilder AddFusionCacheWithRedis(this IHostApplicationBuilder builder)
     {
         builder.Services
-            .AddOptions<DistributedCacheOptions>()
-            .BindConfiguration(DistributedCacheOptions.SectionName)
+            .AddOptions<CacheOptions>()
+            .BindConfiguration(CacheOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        builder.Services.AddSingleton<IValidateOptions<DistributedCacheOptions>>(sp =>
-            new DistributedCacheOptionsValidator(sp.GetRequiredService<IConfiguration>()));
+        builder.Services.AddSingleton<IValidateOptions<CacheOptions>>(sp =>
+            new FusionCacheOptionsValidator(sp.GetRequiredService<IConfiguration>()));
 
-        // Resolve validated options eagerly so Redis + FusionCache can be configured inline.
-        // Same pattern used in AuthExtensions for KeycloakOptions.
         var options = builder.Services
             .BuildServiceProvider()
-            .GetRequiredService<IOptions<DistributedCacheOptions>>().Value;
+            .GetRequiredService<IOptions<CacheOptions>>().Value;
 
         var redisConnectionString = builder.Configuration.GetConnectionString(options.ConnectionStringName)!;
 
@@ -94,10 +86,10 @@ public static class FusionCacheExtensions
     }
 }
 
-internal sealed class DistributedCacheOptionsValidator(IConfiguration configuration)
-    : IValidateOptions<DistributedCacheOptions>
+internal sealed class FusionCacheOptionsValidator(IConfiguration configuration)
+    : IValidateOptions<CacheOptions>
 {
-    public ValidateOptionsResult Validate(string? name, DistributedCacheOptions options)
+    public ValidateOptionsResult Validate(string? name, CacheOptions options)
     {
         var connectionString = configuration.GetConnectionString(options.ConnectionStringName);
         if (string.IsNullOrWhiteSpace(connectionString))

@@ -39,8 +39,8 @@ data "terraform_remote_state" "infra" {
 
 locals {
   # ---------- Namespaces ----------
-  namespace_staging    = data.terraform_remote_state.infra.outputs.namespace_apps_staging    # "apps-staging"
-  namespace_production = data.terraform_remote_state.infra.outputs.namespace_apps_production # "apps-production"
+  namespace_staging    = data.terraform_remote_state.infra.outputs.namespace_apps_staging     # "apps-staging"
+  namespace_production = data.terraform_remote_state.infra.outputs.namespace_apps_production  # "apps-production"
   namespace_infra      = data.terraform_remote_state.infra.outputs.namespace_infra_production # "infra-production"
 
   # ---------- PostgreSQL (shared, single instance) ----------
@@ -75,7 +75,7 @@ locals {
   rabbitmq_vhost_production = "overflow-production"
 
   # ---------- Typesense (shared, single instance) ----------
-  typesense_url  = data.terraform_remote_state.infra.outputs.typesense_url  # http://typesense.infra-production.svc.cluster.local:8108
+  typesense_url  = data.terraform_remote_state.infra.outputs.typesense_url # http://typesense.infra-production.svc.cluster.local:8108
   typesense_host = data.terraform_remote_state.infra.outputs.typesense_host
   typesense_port = data.terraform_remote_state.infra.outputs.typesense_port # 8108
 

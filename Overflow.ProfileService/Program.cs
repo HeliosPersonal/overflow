@@ -19,7 +19,7 @@ builder.AddKeyCloakAuthentication();
 builder.AddNpgsqlDbContext<ProfileDbContext>("profileDb");
 builder.Services.AddCommandFlow(typeof(Program).Assembly);
 
-// ── Keycloak admin for anonymous user cleanup ────────────────────────────
+// ── Keycloak admin for anonymous user cleanup ──
 builder.Services
     .AddOptions<KeycloakOptions>()
     .BindConfiguration(KeycloakOptions.SectionName)

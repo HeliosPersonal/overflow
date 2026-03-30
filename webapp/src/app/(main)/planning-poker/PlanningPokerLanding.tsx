@@ -251,13 +251,14 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
                                                 </Dropdown>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <DiceBearAvatar avatarJson={r.creatorAvatarUrl} name={r.creatorDisplayName} size="sm"/>
-                                            <AvatarGroup max={3} size="sm">
+                                        <div className="flex items-center gap-2 mt-1 ml-1">
+                                            <AvatarGroup max={4} size="sm">
                                                 {r.participants.map((p, i) => (
-                                                    <span key={i} className="inline-flex">
-                                                        <DiceBearAvatar avatarJson={p.avatarUrl} name={p.displayName} size="sm"/>
-                                                    </span>
+                                                    <Tooltip key={i} content={p.displayName} placement="top">
+                                                        <span className="inline-flex">
+                                                            <DiceBearAvatar avatarJson={p.avatarUrl} name={p.displayName} size="sm"/>
+                                                        </span>
+                                                    </Tooltip>
                                                 ))}
                                             </AvatarGroup>
                                         </div>

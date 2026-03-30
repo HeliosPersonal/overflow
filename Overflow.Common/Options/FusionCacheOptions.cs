@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Overflow.Common.Options;
 
-public class DistributedCacheOptions
+public class FusionCacheOptions
 {
     public const string SectionName = "FusionCache";
 
