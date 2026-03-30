@@ -29,18 +29,19 @@ export default function LayoutShell({
             {topNav}
 
             <div className="flex flex-1 overflow-hidden mt-14">
-                {/* ── Collapsible Sidebar (hidden in poker rooms + mobile) ── */}
-                {!isPokerRoom && (
-                    <aside
-                        className={`hidden md:block shrink-0 bg-content1 border-r border-content3/50 py-4
-                            transition-all duration-300 ease-out overflow-hidden
-                            ${collapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
-                    >
-                        {React.isValidElement<{ collapsed?: boolean; onToggle?: () => void }>(sideMenu)
-                            ? React.cloneElement(sideMenu, { collapsed, onToggle: () => setCollapsed(c => !c) })
-                            : sideMenu}
-                    </aside>
-                )}
+                {/* ── Collapsible Sidebar (hidden on mobile, always collapsed in poker rooms) ── */}
+                <aside
+                    className={`hidden md:block shrink-0 bg-content1 border-r border-content3/50 py-4
+                        transition-all duration-300 ease-out overflow-hidden
+                        ${(isPokerRoom || collapsed) ? 'w-[68px] px-2' : 'w-56 px-4'}`}
+                >
+                    {React.isValidElement<{ collapsed?: boolean; onToggle?: () => void }>(sideMenu)
+                        ? React.cloneElement(sideMenu, {
+                            collapsed: isPokerRoom || collapsed,
+                            onToggle: isPokerRoom ? undefined : () => setCollapsed(c => !c),
+                        })
+                        : sideMenu}
+                </aside>
 
                 {/* ── Main content ── */}
                 <main className={`flex-1 bg-background ${isPokerRoom ? 'overflow-hidden' : 'overflow-y-auto'}`}>
@@ -55,14 +56,12 @@ export default function LayoutShell({
                 )}
             </div>
 
-            {/* ── Mobile bottom navigation (hidden in poker rooms) ── */}
-            {!isPokerRoom && (
-                <div className="md:hidden shrink-0">
-                    {React.isValidElement<{ collapsed?: boolean; mobile?: boolean }>(sideMenu)
-                        ? React.cloneElement(sideMenu, { collapsed: true, mobile: true })
-                        : null}
-                </div>
-            )}
+            {/* ── Mobile bottom navigation ── */}
+            <div className="md:hidden shrink-0">
+                {React.isValidElement<{ collapsed?: boolean; mobile?: boolean }>(sideMenu)
+                    ? React.cloneElement(sideMenu, { collapsed: true, mobile: true })
+                    : null}
+            </div>
         </div>
     );
 }
