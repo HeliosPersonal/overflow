@@ -36,7 +36,7 @@ export default function ProfilesList({profiles}: Props) {
             aria-label='User profiles'
             selectionMode='single'
             radius='none'
-            onRowAction={(key) => router.push(`/profiles/${key}`)}
+            onRowAction={(key) => router.push(`/profiles/${String(key)}`)}
             classNames={{
                 th: 'bg-content3 text-foreground-500 uppercase text-xs tracking-wide font-semibold',
                 td: 'text-foreground-600',

@@ -31,7 +31,6 @@ permissions:
 env:
   DOCKER_REGISTRY: ghcr.io
   IMAGE_TAG: ${{ github.sha }}
-  KUBECONFIG: /home/github-runner/.kube/config
 
 jobs:
   # ============================================================================
@@ -213,12 +212,15 @@ jobs:
       TF_VAR_pg_password:        ${{ secrets.PG_PASSWORD }}
       TF_VAR_rabbit_password:    ${{ secrets.RABBIT_PASSWORD }}
       TF_VAR_typesense_api_key:  ${{ secrets.TYPESENSE_API_KEY }}
-      TF_VAR_kubeconfig_path:    /home/github-runner/.kube/config
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v6
 
+      - name: 🔧 Set kubeconfig path
+        run: |
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+          echo "TF_VAR_kubeconfig_path=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: kubectl cluster-info
@@ -287,7 +289,9 @@ jobs:
 
       - name: 🔧 Setup environment
         id: setup
-        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: |
+          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: |
@@ -388,7 +392,9 @@ jobs:
 
       - name: 🔧 Setup environment
         id: setup
-        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: |
+          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: |

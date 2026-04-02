@@ -75,12 +75,13 @@ resource "kubernetes_secret_v1" "cloudflare_origin_production" {
 
 resource "null_resource" "create_postgres_databases" {
   triggers = {
-    databases = join(",", sort(concat(
+    databases       = join(",", sort(concat(
       values(local.pg_staging_dbs),
       values(local.pg_production_dbs)
     )))
-    host    = local.postgres_host
-    pw_hash = sha256(var.pg_password)
+    host            = local.postgres_host
+    pw_hash         = sha256(var.pg_password)
+    kubeconfig_path = var.kubeconfig_path
   }
 
   provisioner "local-exec" {
@@ -119,9 +120,10 @@ resource "null_resource" "create_postgres_databases" {
 
 resource "null_resource" "create_rabbitmq_vhosts" {
   triggers = {
-    vhosts  = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
-    host    = local.rabbitmq_host
-    pw_hash = sha256(var.rabbit_password)
+    vhosts          = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
+    host            = local.rabbitmq_host
+    pw_hash         = sha256(var.rabbit_password)
+    kubeconfig_path = var.kubeconfig_path
   }
 
   provisioner "local-exec" {
@@ -137,8 +139,15 @@ resource "null_resource" "create_rabbitmq_vhosts" {
 
       for VHOST in "${local.rabbitmq_vhost_staging}" "${local.rabbitmq_vhost_production}"; do
         echo ">>> Ensuring vhost: $VHOST"
-        kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-          rabbitmqctl add_vhost "$VHOST" 2>&1 | grep -v "already exists" || true
+
+        if kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
+            rabbitmqctl list_vhosts 2>/dev/null | grep -qF "$VHOST"; then
+          echo ">>> vhost already exists: $VHOST"
+        else
+          kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
+            rabbitmqctl add_vhost "$VHOST"
+          echo ">>> Created vhost: $VHOST"
+        fi
 
         echo ">>> Granting admin permissions on: $VHOST"
         kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \

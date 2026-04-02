@@ -108,7 +108,7 @@ labels:
 # ====================================================================================
 # REPLICA COUNTS
 # ====================================================================================
-# Staging uses 1 replica per service
+# Staging uses 1 replica per service (2 for estimation-svc and webapp for HA testing)
 replicas:
   - name: question-svc
     count: 1
@@ -121,11 +121,11 @@ replicas:
   - name: vote-svc
     count: 1
   - name: estimation-svc
-    count: 1
+    count: 2
   - name: notification-svc
     count: 1
   - name: overflow-webapp
-    count: 1
+    count: 2
   - name: data-seeder-svc
     count: 1
 

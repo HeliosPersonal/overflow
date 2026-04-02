@@ -16,7 +16,7 @@
 #   4. Deletes all queues and exchanges in RabbitMQ vhost: overflow-production
 #        (Wolverine auto-recreates them on next startup)
 #   5. Scales deployments back up to 1
-#   6. Pulls the Ollama model (qwen2.5:3b) so the DataSeeder can generate content
+#   6. Pulls the Ollama model (qwen2.5:7b) so the DataSeeder can generate content
 #
 # Note: Default tags are auto-seeded by QuestionService on startup when the Tags
 #       table is empty — no manual tag creation needed after a reset.
@@ -364,7 +364,7 @@ foreach ($DEPLOY in $DEPLOYMENTS) {
 # ============================================================================
 # 6. Pull Ollama model
 # ============================================================================
-$OLLAMA_MODEL = "qwen2.5:3b"
+$OLLAMA_MODEL = "qwen2.5:7b"
 Write-Host ""
 Write-Host "🤖 Pulling Ollama model '$OLLAMA_MODEL'..."
 
