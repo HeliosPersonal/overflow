@@ -262,7 +262,7 @@
 - Single AI user account ("AI Assistant") created in Keycloak on startup
 - Answer pipeline: generate 3 variants via Ollama → LLM picks the best → post as AI user
 - Each variant is validated (non-empty fields, reasonable code length, rendered HTML > 150 chars)
-- Staging: Ollama (qwen2.5:3b), configurable model and variant count
+- Staging: Ollama (qwen2.5:7b), configurable model and variant count
 - Not deployed to production
 
 ---

@@ -73,23 +73,23 @@ labels:
 
 replicas:
   - name: question-svc
-    count: 1
+    count: 2
   - name: search-svc
-    count: 1
+    count: 2
   - name: profile-svc
-    count: 1
+    count: 2
   - name: stats-svc
-    count: 1
+    count: 2
   - name: vote-svc
-    count: 1
+    count: 2
   - name: estimation-svc
-    count: 1
+    count: 2
   - name: notification-svc
-    count: 1
+    count: 2
   - name: overflow-webapp
-    count: 1
+    count: 2
   - name: data-seeder-svc
-    count: 1
+    count: 2
 
 # ====================================================================================
 # PATCHES — imagePullPolicy: Always

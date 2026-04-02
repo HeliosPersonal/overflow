@@ -156,7 +156,7 @@ The `reset-production.sh` script wipes all production data for a clean slate:
 - Drops the Typesense collection `production_questions` (auto-recreated by search-svc on startup)
 - Purges all queues and exchanges in RabbitMQ vhost `overflow-production` (auto-recreated by Wolverine on startup)
 - Scales all deployments back up to 1
-- Pulls the Ollama model (`qwen2.5:3b`) so the DataSeeder can generate content
+- Pulls the Ollama model (`qwen2.5:7b`) so the DataSeeder can generate content
 
 **Usage:**
 ```bash
