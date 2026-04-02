@@ -218,7 +218,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: 🔧 Set kubeconfig path
-        run: echo "TF_VAR_kubeconfig_path=$HOME/.kube/config" >> $GITHUB_ENV
+        run: |
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+          echo "TF_VAR_kubeconfig_path=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: kubectl cluster-info
@@ -287,7 +289,9 @@ jobs:
 
       - name: 🔧 Setup environment
         id: setup
-        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: |
+          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: |
@@ -388,7 +392,9 @@ jobs:
 
       - name: 🔧 Setup environment
         id: setup
-        run: echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: |
+          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
 
       - name: ✅ Verify Kubernetes access
         run: |
