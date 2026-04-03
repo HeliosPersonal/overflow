@@ -110,56 +110,6 @@ resource "null_resource" "create_postgres_databases" {
   }
 }
 
-
-# ====================================================================================
-# RABBITMQ - CREATE VHOSTS
-# ====================================================================================
-# Uses null_resource + local-exec. RabbitMQ PUT vhost is idempotent (204 if exists).
-# Only re-runs when vhost names or rabbit host/password change.
-# ====================================================================================
-
-resource "null_resource" "create_rabbitmq_vhosts" {
-  triggers = {
-    vhosts          = join(",", [local.rabbitmq_vhost_staging, local.rabbitmq_vhost_production])
-    host            = local.rabbitmq_host
-    pw_hash         = sha256(var.rabbit_password)
-    kubeconfig_path = var.kubeconfig_path
-  }
-
-  provisioner "local-exec" {
-    command = <<-SH
-      set -e
-      export KUBECONFIG='${var.kubeconfig_path}'
-
-      RMQ_POD=$(kubectl get pod -n ${local.namespace_infra} \
-        -l app.kubernetes.io/name=rabbitmq \
-        -o jsonpath='{.items[0].metadata.name}')
-
-      echo ">>> Using rabbitmq pod: $RMQ_POD"
-
-      for VHOST in "${local.rabbitmq_vhost_staging}" "${local.rabbitmq_vhost_production}"; do
-        echo ">>> Ensuring vhost: $VHOST"
-
-        if kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-            rabbitmqctl list_vhosts 2>/dev/null | grep -qF "$VHOST"; then
-          echo ">>> vhost already exists: $VHOST"
-        else
-          kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-            rabbitmqctl add_vhost "$VHOST"
-          echo ">>> Created vhost: $VHOST"
-        fi
-
-        echo ">>> Granting admin permissions on: $VHOST"
-        kubectl exec -n ${local.namespace_infra} "$RMQ_POD" -- \
-          rabbitmqctl set_permissions -p "$VHOST" admin ".*" ".*" ".*"
-      done
-
-      echo ">>> Done."
-    SH
-  }
-}
-
-
 # ====================================================================================
 # CONFIGMAP - STAGING (apps-staging)
 # ====================================================================================
@@ -210,7 +160,6 @@ resource "kubernetes_config_map_v1" "overflow_config_staging" {
 
   depends_on = [
     null_resource.create_postgres_databases,
-    null_resource.create_rabbitmq_vhosts,
   ]
 }
 
@@ -258,6 +207,5 @@ resource "kubernetes_config_map_v1" "overflow_config_production" {
 
   depends_on = [
     null_resource.create_postgres_databases,
-    null_resource.create_rabbitmq_vhosts,
   ]
 }

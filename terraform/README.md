@@ -11,9 +11,11 @@ state and provisions Overflow's own slice of each shared service.
 | Resource | What gets created |
 |---|---|
 | **PostgreSQL databases** | `staging_questions`, `staging_profiles`, `staging_votes`, `staging_stats`, `staging_estimations`, `production_*` variants |
-| **RabbitMQ vhosts** | `overflow-staging`, `overflow-production` |
 | **TLS Secret** | Copies `cloudflare-origin` from `infra-production` → `apps-staging` + `apps-production` |
 | **ConfigMaps** | `overflow-infra-config` in `apps-staging` and `apps-production` with all connection strings pre-assembled |
+
+> **RabbitMQ vhosts** (`overflow-staging`, `overflow-production`) are **not** managed by Terraform.
+> Create them once on a fresh cluster — see [Fresh cluster setup](#fresh-cluster-setup) below.
 
 ### ConfigMap keys injected into pods
 
@@ -58,9 +60,6 @@ In staging/production, Infisical loads the same keys and applies PascalCase conv
 │    → staging_questions, staging_profiles, staging_votes,            │
 │      staging_stats, staging_estimations, production_* variants      │
 │                                                                     │
-│  null_resource  create_rabbitmq_vhosts                              │
-│    → overflow-staging, overflow-production                          │
-│                                                                     │
 │  kubernetes_config_map  overflow-infra-config  (apps-staging)       │
 │  kubernetes_config_map  overflow-infra-config  (apps-production)    │
 └────────────────────────────────┬────────────────────────────────────┘
@@ -81,6 +80,23 @@ In staging/production, Infisical loads the same keys and applies PascalCase conv
 1. **`infrastructure-helios` applied** — postgres, rabbitmq, typesense must be running
 2. `ARM_*` env vars set for Azure Blob state auth
 3. Terraform ≥ 1.5 and `kubectl` configured against the cluster
+
+---
+
+## Fresh cluster setup
+
+RabbitMQ vhosts are **not managed by Terraform** — create them once after `infrastructure-helios` is applied:
+
+```bash
+RMQ_POD=$(kubectl get pod -n infra-production -l app.kubernetes.io/name=rabbitmq -o jsonpath='{.items[0].metadata.name}')
+
+for VHOST in overflow-staging overflow-production; do
+  kubectl exec -n infra-production "$RMQ_POD" -- rabbitmqctl add_vhost "$VHOST"
+  kubectl exec -n infra-production "$RMQ_POD" -- rabbitmqctl set_permissions -p "$VHOST" admin ".*" ".*" ".*"
+done
+```
+
+This is a one-time operation. Vhosts persist across RabbitMQ pod restarts (data is stored on the PersistentVolume).
 
 ---
 
@@ -164,6 +180,6 @@ Set these on the **overflow** repository under `Settings → Secrets and variabl
 | `provider.tf` | Backend (azurerm), providers (kubernetes, null) |
 | `data.tf` | Remote state from infrastructure-helios + locals |
 | `variables.tf` | `pg_password`, `rabbit_password`, `typesense_api_key`, `kubeconfig_path` |
-| `main.tf` | TLS secret copies, null_resource DB/vhost init (local-exec), ConfigMaps |
+| `main.tf` | TLS secret copies, null_resource DB init (local-exec), ConfigMaps |
 | `outputs.tf` | `staging_config`, `production_config`, domain outputs |
 | `terraform.tfvars.example` | Template — copy to `terraform.secret.tfvars` and fill in |
