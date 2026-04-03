@@ -40,39 +40,24 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
     const [recentSessions, setRecentSessions] = useState<PlanningPokerRoomSummary[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(false);
 
-    async function loadRooms() {
-        await fetch('/api/estimation/claim-guest', {method: 'POST'}).catch(() => {});
-        setSessionsLoading(true);
-        try {
-            // cache: 'no-store' prevents the browser from serving a stale response
-            // after the user updates their avatar on the profile page.
-            const res = await fetch('/api/estimation/rooms', {cache: 'no-store'});
-            const data: PlanningPokerRoomSummary[] = res.ok ? await res.json() : [];
-            setRecentSessions(data.slice(0, 10));
-        } catch {
-            // ignore
-        } finally {
-            setSessionsLoading(false);
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        async function loadRooms() {
+            await fetch('/api/estimation/claim-guest', {method: 'POST'}).catch(() => {});
+            setSessionsLoading(true);
+            try {
+                const res = await fetch('/api/estimation/rooms');
+                const data: PlanningPokerRoomSummary[] = res.ok ? await res.json() : [];
+                setRecentSessions(data.slice(0, 10));
+            } catch {
+                // ignore
+            } finally {
+                setSessionsLoading(false);
+            }
         }
-    }
 
-    // Initial load on mount.
-    useEffect(() => {
-        if (!isAuthenticated) return;
         void loadRooms();
-    }, [isAuthenticated]);
-
-    // Re-fetch when the tab regains focus so avatars/display names are always
-    // fresh after the user edits their profile in another tab or window.
-    useEffect(() => {
-        if (!isAuthenticated) return;
-
-        const handleVisibilityChange = () => {
-            if (!document.hidden) void loadRooms();
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [isAuthenticated]);
 
     async function handleArchive(roomId: string) {
