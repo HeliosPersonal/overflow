@@ -1,0 +1,74 @@
+# ====================================================================================
+# NODE INOTIFY LIMIT SETTER - DaemonSet
+# ====================================================================================
+# Problem: Linux inotify watches are shared across ALL pods on the same node.
+# The default kernel limits are very low (max_user_watches=8192, max_user_instances=128).
+# With many pods running Go-based tooling (kubelet, ingress-nginx, etc.) plus Node.js
+# and .NET services, the node quickly exhausts the inotify pool and processes start
+# failing with: "failed to create fsnotify watcher: too many open files"
+#
+# Fix: Raise the inotify limits on every node via a privileged init container.
+#
+# Apply once to the cluster (requires cluster-admin):
+#   kubectl apply -f k8s/base/node-config/inotify-daemonset.yaml
+#
+# Verify after applying:
+#   kubectl exec -n kube-system ds/inotify-limit-setter -- cat /proc/sys/fs/inotify/max_user_watches
+# ====================================================================================
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: inotify-limit-setter
+  namespace: kube-system
+  labels:
+    app: inotify-limit-setter
+    managed-by: overflow
+spec:
+  selector:
+    matchLabels:
+      app: inotify-limit-setter
+  template:
+    metadata:
+      labels:
+        app: inotify-limit-setter
+    spec:
+      hostPID: true
+      hostNetwork: false
+      tolerations:
+        # Run on every node including control-plane nodes
+        - operator: Exists
+          effect: NoSchedule
+        - operator: Exists
+          effect: NoExecute
+      initContainers:
+        - name: sysctl
+          image: busybox:1.36
+          securityContext:
+            privileged: true
+          command:
+            - sh
+            - -c
+            - |
+              echo "Setting inotify limits..."
+              sysctl -w fs.inotify.max_user_watches=524288
+              sysctl -w fs.inotify.max_user_instances=512
+              sysctl -w fs.inotify.max_queued_events=32768
+              echo "Done. Current values:"
+              sysctl fs.inotify.max_user_watches
+              sysctl fs.inotify.max_user_instances
+              sysctl fs.inotify.max_queued_events
+      containers:
+        # Pause container — keeps the DaemonSet pod alive so initContainer
+        # re-runs on node restart (pod is rescheduled → init runs again).
+        - name: pause
+          image: gcr.io/google-containers/pause:3.9
+          resources:
+            requests:
+              cpu: "1m"
+              memory: "1Mi"
+            limits:
+              cpu: "5m"
+              memory: "8Mi"
+      terminationGracePeriodSeconds: 5
+

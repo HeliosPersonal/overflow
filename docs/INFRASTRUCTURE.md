@@ -360,7 +360,8 @@ k8s/
 │   ├── vote-svc/
 │   ├── estimation-svc/
 │   ├── data-seeder-svc/
-│   └── overflow-webapp/
+│   ├── overflow-webapp/
+│   └── node-config/             — Cluster-wide node configuration (inotify limits DaemonSet)
 │
 ├── overlays/
 │   ├── staging/
@@ -511,6 +512,29 @@ keycloak.devoverflow.org                    →  keycloak:8080
 
 ## Troubleshooting
 
+### `failed to create fsnotify watcher: too many open files` in pod logs
+
+**Root cause:** Linux `inotify` watches are shared across **all processes on the same node** — every pod running on the node draws from the same kernel pool. The defaults (`max_user_watches=8192`, `max_user_instances=128`) are easily exhausted when many pods run together:
+
+- **Go-based infra** (kubelet, ingress-nginx controllers, K8s operators) — all use `fsnotify` and consume inotify watches
+- **Node.js / Next.js** webapp — uses `fs.watch` (inotify) even in production mode
+- All .NET services already use `DOTNET_USE_POLLING_FILE_WATCHER=true` to opt out of inotify
+
+**Fix:** Apply the privileged DaemonSet at `k8s/base/node-config/inotify-daemonset.yaml` once to the cluster. It runs a privileged init container on every node that raises the limits:
+
+```bash
+kubectl apply -f k8s/base/node-config/inotify-daemonset.yaml
+```
+
+Verify the limits were applied on each node:
+
+```bash
+kubectl exec -n kube-system ds/inotify-limit-setter -- cat /proc/sys/fs/inotify/max_user_watches
+# Expected: 524288
+```
+
+> The DaemonSet's pause container keeps the pod alive so the init container re-runs on node restarts (the sysctl values are not persisted across reboots at the kernel level).
+
 ### Pod not starting
 
 ```bash
@@ -557,6 +581,26 @@ kubectl logs -n apps-staging -l app=question-svc | grep -i infisical
 ---
 
 ## Runbooks
+
+### Apply node inotify limits (one-time cluster setup)
+
+The `inotify-daemonset.yaml` must be applied once per cluster (it lives in `kube-system`, outside the normal Kustomize flow):
+
+```bash
+# Apply — requires cluster-admin
+kubectl apply -f k8s/base/node-config/inotify-daemonset.yaml
+
+# Verify DaemonSet is running on all nodes
+kubectl get ds -n kube-system inotify-limit-setter
+
+# Confirm new limits on the node
+kubectl exec -n kube-system ds/inotify-limit-setter -- sysctl \
+  fs.inotify.max_user_watches \
+  fs.inotify.max_user_instances \
+  fs.inotify.max_queued_events
+```
+
+Without this, pods will log `failed to create fsnotify watcher: too many open files` — see [Troubleshooting](#failed-to-create-fsnotify-watcher-too-many-open-files-in-pod-logs).
 
 ### Deploy hotfix to staging
 
