@@ -131,11 +131,18 @@ These are already configured in both realm import files:
 | Setting | Value | Reason |
 |---|---|---|
 | Access Token Lifespan | `300s` (5 min) | Short-lived; `auth.ts` refreshes proactively |
-| Refresh Token Max Reuse | `0` | One-time use (rotated on each refresh) |
+| Revoke Refresh Token | `false` (OFF) | Rotation disabled — required for multi-replica webapp. If enabled, two pods refreshing the same token simultaneously would cause `invalid_grant` errors (the second pod always wins the rotation race). |
+| Refresh Token Max Reuse | `0` | Only relevant when Revoke Refresh Token is ON — ignored here |
 | SSO Session Idle | `1800s` (30 min) | |
 | SSO Session Max | `36000s` (10 hours) | |
 | Offline Session Idle | `2592000s` (30 days) | `offline_access` scope requested by `auth.ts` |
 | Offline Session Max Limited | `false` | Unlimited offline sessions |
+
+> ⚠️ **Do not enable "Revoke Refresh Token"** in either realm. With 2+ webapp replicas,
+> concurrent requests from different pods can try to refresh the same token at the same
+> time. Rotation means the second pod's attempt immediately gets `invalid_grant`.
+> When this error occurs, `auth.ts` sets `session.error = 'RefreshAccessTokenError'`
+> and the middleware clears the session cookie and redirects the user to `/login?error=SESSION_EXPIRED`.
 
 ---
 

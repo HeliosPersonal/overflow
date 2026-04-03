@@ -344,6 +344,13 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
                 session.expires = new Date(token.accessTokenExpires * 1000) as unknown as typeof session.expires;
             }
 
+            // Propagate refresh error so middleware can detect it and sign the user out.
+            // Without this the client has no idea the session is broken and all backend
+            // calls silently return 401 until the NextAuth cookie eventually expires.
+            if (token.error) {
+                session.error = token.error as 'RefreshAccessTokenError';
+            }
+
             return session;
         }
     }
