@@ -139,5 +139,5 @@ patches:
       name: overflow-webapp
     patch: |-
       - op: replace
-        path: /spec/template/spec/containers/0/env/1/value
+        path: /spec/template/spec/containers/0/env/2/value
         value: "staging"
