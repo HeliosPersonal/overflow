@@ -23,6 +23,8 @@ spec:
         app: stats-svc
         component: api
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: stats-svc
           image: ghcr.io/placeholder/overflow-stats:latest

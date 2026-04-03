@@ -298,6 +298,15 @@ jobs:
           kubectl config current-context || echo "Using default context"
           kubectl get nodes
 
+      - name: 🔑 Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: 🏷️ Update image tags
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
@@ -401,12 +410,20 @@ jobs:
           kubectl config current-context || echo "Using default context"
           kubectl get nodes
 
-      - name: 🏷️ Update image tags for production (use latest)
+      - name: 🔑 Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 🏷️ Update image tags
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: |
           sed -i "s/GITHUB_USERNAME/${{ steps.setup.outputs.owner_lc }}/g" kustomization.yaml
-          # Production uses 'latest' tag for deployments
-          # Note: latest tag is created during build step for main branch
+          sed -i "s|newTag: SHA_REPLACED_BY_CICD|newTag: ${{ env.IMAGE_TAG }}|g" kustomization.yaml
 
       - name: 🔐 Inject secrets
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
@@ -424,19 +441,6 @@ jobs:
       - name: 🚀 Deploy to Kubernetes
         working-directory: ./k8s/overlays/${{ env.OVERLAY }}
         run: kubectl apply -k .
-
-      - name: 🔄 Force rollout (production uses latest tag)
-        run: |
-          # kubectl apply with an unchanged 'latest' tag won't trigger a rollout,
-          # so we explicitly restart all deployments to pull the newest images.
-          kubectl rollout restart deployment/question-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/search-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/profile-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/stats-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/vote-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/estimation-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/notification-svc -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment/overflow-webapp -n ${{ env.NAMESPACE }}
 
       - name: ⏳ Wait for rollout
         run: |

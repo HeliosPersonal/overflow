@@ -30,35 +30,36 @@ resources:
   - ../../base/overflow-webapp
   - ingress.yaml
 
-# Image tags set to latest for production (built from main branch)
+# Image tags set to commit SHA by CI/CD (same pattern as staging)
+# CI/CD replaces SHA_REPLACED_BY_CICD with the actual github.sha during deployment
 images:
   - name: ghcr.io/placeholder/overflow-question
     newName: ghcr.io/GITHUB_USERNAME/overflow-question
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-search
     newName: ghcr.io/GITHUB_USERNAME/overflow-search
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-profile
     newName: ghcr.io/GITHUB_USERNAME/overflow-profile
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-stats
     newName: ghcr.io/GITHUB_USERNAME/overflow-stats
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-vote
     newName: ghcr.io/GITHUB_USERNAME/overflow-vote
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-estimation
     newName: ghcr.io/GITHUB_USERNAME/overflow-estimation
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-notification
     newName: ghcr.io/GITHUB_USERNAME/overflow-notification
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-data-seeder
     newName: ghcr.io/GITHUB_USERNAME/overflow-data-seeder
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
   - name: ghcr.io/placeholder/overflow-webapp
     newName: ghcr.io/GITHUB_USERNAME/overflow-webapp
-    newTag: latest
+    newTag: SHA_REPLACED_BY_CICD
 
 configMapGenerator:
   - name: app-config
@@ -90,77 +91,3 @@ replicas:
     count: 2
   - name: data-seeder-svc
     count: 2
-
-# ====================================================================================
-# PATCHES — imagePullPolicy: Always
-# ====================================================================================
-# Production uses the 'latest' tag. With the default IfNotPresent policy, Kubernetes
-# skips pulling when a locally-cached image with the same tag exists, so pods may run
-# stale code after a new image is pushed.  Setting Always ensures every (re)start
-# pulls the newest image for the tag.
-# ====================================================================================
-patches:
-  - target:
-      kind: Deployment
-      name: question-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: search-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: profile-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: stats-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: vote-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: estimation-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: notification-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: overflow-webapp
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-  - target:
-      kind: Deployment
-      name: data-seeder-svc
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Always
-

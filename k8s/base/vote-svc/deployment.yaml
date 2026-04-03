@@ -23,6 +23,8 @@ spec:
         app: vote-svc
         component: api
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: vote-svc
           image: ghcr.io/placeholder/overflow-vote:latest

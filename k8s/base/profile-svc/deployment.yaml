@@ -16,6 +16,8 @@ spec:
         app: profile-svc
         component: api
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: profile-svc
           image: ghcr.io/placeholder/overflow-profile:latest

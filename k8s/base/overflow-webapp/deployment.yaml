@@ -23,6 +23,8 @@ spec:
         app: overflow-webapp
         component: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: overflow-webapp
           image: ghcr.io/placeholder/overflow-webapp:latest
