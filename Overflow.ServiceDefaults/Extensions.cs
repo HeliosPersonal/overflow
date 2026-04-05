@@ -44,12 +44,6 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        builder.Logging.AddOpenTelemetry(logging =>
-        {
-            logging.IncludeFormattedMessage = true;
-            logging.IncludeScopes = true;
-        });
-
         // Add TraceId, SpanId, and ParentId to all log entries for distributed tracing
         builder.Logging.Configure(options =>
         {
@@ -63,6 +57,12 @@ public static class Extensions
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpTraceExporter.ClientHandler", LogLevel.Warning);
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.LogicalHandler", LogLevel.Warning);
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.ClientHandler", LogLevel.Warning);
+
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+        });
 
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource =>
@@ -132,7 +132,7 @@ public static class Extensions
                         };
                     });
             })
-            .UseOtlpExporter(); // This reads OTEL_EXPORTER_OTLP_* from configuration
+            .UseOtlpExporter(); // Reads OTEL_EXPORTER_OTLP_* from configuration; exports all three signals
 
         return builder;
     }
