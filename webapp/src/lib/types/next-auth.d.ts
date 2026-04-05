@@ -14,6 +14,10 @@ declare module 'next-auth' {
             avatarUrl?: string | null;
         } & DefaultUser;
         accessToken: string;
+        /** Set to 'RefreshAccessTokenError' when the Keycloak refresh token is invalid
+         *  (expired session, pod restart, admin revocation). Middleware detects this and
+         *  signs the user out so they are redirected to login. */
+        error?: 'RefreshAccessTokenError';
     }
 
     interface User {
