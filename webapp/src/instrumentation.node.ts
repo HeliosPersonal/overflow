@@ -12,7 +12,9 @@
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('instrumentation');
 
 const PHASE_PRODUCTION_BUILD = 'phase-production-build';
 

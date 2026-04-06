@@ -6,7 +6,9 @@ import {revalidatePath} from "next/cache";
 import {EditProfileSchema} from "@/lib/schemas/editProfileSchema";
 import {auth} from "@/auth";
 import {fetchProfileMap} from "@/lib/profiles";
-import logger from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger('profile-actions');
 
 export async function getUserProfiles(sortBy?: string) {
     const effectiveSort = sortBy ?? 'reputation';

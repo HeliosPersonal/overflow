@@ -2,7 +2,9 @@ import {notFound} from "next/navigation";
 import {auth} from "@/auth";
 import {FetchResponse} from "@/lib/types";
 import type {Session} from "next-auth";
-import logger from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger('fetch-client');
 
 export async function fetchClient<T>(
     url: string,

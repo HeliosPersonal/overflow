@@ -2,7 +2,9 @@
 import { KeycloakAdminClient } from '@/lib/keycloak-admin';
 import { createResetToken } from '@/lib/resetTokens';
 import { apiConfig, authConfig } from '@/lib/config';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('auth-forgot-password');
 
 /**
  * POST /api/auth/forgot-password

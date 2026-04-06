@@ -7,7 +7,9 @@ import {
     isAnonymousEmail,
 } from '@/lib/keycloak-admin';
 import { createResetToken, EMAIL_VERIFICATION_EXPIRY_MS } from '@/lib/resetTokens';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('auth-upgrade');
 
 /**
  * POST /api/auth/upgrade

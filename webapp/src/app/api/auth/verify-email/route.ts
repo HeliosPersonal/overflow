@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KeycloakAdminClient, KeycloakAdminError } from '@/lib/keycloak-admin';
 import { verifyResetToken, consumeResetToken } from '@/lib/resetTokens';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('auth-verify-email');
 
 /**
  * POST /api/auth/verify-email

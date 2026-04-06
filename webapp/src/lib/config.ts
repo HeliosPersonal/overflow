@@ -1,4 +1,6 @@
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('config');
 
 const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
 const isServer = typeof window === 'undefined';
