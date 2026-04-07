@@ -3,6 +3,7 @@ import {auth} from "@/auth";
 import {FetchResponse} from "@/lib/types";
 import type {Session} from "next-auth";
 import { createLogger } from "@/lib/logger";
+import { propagation, context } from "@opentelemetry/api";
 
 const logger = createLogger('fetch-client');
 
@@ -25,8 +26,14 @@ export async function fetchClient<T>(
         logger.warn({ err: e }, 'Failed to read session (stale cookie?)');
     }
     
+    // Propagate the active OTEL trace context as W3C traceparent so .NET
+    // backend services can join the same distributed trace in Grafana.
+    const traceCarrier: Record<string, string> = {};
+    propagation.inject(context.active(), traceCarrier);
+
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...traceCarrier,
         ...(session?.accessToken ? {Authorization: `Bearer ${session.accessToken}`} : {}),
         ...(rest.headers || {})
     }
