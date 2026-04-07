@@ -27,6 +27,11 @@ const isDev = process.env.NODE_ENV !== 'production';
 export function addOtelStream(otelStream: Writable): void {
     if (isDev) return;
 
+    // Use pino.destination(1) (fd 1 = stdout) instead of process.stdout directly.
+    // This avoids Next.js static analysis flagging "process.stdout" as a
+    // Node.js-only API when it scans files for Edge Runtime compatibility.
+    const stdoutDest = pino.destination({ fd: 1, sync: false });
+
     const upgraded = pino(
         {
             level: process.env.LOG_LEVEL ?? 'info',
@@ -35,8 +40,8 @@ export function addOtelStream(otelStream: Writable): void {
             timestamp: pino.stdTimeFunctions.isoTime,
         },
         pino.multistream([
-            { stream: process.stdout, level: 'info' as pino.Level },
-            { stream: otelStream,     level: 'info' as pino.Level },
+            { stream: stdoutDest, level: 'info' as pino.Level },
+            { stream: otelStream, level: 'info' as pino.Level },
         ]),
     );
 
