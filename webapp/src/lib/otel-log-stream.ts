@@ -57,7 +57,8 @@ export function createOtelLogStream(otelLogger: OtelEmitter): Writable {
             try {
                 const line = (typeof chunk === 'string' ? chunk : chunk.toString()).trim();
                 if (line) {
-                    const { level, time, msg, pid: _pid, hostname: _hostname, ...attrs } = JSON.parse(line);
+                    const { level, time, msg, pid: _pid, hostname: _hostname,
+                            trace_id, span_id, trace_flags, ...attrs } = JSON.parse(line);
                     const levelNum: number = typeof level === 'number' ? level : 30;
 
                     otelLogger.emit({
@@ -66,6 +67,13 @@ export function createOtelLogStream(otelLogger: OtelEmitter): Writable {
                         body: typeof msg === 'string' ? msg : String(msg ?? ''),
                         attributes: attrs as AnyValueMap,
                         timestamp: time ? new Date(time as string) : new Date(),
+                        // Link this log record to the active trace so Grafana shows
+                        // the "Logs" panel inside the trace view.
+                        ...(trace_id ? { traceId: trace_id } : {}),
+                        ...(span_id  ? { spanId: span_id }   : {}),
+                        ...(trace_flags != null
+                            ? { traceFlags: typeof trace_flags === 'number' ? trace_flags : parseInt(String(trace_flags), 16) }
+                            : {}),
                     });
                 }
             } catch {

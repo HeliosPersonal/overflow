@@ -11,6 +11,7 @@
 
 import pino from 'pino';
 import type { Writable } from 'stream';
+import { trace } from '@opentelemetry/api';
 import { _setLogger } from './logger';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -38,6 +39,14 @@ export function addOtelStream(otelStream: Writable): void {
             serializers: pino.stdSerializers,
             formatters: { level: (label: string) => ({ level: label }) },
             timestamp: pino.stdTimeFunctions.isoTime,
+            // Inject active OTEL span context into every log record so logs are
+            // correlated with traces in Grafana (trace_id / span_id fields).
+            mixin() {
+                const span = trace.getActiveSpan();
+                if (!span?.isRecording()) return {};
+                const ctx = span.spanContext();
+                return { trace_id: ctx.traceId, span_id: ctx.spanId, trace_flags: ctx.traceFlags };
+            },
         },
         pino.multistream([
             { stream: stdoutDest, level: 'info' as pino.Level },
