@@ -190,10 +190,8 @@ async function initializeOtelLogging(): Promise<void> {
         addOtelStream(createOtelLogStream(provider.getLogger('pino-bridge')));
         logger.info({ endpoint }, 'OTEL log stream attached to pino');
 
-        // Periodic heartbeat — emits one log per interval so Grafana shows a
-        // continuous signal and confirms the OTEL pipeline is alive after startup.
-        // Interval is controlled by LOG_HEARTBEAT_MS (default 2 min; 0 = disabled).
-        const heartbeatMs = parseInt(process.env.LOG_HEARTBEAT_MS ?? '120000', 10);
+        // Periodic heartbeat — disabled by default; enable via LOG_HEARTBEAT_MS env var (ms).
+        const heartbeatMs = parseInt(process.env.LOG_HEARTBEAT_MS ?? '0', 10);
         if (heartbeatMs > 0) {
             const ticker = setInterval(() => {
                 logger.info({ uptimeSec: Math.round(process.uptime()) }, 'App heartbeat');
