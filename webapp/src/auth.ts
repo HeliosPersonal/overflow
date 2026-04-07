@@ -4,7 +4,9 @@ import Credentials from "next-auth/providers/credentials"
 import {apiConfig, authConfig} from "@/lib/config";
 import {loginSchema} from "@/lib/validators/auth";
 import {isAnonymousEmail} from "@/lib/keycloak-admin";
-import logger from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger('auth');
 
 export const {handlers, signIn, signOut, auth} = NextAuth({
     debug: false,

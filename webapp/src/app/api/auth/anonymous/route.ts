@@ -4,7 +4,9 @@ import {
     KeycloakAdminError,
     ANONYMOUS_EMAIL_DOMAIN,
 } from '@/lib/keycloak-admin';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('auth-anonymous');
 
 /**
  * POST /api/auth/anonymous

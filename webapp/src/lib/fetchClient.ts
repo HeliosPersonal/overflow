@@ -2,7 +2,10 @@ import {notFound} from "next/navigation";
 import {auth} from "@/auth";
 import {FetchResponse} from "@/lib/types";
 import type {Session} from "next-auth";
-import logger from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
+import { propagation, context } from "@opentelemetry/api";
+
+const logger = createLogger('fetch-client');
 
 export async function fetchClient<T>(
     url: string,
@@ -23,12 +26,19 @@ export async function fetchClient<T>(
         logger.warn({ err: e }, 'Failed to read session (stale cookie?)');
     }
     
+    // Propagate the active OTEL trace context as W3C traceparent so .NET
+    // backend services can join the same distributed trace in Grafana.
+    const traceCarrier: Record<string, string> = {};
+    propagation.inject(context.active(), traceCarrier);
+
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...traceCarrier,
         ...(session?.accessToken ? {Authorization: `Bearer ${session.accessToken}`} : {}),
         ...(rest.headers || {})
     }
-    
+
+    const startMs = Date.now();
     let response: Response;
     try {
         response = await fetch(apiUrl + url, {
@@ -39,10 +49,11 @@ export async function fetchClient<T>(
         });
     } catch (e) {
         const message = e instanceof Error ? e.message : 'Network error';
-        logger.warn({ method, url, error: message }, 'Fetch failed');
+        logger.warn({ method, url, durationMs: Date.now() - startMs, error: message }, 'Fetch failed');
         return {data: null, error: {message: 'Backend unavailable. Please try again later.', status: 503}};
     }
 
+    const durationMs = Date.now() - startMs;
     const contentType = response.headers.get('Content-type');
     const isJson = contentType?.includes('application/json')
         || contentType?.includes('application/problem+json');
@@ -72,10 +83,12 @@ export async function fetchClient<T>(
                 message = getFallbackMessage(response.status)
             }
         }
-        
+
+        logger.warn({ method, url, status: response.status, durationMs }, 'Backend request failed');
         return {data: null, error: {message, status: response.status}}
     }
-    
+
+    logger.info({ method, url, status: response.status, durationMs }, 'Backend request');
     return {data: parsed as T};
 }
 

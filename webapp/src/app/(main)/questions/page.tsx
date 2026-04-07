@@ -4,7 +4,9 @@ import QuestionsHeader from "@/app/(main)/questions/QuestionsHeader";
 import AppPagination from "@/components/AppPagination";
 import {QuestionParams} from "@/lib/types";
 import {Suspense} from "react";
-import logger from "@/lib/logger";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger('questions-page');
 
 export default async function QuestionsPage({searchParams}: {searchParams?: Promise<QuestionParams>}) {
     const params = await searchParams;

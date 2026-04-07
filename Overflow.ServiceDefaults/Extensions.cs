@@ -44,12 +44,6 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
-        builder.Logging.AddOpenTelemetry(logging =>
-        {
-            logging.IncludeFormattedMessage = true;
-            logging.IncludeScopes = true;
-        });
-
         // Add TraceId, SpanId, and ParentId to all log entries for distributed tracing
         builder.Logging.Configure(options =>
         {
@@ -63,6 +57,12 @@ public static class Extensions
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpTraceExporter.ClientHandler", LogLevel.Warning);
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.LogicalHandler", LogLevel.Warning);
         builder.Logging.AddFilter("System.Net.Http.HttpClient.OtlpMetricExporter.ClientHandler", LogLevel.Warning);
+
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+        });
 
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource =>
@@ -132,7 +132,7 @@ public static class Extensions
                         };
                     });
             })
-            .UseOtlpExporter(); // This reads OTEL_EXPORTER_OTLP_* from configuration
+            .UseOtlpExporter(); // Reads OTEL_EXPORTER_OTLP_* from configuration; exports all three signals
 
         return builder;
     }
@@ -230,10 +230,18 @@ public static class Extensions
     /// <summary>
     /// Projects environment variables from appsettings EnvironmentVariables:Values section to top-level configuration.
     /// This is required for OpenTelemetry's UseOtlpExporter() which reads OTEL_EXPORTER_OTLP_* from top-level config.
-    /// 
+    ///
+    /// Expected Infisical secrets (staging/production):
+    ///   OTEL_EXPORTER_OTLP_ENDPOINT — Grafana Cloud OTLP gateway URL (e.g. https://otlp-gateway-prod.grafana.net/otlp)
+    ///   OTEL_EXPORTER_OTLP_HEADERS  — Grafana Cloud auth header (e.g. Authorization=Bearer &lt;instance_id&gt;:&lt;api_key&gt;)
+    ///   OTEL_EXPORTER_OTLP_PROTOCOL — Transport protocol (e.g. http/protobuf)
+    ///
+    /// In development, OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_PROTOCOL are provided via
+    /// appsettings.Development.json (pointing to the local OTEL collector at http://localhost:4318).
+    /// They must NOT appear in the base appsettings.json so they don't bleed into staging/production.
+    ///
     /// Note: Values already present at top-level (e.g., from actual environment variables or Infisical secrets)
     /// take precedence and will NOT be overridden by appsettings values.
-    /// This allows Infisical to inject sensitive values like OTEL_EXPORTER_OTLP_HEADERS.
     /// </summary>
     private static void ProjectOtlpEnvironmentVariables(this IHostApplicationBuilder builder)
     {

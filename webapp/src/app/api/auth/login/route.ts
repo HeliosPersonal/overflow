@@ -1,6 +1,8 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { authConfig } from '@/lib/config';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('auth-login');
 
 export async function POST(request: NextRequest) {
     try {

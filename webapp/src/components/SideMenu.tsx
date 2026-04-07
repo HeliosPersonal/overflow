@@ -5,6 +5,7 @@ import {ChevronsRight, ChevronsLeft} from "lucide-react";
 import {Tooltip} from "@heroui/react";
 import {usePathname} from "next/navigation";
 import Link from "next/link";
+import {useEffect, useState} from "react";
 
 export default function SideMenu({ isAdmin = false, collapsed = false, onToggle, mobile = false }: {
     isAdmin?: boolean;
@@ -13,6 +14,12 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle,
     mobile?: boolean;
 }) {
     const pathname = usePathname();
+    // Defer active-state computation to the client to avoid SSR/hydration mismatch.
+    // Server always renders all links as inactive; client updates after mount.
+    const [activePath, setActivePath] = useState('');
+    useEffect(() => {
+        setActivePath(pathname);
+    }, [pathname]);
 
     const navLinks = [
         {key: 'poker', icon: Dices, text: 'Planning Poker', href: '/'},
@@ -22,9 +29,10 @@ export default function SideMenu({ isAdmin = false, collapsed = false, onToggle,
     ];
 
     const isActive = (href: string) => {
-        if (href === '/') return pathname === '/' || pathname.startsWith('/planning-poker');
-        if (href === '/profiles') return pathname === '/profiles';
-        return pathname.startsWith(href);
+        if (!activePath) return false;
+        if (href === '/') return activePath === '/' || activePath.startsWith('/planning-poker');
+        if (href === '/profiles') return activePath === '/profiles';
+        return activePath.startsWith(href);
     };
 
     // Mobile bottom navigation bar

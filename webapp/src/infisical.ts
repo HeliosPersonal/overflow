@@ -6,7 +6,9 @@
  * - staging/production → .env file + Infisical secrets
  */
 
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('infisical');
 
 /** Configuration for Infisical secret management */
 interface InfisicalCredentials {
@@ -51,16 +53,16 @@ export async function loadEnvironmentConfiguration(): Promise<EnvironmentVariabl
     const appEnvironment = determineAppEnvironment();
     const useInfisical = shouldFetchFromInfisical(appEnvironment);
 
-    logger.info({ appEnv: appEnvironment, useInfisical }, 'Environment configuration');
-
     const baseConfig = await loadEnvFile(appEnvironment);
     const secrets = useInfisical ? await fetchInfisicalSecrets(appEnvironment) : {};
     const allVariables = { ...baseConfig, ...secrets };
 
     injectEnvironmentVariables(allVariables);
 
-    logger.info({ total: Object.keys(allVariables).length, base: Object.keys(baseConfig).length, secrets: Object.keys(secrets).length },
-        'Configuration loaded');
+    logger.info(
+        { appEnv: appEnvironment, total: Object.keys(allVariables).length, fromFile: Object.keys(baseConfig).length, fromInfisical: Object.keys(secrets).length },
+        'Configuration loaded',
+    );
 
     return allVariables;
 }
@@ -95,13 +97,10 @@ function injectEnvironmentVariables(variables: EnvironmentVariables): void {
     });
 
     const criticalVars = ['AUTH_KEYCLOAK_ISSUER', 'API_URL'];
-    const status = criticalVars.map(name => {
-        const value = process.env[name];
-        return `${name}: ${value ? value.substring(0, 8) + '...' : '❌'}`;
-    });
-
-    logger.info({ count: Object.keys(variables).length }, 'Injected environment variables');
-    logger.info({ critical: status.join(' | ') }, 'Critical variable check');
+    const missing = criticalVars.filter(name => !process.env[name]);
+    if (missing.length) {
+        logger.warn({ missing }, 'Missing critical environment variables');
+    }
 }
 
 /** Load environment variables from .env file */
@@ -122,7 +121,7 @@ async function loadEnvFile(environment: string): Promise<EnvironmentVariables> {
         }
 
         const parsed = result.parsed || {};
-        logger.info({ envFile: envFileName, count: Object.keys(parsed).length }, 'Loaded env file');
+        logger.debug({ envFile: envFileName, count: Object.keys(parsed).length }, 'Loaded env file');
         return parsed;
 
     } catch (error) {
@@ -139,8 +138,6 @@ async function fetchInfisicalSecrets(environment: string): Promise<EnvironmentVa
         logger.warn('Infisical credentials missing — skipping');
         return {};
     }
-
-    logger.info({ environment: credentials.environment }, 'Fetching secrets from Infisical');
 
     try {
         const { InfisicalSDK } = await import('@infisical/sdk');
@@ -159,19 +156,13 @@ async function fetchInfisicalSecrets(environment: string): Promise<EnvironmentVa
                 projectId: credentials.projectId,
                 secretPath,
             });
-
-            const secrets = response.secrets || [];
-            logger.info({ secretPath, count: secrets.length }, 'Loaded secrets from path');
-            allSecrets = allSecrets.concat(secrets);
+            allSecrets = allSecrets.concat(response.secrets || []);
         }
 
-        const transformed = transformSecretsToEnvFormat(allSecrets);
-
-        logger.info({ count: allSecrets.length }, 'Loaded total secrets from Infisical');
-        return transformed;
+        logger.debug({ environment: credentials.environment, count: allSecrets.length }, 'Fetched secrets from Infisical');
+        return transformSecretsToEnvFormat(allSecrets);
 
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error({ err: error }, 'Failed to fetch Infisical secrets');
 
         if (process.env.NODE_ENV === 'production') {

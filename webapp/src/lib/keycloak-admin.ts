@@ -1,5 +1,7 @@
 import {authConfig} from '@/lib/config';
-import logger from '@/lib/logger';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('keycloak-admin');
 
 /**
  * Domain used for anonymous (guest) user placeholder emails in Keycloak.
