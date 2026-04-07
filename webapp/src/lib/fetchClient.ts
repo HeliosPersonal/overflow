@@ -30,7 +30,8 @@ export async function fetchClient<T>(
         ...(session?.accessToken ? {Authorization: `Bearer ${session.accessToken}`} : {}),
         ...(rest.headers || {})
     }
-    
+
+    const startMs = Date.now();
     let response: Response;
     try {
         response = await fetch(apiUrl + url, {
@@ -41,10 +42,11 @@ export async function fetchClient<T>(
         });
     } catch (e) {
         const message = e instanceof Error ? e.message : 'Network error';
-        logger.warn({ method, url, error: message }, 'Fetch failed');
+        logger.warn({ method, url, durationMs: Date.now() - startMs, error: message }, 'Fetch failed');
         return {data: null, error: {message: 'Backend unavailable. Please try again later.', status: 503}};
     }
 
+    const durationMs = Date.now() - startMs;
     const contentType = response.headers.get('Content-type');
     const isJson = contentType?.includes('application/json')
         || contentType?.includes('application/problem+json');
@@ -74,10 +76,12 @@ export async function fetchClient<T>(
                 message = getFallbackMessage(response.status)
             }
         }
-        
+
+        logger.warn({ method, url, status: response.status, durationMs }, 'Backend request failed');
         return {data: null, error: {message, status: response.status}}
     }
-    
+
+    logger.info({ method, url, status: response.status, durationMs }, 'Backend request');
     return {data: parsed as T};
 }
 
