@@ -181,12 +181,25 @@ async function initializeOtelLogging(): Promise<void> {
             processors: [
                 new BatchLogRecordProcessor(
                     new OTLPLogExporter({ url: `${endpoint}/v1/logs`, headers }),
+                    // Flush every 2 s (default is 5 s) so logs appear in Grafana quickly
+                    { scheduledDelayMillis: 2_000 },
                 ),
             ],
         });
 
         addOtelStream(createOtelLogStream(provider.getLogger('pino-bridge')));
         logger.info({ endpoint }, 'OTEL log stream attached to pino');
+
+        // Periodic heartbeat — emits one log per interval so Grafana shows a
+        // continuous signal and confirms the OTEL pipeline is alive after startup.
+        // Interval is controlled by LOG_HEARTBEAT_MS (default 2 min; 0 = disabled).
+        const heartbeatMs = parseInt(process.env.LOG_HEARTBEAT_MS ?? '120000', 10);
+        if (heartbeatMs > 0) {
+            const ticker = setInterval(() => {
+                logger.info({ uptimeSec: Math.round(process.uptime()) }, 'App heartbeat');
+            }, heartbeatMs);
+            ticker.unref(); // don't prevent graceful shutdown
+        }
 
         process.on('SIGTERM', () => {
             provider.shutdown()

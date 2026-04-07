@@ -15,6 +15,7 @@ import { _setLogger } from './logger';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+
 /**
  * Attach an OTLP destination stream to pino via multistream.
  * Called from `instrumentation.node.ts` after the OTLP endpoint is known.
