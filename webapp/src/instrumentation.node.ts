@@ -32,8 +32,11 @@ export async function register(): Promise<void> {
     // Load secrets first so OTEL env vars are available
     await initializeEnvironmentConfiguration();
 
-    // Then start OTEL (reads OTEL_EXPORTER_OTLP_* from process.env)
+    // Start OTEL traces + metrics (reads OTEL_EXPORTER_OTLP_* from process.env)
     await initializeOpenTelemetry();
+
+    // Attach OTLP log exporter to pino (same endpoint, same Alloy pipeline)
+    await initializeOtelLogging();
 }
 
 /**
@@ -133,3 +136,66 @@ async function initializeOpenTelemetry(): Promise<void> {
         // Non-fatal
     }
 }
+
+/**
+ * Attach an OTLP log exporter to pino via a custom Writable stream.
+ *
+ * This runs AFTER initializeEnvironmentConfiguration() so OTEL_EXPORTER_OTLP_ENDPOINT
+ * is already in process.env (loaded from .env.staging / Infisical).
+ * All existing createLogger() proxies automatically pick up the new multistream
+ * instance on their next log call — no restart needed.
+ */
+async function initializeOtelLogging(): Promise<void> {
+    const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+    if (!endpoint) {
+        logger.info('OTEL log exporter skipped — OTEL_EXPORTER_OTLP_ENDPOINT not set');
+        return;
+    }
+
+    try {
+        const { OTLPLogExporter } = await import('@opentelemetry/exporter-logs-otlp-http');
+        const { LoggerProvider, BatchLogRecordProcessor } = await import('@opentelemetry/sdk-logs');
+        const { resourceFromAttributes } = await import('@opentelemetry/resources');
+        const { ATTR_SERVICE_NAME } = await import('@opentelemetry/semantic-conventions');
+        const { createOtelLogStream } = await import('./lib/otel-log-stream');
+        const { addOtelStream } = await import('./lib/logger.node');
+
+        // Parse shared OTLP headers (e.g. for cloud Grafana auth)
+        const headersRaw = process.env.OTEL_EXPORTER_OTLP_HEADERS ?? '';
+        const headers: Record<string, string> = {};
+        if (headersRaw) {
+            for (const part of headersRaw.split(',')) {
+                const [k, ...v] = part.split('=');
+                if (k && v.length) headers[k.trim()] = v.join('=').trim();
+            }
+        }
+
+        const appEnv = process.env.APP_ENV ?? 'production';
+
+        const provider = new LoggerProvider({
+            resource: resourceFromAttributes({
+                [ATTR_SERVICE_NAME]: 'overflow-webapp',
+                'deployment.environment': appEnv,
+            }),
+            processors: [
+                new BatchLogRecordProcessor(
+                    new OTLPLogExporter({ url: `${endpoint}/v1/logs`, headers }),
+                ),
+            ],
+        });
+
+        addOtelStream(createOtelLogStream(provider.getLogger('pino-bridge')));
+        logger.info({ endpoint }, 'OTEL log stream attached to pino');
+
+        process.on('SIGTERM', () => {
+            provider.shutdown()
+                .then(() => logger.info('OTEL log provider shut down gracefully'))
+                .catch((err) => logger.error({ err }, 'OTEL log provider shutdown error'));
+        });
+    } catch (error) {
+        logger.error({ err: error }, 'Failed to initialize OTEL log exporter');
+        // Non-fatal — app continues with stdout-only logging
+    }
+}
+

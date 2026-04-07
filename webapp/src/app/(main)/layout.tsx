@@ -1,5 +1,4 @@
 ﻿import TopNav from "@/components/nav/TopNav";
-import SideMenu from "@/components/SideMenu";
 import RightSidebar from "@/components/RightSidebar";
 import LayoutShell from "@/components/LayoutShell";
 import React from "react";
@@ -16,8 +15,8 @@ export default async function MainLayout({
     return (
         <LayoutShell
             topNav={<TopNav/>}
-            sideMenu={<SideMenu isAdmin={isAdmin}/>}
             rightSidebar={<RightSidebar/>}
+            isAdmin={isAdmin}
         >
             {children}
         </LayoutShell>

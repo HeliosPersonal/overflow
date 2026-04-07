@@ -2,26 +2,33 @@
 
 import {usePathname} from "next/navigation";
 import React, {useState} from "react";
+import SideMenu from "@/components/SideMenu";
 
 /**
  * Wraps the (main) layout content.
  * Global header is always visible (including poker rooms).
  * Persistent collapsible sidebar below the header on all pages.
+ *
+ * SideMenu is rendered directly here (not via cloneElement) so the
+ * `collapsed` prop is always explicitly controlled — eliminating the
+ * SSR/client hydration mismatch that the cloneElement pattern caused.
  */
 export default function LayoutShell({
     topNav,
-    sideMenu,
     rightSidebar,
     children,
+    isAdmin,
 }: {
     topNav: React.ReactNode;
-    sideMenu: React.ReactNode;
     rightSidebar: React.ReactNode;
     children: React.ReactNode;
+    isAdmin: boolean;
 }) {
     const pathname = usePathname();
     const isPokerRoom = /^\/planning-poker\/[0-9a-f]{8}-/.test(pathname);
     const [collapsed, setCollapsed] = useState(true);
+
+    const sidebarCollapsed = isPokerRoom || collapsed;
 
     return (
         <div className="flex flex-col h-full">
@@ -33,14 +40,13 @@ export default function LayoutShell({
                 <aside
                     className={`hidden md:block shrink-0 bg-content1 border-r border-content3/50 py-4
                         transition-all duration-300 ease-out overflow-hidden
-                        ${(isPokerRoom || collapsed) ? 'w-[68px] px-2' : 'w-56 px-4'}`}
+                        ${sidebarCollapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
                 >
-                    {React.isValidElement<{ collapsed?: boolean; onToggle?: () => void }>(sideMenu)
-                        ? React.cloneElement(sideMenu, {
-                            collapsed: isPokerRoom || collapsed,
-                            onToggle: isPokerRoom ? undefined : () => setCollapsed(c => !c),
-                        })
-                        : sideMenu}
+                    <SideMenu
+                        isAdmin={isAdmin}
+                        collapsed={sidebarCollapsed}
+                        onToggle={isPokerRoom ? undefined : () => setCollapsed(c => !c)}
+                    />
                 </aside>
 
                 {/* ── Main content ── */}
@@ -58,9 +64,7 @@ export default function LayoutShell({
 
             {/* ── Mobile bottom navigation ── */}
             <div className="md:hidden shrink-0">
-                {React.isValidElement<{ collapsed?: boolean; mobile?: boolean }>(sideMenu)
-                    ? React.cloneElement(sideMenu, { collapsed: true, mobile: true })
-                    : null}
+                <SideMenu isAdmin={isAdmin} collapsed={true} mobile={true} />
             </div>
         </div>
     );
