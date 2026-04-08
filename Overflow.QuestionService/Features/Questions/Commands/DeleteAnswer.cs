@@ -24,7 +24,11 @@ public class DeleteAnswerHandler(
         if (answer is null || question is null)
             return Result.Failure(DomainErrors.NotFound);
 
-        if (answer.QuestionId != request.QuestionId || answer.Accepted)
+        if (answer.QuestionId != request.QuestionId)
+            return Result.Failure(DomainErrors.Forbidden);
+
+        // Only block accepted-answer deletion for non-admins
+        if (!request.IsAdmin && answer.Accepted)
             return Result.Failure(DomainErrors.Forbidden);
 
         if (!request.IsAdmin && answer.UserId != request.UserId)
