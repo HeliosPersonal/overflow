@@ -58,17 +58,6 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
         }
 
         void loadRooms();
-
-        // Re-fetch when the user tabs back to this page so avatars/names changed
-        // in another tab (e.g. profile edit) are reflected immediately.
-        function handleVisibilityChange() {
-            if (document.visibilityState === 'visible') {
-                void loadRooms();
-            }
-        }
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [isAuthenticated]);
 
     async function handleArchive(roomId: string) {
