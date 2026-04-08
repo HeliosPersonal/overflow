@@ -8,7 +8,7 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Overflow.QuestionService.Features.Questions.Commands;
 
-public record DeleteQuestionCommand(string QuestionId, string UserId) : ICommand<Result>;
+public record DeleteQuestionCommand(string QuestionId, string UserId, bool IsAdmin = false) : ICommand<Result>;
 
 public class DeleteQuestionHandler(
     QuestionDbContext db,
@@ -22,7 +22,7 @@ public class DeleteQuestionHandler(
         if (question is null)
             return Result.Failure(DomainErrors.QuestionNotFound);
 
-        if (request.UserId != question.AskerId)
+        if (!request.IsAdmin && request.UserId != question.AskerId)
             return Result.Failure(DomainErrors.Forbidden);
 
         db.Questions.Remove(question);

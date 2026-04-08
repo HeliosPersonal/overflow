@@ -79,7 +79,10 @@ public static class Extensions
                 var attributes = new Dictionary<string, object>
                 {
                     ["host.name"] = Environment.MachineName,
-                    ["deployment.environment"] = builder.Environment.EnvironmentName
+                    // Lowercase to match the OTel semantic convention and Aspire's
+                    // auto-injected OTEL_RESOURCE_ATTRIBUTES value, preventing duplicate
+                    // "production"/"Production" entries in the Aspire/Grafana dashboard.
+                    ["deployment.environment"] = builder.Environment.EnvironmentName.ToLowerInvariant()
                 };
 
                 resource.AddAttributes(attributes);

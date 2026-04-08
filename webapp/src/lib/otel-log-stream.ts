@@ -32,13 +32,17 @@ function pinoLevelToOtelSeverity(level: number): number {
     return 1;                   // TRACE
 }
 
+// Align SeverityText with what the .NET OpenTelemetry logging bridge emits so
+// all services produce the same strings and the Aspire / Grafana dashboard
+// shows a single filter entry per level instead of duplicates like
+// "trace"/"Trace", "info"/"Information", "warn"/"Warning".
 const PINO_LEVEL_NAMES: Record<number, string> = {
-    10: 'trace',
-    20: 'debug',
-    30: 'info',
-    40: 'warn',
-    50: 'error',
-    60: 'fatal',
+    10: 'Trace',
+    20: 'Debug',
+    30: 'Information',
+    40: 'Warning',
+    50: 'Error',
+    60: 'Critical',  // pino "fatal" → SeverityNumber 21, matches .NET LogLevel.Critical
 };
 
 /**

@@ -3,8 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Polly;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
@@ -51,13 +49,16 @@ public static class WolverineExtensions
             });
         }
 
+        // Add the Wolverine activity source to the existing TracerProvider that was
+        // already configured (with the correct resource) by AddServiceDefaults().
+        // Do NOT call SetResourceBuilder here — it would create a second resource
+        // configuration that conflicts with the one in Extensions.cs and produces
+        // duplicate deployment.environment values in the Aspire dashboard.
         builder.Services
             .AddOpenTelemetry()
             .WithTracing(traceProviderBuilder =>
             {
-                traceProviderBuilder.SetResourceBuilder(ResourceBuilder.CreateDefault()
-                        .AddService(builder.Environment.ApplicationName))
-                    .AddSource("Wolverine");
+                traceProviderBuilder.AddSource("Wolverine");
             });
 
         builder.UseWolverine(opts =>
