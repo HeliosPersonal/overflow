@@ -47,6 +47,35 @@ export default function RoomClient({roomId, isAuthenticated}: {
         }
     }, [joinedOnce, roomId]);
 
+    // When the user tabs back into the room, re-fetch room state so any avatar/
+    // display-name changes made in another tab are reflected immediately — even if
+    // the WebSocket broadcast was delivered while the tab was hidden or the cache
+    // eviction on the backend was delayed.
+    useEffect(() => {
+        if (!joinedOnce) return;
+
+        async function refreshRoom() {
+            try {
+                const res = await fetch(`/api/estimation/rooms/${roomId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    updateRoom(data);
+                }
+            } catch {
+                // Best-effort — WebSocket state is still authoritative
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'visible') {
+                void refreshRoom();
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [joinedOnce, roomId, updateRoom]);
+
     // Leave on tab close / external navigation
     useEffect(() => {
         if (!joinedOnce) return;
