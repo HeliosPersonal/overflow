@@ -53,7 +53,8 @@ public class QuestionsController(ISender sender) : ControllerBase
     public async Task<ActionResult> DeleteQuestion(string id)
     {
         var userId = User.GetRequiredUserId();
-        var result = await sender.Send(new DeleteQuestionCommand(id, userId));
+        var isAdmin = User.IsInRole("admin");
+        var result = await sender.Send(new DeleteQuestionCommand(id, userId, isAdmin));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
@@ -80,7 +81,9 @@ public class QuestionsController(ISender sender) : ControllerBase
     [HttpDelete("{questionId}/answers/{answerId}")]
     public async Task<ActionResult> DeleteAnswer(string questionId, string answerId)
     {
-        var result = await sender.Send(new DeleteAnswerCommand(questionId, answerId));
+        var userId = User.GetRequiredUserId();
+        var isAdmin = User.IsInRole("admin");
+        var result = await sender.Send(new DeleteAnswerCommand(questionId, answerId, userId, isAdmin));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 

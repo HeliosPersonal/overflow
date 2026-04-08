@@ -7,9 +7,10 @@ type Props = {
     answer: Answer;
     askerId: string;
     currentUser?: User | null;
+    isAdmin?: boolean;
 }
 
-export default function AnswerContent({answer, askerId, currentUser}: Props) {
+export default function AnswerContent({answer, askerId, currentUser, isAdmin}: Props) {
     return (
         <div className='flex border-b border-content3 pb-4 pt-4 px-3 sm:px-6'>
             <VotingButtons
@@ -23,7 +24,7 @@ export default function AnswerContent({answer, askerId, currentUser}: Props) {
                     dangerouslySetInnerHTML={{__html: answer.content}}
                 />
                 <div className='ml-2 sm:ml-6 mt-0'>
-                    <AnswerFooter answer={answer} currentUser={currentUser} />
+                    <AnswerFooter answer={answer} currentUser={currentUser} isAdmin={isAdmin} />
                 </div>
             </div>
 

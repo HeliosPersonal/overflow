@@ -37,11 +37,13 @@ export default async function QuestionDetailedPage({params, searchParams}:
 
     const answers = [...question.answers].sort(sort === 'created' ? byCreated : byHighScore);
 
+    const isAdmin = currentUser?.roles?.includes('admin') ?? false;
+
     return (
         <div className='min-h-full bg-content1 px-3 sm:px-6 py-4 flex flex-col gap-4'>
             {/* Question card */}
             <div className='bg-content2 border border-content3 shadow-raise-sm rounded-2xl overflow-hidden'>
-                <QuestionDetailedHeader question={question} currentUserId={currentUser?.id} />
+                <QuestionDetailedHeader question={question} currentUserId={currentUser?.id} isAdmin={isAdmin} />
                 <QuestionContent question={question} currentUserId={currentUser?.id} />
             </div>
 
@@ -55,6 +57,7 @@ export default async function QuestionDetailedPage({params, searchParams}:
                             key={answer.id}
                             askerId={question.askerId}
                             currentUser={currentUser}
+                            isAdmin={isAdmin}
                         />
                     ))}
                 </div>

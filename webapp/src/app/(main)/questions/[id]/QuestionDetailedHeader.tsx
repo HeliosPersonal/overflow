@@ -7,9 +7,11 @@ import DeleteQuestionButton from "@/app/(main)/questions/[id]/DeleteQuestionButt
 type Props = {
     question: Question;
     currentUserId?: string;
+    isAdmin?: boolean;
 }
 
-export default function QuestionDetailedHeader({question, currentUserId}: Props) {
+export default function QuestionDetailedHeader({question, currentUserId, isAdmin}: Props) {
+    const isOwner = currentUserId === question.askerId;
 
     return (
         <div className='flex flex-col w-full border-b border-content3 gap-3 sm:gap-4 pb-4 px-4 sm:px-6 pt-4 sm:pt-5'>
@@ -41,17 +43,19 @@ export default function QuestionDetailedHeader({question, currentUserId}: Props)
                     </div>
                 </div>
 
-                {currentUserId === question.askerId &&
+                {(isOwner || isAdmin) &&
                     <div className='flex items-center gap-2 sm:gap-3'>
-                        <Link href={`/questions/${question.id}/edit`}>
-                            <Button
-                                size='sm'
-                                variant='faded'
-                                color='primary'
-                            >
-                                Edit
-                            </Button>
-                        </Link>
+                        {isOwner && (
+                            <Link href={`/questions/${question.id}/edit`}>
+                                <Button
+                                    size='sm'
+                                    variant='faded'
+                                    color='primary'
+                                >
+                                    Edit
+                                </Button>
+                            </Link>
+                        )}
                         <DeleteQuestionButton questionId={question.id}/>
                     </div>}
             </div>

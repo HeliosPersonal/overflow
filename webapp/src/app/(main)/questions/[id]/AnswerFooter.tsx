@@ -12,9 +12,10 @@ import {useAnswerStore} from "@/lib/hooks/useAnswerStore";
 type Props = {
     answer: Answer;
     currentUser?: User | null;
+    isAdmin?: boolean;
 }
 
-export default function AnswerFooter({ answer, currentUser }: Props) {
+export default function AnswerFooter({ answer, currentUser, isAdmin }: Props) {
     const [pending, startTransition] = useTransition();
     const [deleteTarget, setDeleteTarget] = useState<string>('');
     const setAnswer = useAnswerStore(state => state.setAnswer);
@@ -28,25 +29,29 @@ export default function AnswerFooter({ answer, currentUser }: Props) {
             setDeleteTarget('');
         })
     }
-    
+
+    const isOwner = currentUser?.id === answer.userId;
+
     return (
         <div className='flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-4'>
             <div className='flex items-center mt-auto'>
-                {currentUser?.id === answer.userId &&
+                {(isOwner || isAdmin) &&
                 <>
-                    <Button
-                        isDisabled={!!editableAnswer}
-                        onPress={() => {
-                            setAnswer(answer);
-                            setTimeout(() => {
-                                document.getElementById('answer-form')?.scrollIntoView({
-                                    behavior: 'smooth' });
-                            }, 100);
-                        }}
-                        size='sm'
-                        variant='light'
-                        color='primary'
-                    >Edit</Button>
+                    {isOwner && (
+                        <Button
+                            isDisabled={!!editableAnswer}
+                            onPress={() => {
+                                setAnswer(answer);
+                                setTimeout(() => {
+                                    document.getElementById('answer-form')?.scrollIntoView({
+                                        behavior: 'smooth' });
+                                }, 100);
+                            }}
+                            size='sm'
+                            variant='light'
+                            color='primary'
+                        >Edit</Button>
+                    )}
                     <Button
                         isLoading={pending && answer.id === deleteTarget}
                         onPress={handleDelete}
