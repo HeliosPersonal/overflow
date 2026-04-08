@@ -34,7 +34,9 @@ builder.Services.AddHealthChecks()
     .AddRabbitMqHealthCheck();
 
 await builder
-    .UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
+    .UseWolverineWithRabbitMqAsync(
+        opts => { opts.ApplicationAssembly = typeof(Program).Assembly; },
+        maximumParallelMessages: 1);
 
 var app = builder.Build();
 

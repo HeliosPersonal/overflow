@@ -14,7 +14,9 @@ namespace Overflow.Common.CommonExtensions;
 public static class WolverineExtensions
 {
     public static async Task UseWolverineWithRabbitMqAsync(
-        this IHostApplicationBuilder builder, Action<WolverineOptions> configureMessaging)
+        this IHostApplicationBuilder builder,
+        Action<WolverineOptions> configureMessaging,
+        int? maximumParallelMessages = null)
     {
         var isEfDesignTime = AppDomain.CurrentDomain.FriendlyName.StartsWith("ef", StringComparison.OrdinalIgnoreCase);
 
@@ -63,12 +65,16 @@ public static class WolverineExtensions
 
         builder.UseWolverine(opts =>
         {
-            opts.UseRabbitMqUsingNamedConnection("messaging")
-                .AutoProvision()
-                .UseConventionalRouting(x =>
-                {
-                    x.QueueNameForListener(t => $"{t.FullName}.{builder.Environment.ApplicationName}");
-                });
+            var transport = opts.UseRabbitMqUsingNamedConnection("messaging")
+                .AutoProvision();
+
+            transport.UseConventionalRouting(x =>
+            {
+                x.QueueNameForListener(t => $"{t.FullName}.{builder.Environment.ApplicationName}");
+            });
+
+            if (maximumParallelMessages.HasValue)
+                transport.ConfigureListeners(l => l.MaximumParallelMessages(maximumParallelMessages.Value));
 
             configureMessaging(opts);
         });
