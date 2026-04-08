@@ -36,12 +36,20 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
         const apiUrl = process.env.API_URL;
         const session = await auth();
         if (apiUrl && session?.accessToken) {
-            await fetch(`${apiUrl}/estimation/profile-cache`, {
+            const evictionRes = await fetch(`${apiUrl}/estimation/profile-cache`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
                 },
             });
+            if (!evictionRes.ok) {
+                logger.warn(
+                    { status: evictionRes.status, userId: id },
+                    'profile-cache eviction returned non-OK — room avatars may be stale until cache TTL expires'
+                );
+            }
+        } else {
+            logger.warn({ userId: id }, 'profile-cache eviction skipped — no session access token');
         }
     } catch (e) {
         logger.warn({ err: e }, 'profile-cache eviction threw');
