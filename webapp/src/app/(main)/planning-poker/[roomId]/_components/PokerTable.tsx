@@ -35,11 +35,50 @@ export function PokerTableScene({participants, viewerParticipantId, isVoting, is
         const count = participants.length;
         if (count === 0) return [];
 
+        // ── Angular distribution ────────────────────────────────────────────
+        // Participants are placed ON the table ellipse perimeter using the
+        // standard parametric equations:
+        //   ox = orbitRx * cos(rad)
+        //   oy = orbitRy * sin(rad)   (screen y-axis: positive = down)
+        //
+        // Convention used here (matches the -sin formula below):
+        //   deg=270 → bottom,  deg=90 → top,
+        //   deg=0   → right,   deg=180 → left
+        //
+        // Strategy: use a partial arc centred at the bottom (270°) for small
+        // groups so that participants naturally cluster in the lower half
+        // ("bottom-heavy"). For large groups (≥ 8) switch to a full circle so
+        // everyone fits without the arc endpoint gap becoming too large.
+        //
+        //   count  arcDeg   visual result
+        //     1      —      bottom only
+        //     2     100°    lower-left, lower-right
+        //     3     150°    lower-left, bottom, lower-right
+        //     4     210°    left, lower-left, lower-right, right
+        //     5     255°    upper-left, lower-left, bottom, lower-right, upper-right
+        //     6     300°    upper-left … bottom … upper-right
+        //     7     300°    same arc, 7 participants
+        //     8+    360°    full circle from bottom clockwise
+
+        const useFullCircle = count >= 8;
+        const arcDeg = useFullCircle ? 360 : Math.min(300, Math.max(100, (count - 1) * 50 + 50));
+        const startDeg = 270 - arcDeg / 2; // arc is symmetric around the bottom
+
         return participants.map((p, i) => {
-            const deg = count === 1 ? 90 : 90 - (i / count) * 360;
+            let deg: number;
+            if (count === 1) {
+                deg = 270; // single participant sits at the bottom
+            } else if (useFullCircle) {
+                deg = 270 + (i / count) * 360; // evenly spaced, starting from bottom clockwise
+            } else {
+                deg = startDeg + (i / (count - 1)) * arcDeg; // partial arc, endpoints included
+            }
+
             const rad = (deg * Math.PI) / 180;
+            // orbitRx/orbitRy are already derived from the table ellipse + seat offset,
+            // so these coordinates place each participant ON the table perimeter.
             const ox = Math.cos(rad) * orbitRx;
-            const oy = -Math.sin(rad) * orbitRy;
+            const oy = -Math.sin(rad) * orbitRy; // negative: convert math-y to screen-y
             const dist = Math.sqrt(ox * ox + oy * oy) || 1;
             const nx = ox / dist;
             const ny = oy / dist;

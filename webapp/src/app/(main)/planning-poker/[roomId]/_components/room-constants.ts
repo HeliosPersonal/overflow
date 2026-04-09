@@ -24,13 +24,12 @@ const BASE_SCENE_W = 900;
 const BASE_SCENE_H = 620;
 const BASE_CENTER_RX = 230;
 const BASE_CENTER_RY = 140;
-const BASE_ORBIT_RX = 380;
-const BASE_ORBIT_RY = 230;
 const BASE_CARD_W = 54;
 const BASE_CARD_H = 74;
 const BASE_AVATAR_SIZE = 44;
-const BASE_CARD_INWARD = 42;
-const VERTICAL_PADDING = 50;
+// Gap between the table ellipse edge and the inner edge of the avatar circle.
+// The orbit ellipse is derived from the table ellipse + this gap + avatar radius.
+const SEAT_GAP = 8;
 
 export const SPECTATOR_CARD_W = 160;
 
@@ -60,15 +59,24 @@ export function useSceneSize(containerRef: React.RefObject<HTMLDivElement | null
     const sy = h > 0 ? Math.min(1, h / BASE_SCENE_H) : sx;
     const s = Math.min(sx, sy);
 
+    // Orbit ellipse = table ellipse + avatar radius + seat gap, so participants sit
+    // exactly on the table perimeter. seatOffset uses the smaller scale (s) so that
+    // avatar/card sizes and the orbit offset all scale together.
+    const seatOffset = (BASE_AVATAR_SIZE / 2 + SEAT_GAP) * s;
+    // cardInward: distance (along the radial direction) from avatar centre to card centre.
+    // Placing this as avatarRadius + seatGap + cardHalfHeight puts the card's outer
+    // face right at the table edge and the body inside the table surface.
+    const cardInward = (BASE_AVATAR_SIZE / 2 + SEAT_GAP + BASE_CARD_H / 2) * s;
+
     return {
         centerRx: BASE_CENTER_RX * sx,
         centerRy: BASE_CENTER_RY * sy,
-        orbitRx: BASE_ORBIT_RX * sx,
-        orbitRy: (BASE_ORBIT_RY - VERTICAL_PADDING) * sy,
+        orbitRx: BASE_CENTER_RX * sx + seatOffset,
+        orbitRy: BASE_CENTER_RY * sy + seatOffset,
         cardW: BASE_CARD_W * s,
         cardH: BASE_CARD_H * s,
         avatarSize: BASE_AVATAR_SIZE * s,
-        cardInward: BASE_CARD_INWARD * s,
+        cardInward,
         nameLabelWidth: NAME_LABEL_WIDTH * s,
         scale: s,
     };

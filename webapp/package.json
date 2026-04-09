@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e .env.development -e .env.development.local -- next dev",
+    "dev": "dotenv -e .env.development -e .env.development.local -- next dev --hostname 0.0.0.0",
     "dev:staging": "dotenv -e .env.staging -e .env.staging.local -- next dev",
     "dev:production": "dotenv -e .env.production -e .env.production.local -- next dev",
     "build": "next build",

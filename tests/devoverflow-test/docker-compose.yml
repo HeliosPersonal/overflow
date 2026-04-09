@@ -6,9 +6,11 @@ x-chromium-common: &chromium-common
     PUID: "1000"
     PGID: "1000"
     TZ: "Europe/Warsaw"
-    CHROME_CLI: "--no-default-browser-check --disable-default-apps --disable-popup-blocking --disable-notifications --start-maximized ${TARGET_URL}"
+    CHROME_CLI: "--no-default-browser-check --disable-default-apps --disable-popup-blocking --disable-notifications --start-maximized --no-sandbox --disable-web-security --disable-gpu --disable-features=IsolateOrigins,site-per-process ${TARGET_URL}"
+    NO_PROXY: "host.docker.internal,localhost,127.0.0.1"
   extra_hosts:
     - "host.docker.internal:host-gateway"
+    - "app-proxy:host-gateway"
 
 services:
   poker-user-1:
