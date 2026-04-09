@@ -157,3 +157,8 @@ vote-svc     ──► VoteCasted                       ──► question-svc (
 - **Infisical at runtime** — no secrets baked into images. Every pod fetches secrets from Infisical on startup.
 - **.NET Aspire for local dev** — one `dotnet run` starts the entire backend with all dependencies.
 - **On-premises Kubernetes** — K3s runs on a home server. Cloudflare proxies requests and hides the origin IP.
+
+## Git PR strategy
+git fetch origin
+git reset --hard origin/main
+git push --force-with-lease origin development
