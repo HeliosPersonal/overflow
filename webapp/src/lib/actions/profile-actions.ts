@@ -42,10 +42,14 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
                 },
+                cache: 'no-store',
             });
             if (!evictRes.ok) {
-                logger.warn({ status: evictRes.status }, 'profile-cache eviction returned non-OK');
+                const body = await evictRes.text().catch(() => '');
+                logger.warn({ status: evictRes.status, body }, 'profile-cache eviction returned non-OK');
             }
+        } else {
+            logger.warn({ hasApiUrl: !!apiUrl, hasToken: !!session?.accessToken }, 'profile-cache eviction skipped — missing config');
         }
     } catch (e) {
         logger.warn({ err: e }, 'profile-cache eviction threw');

@@ -61,11 +61,11 @@ broadcast coordination and for caching external profile data (display name + ava
 
 ### Profile Cache
 
-| Layer         | Technology          | Scope      | TTL | Purpose                                                 |
-|---------------|---------------------|------------|-----|---------------------------------------------------------|
-| **L1**        | In-memory (per-pod) | Single pod | 60s | Sub-millisecond profile reads, zero network hops        |
-| **L2**        | Redis (shared)      | All pods   | 60s | Shared profile cache across pods, survives pod restarts |
-| **Backplane** | Redis pub/sub       | All pods   | —   | Profile cache invalidation propagation across pods      |
+| Layer         | Technology          | Scope      | TTL  | Purpose                                                 |
+|---------------|---------------------|------------|------|---------------------------------------------------------|
+| **L1**        | In-memory (per-pod) | Single pod | 10s  | Sub-millisecond profile reads, zero network hops        |
+| **L2**        | Redis (shared)      | All pods   | 10s  | Shared profile cache across pods, survives pod restarts |
+| **Backplane** | Redis pub/sub       | All pods   | —    | Profile cache invalidation propagation across pods      |
 
 ### Multi-Pod WebSocket Broadcast
 

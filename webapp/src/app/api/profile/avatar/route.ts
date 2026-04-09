@@ -53,6 +53,7 @@ export async function PUT(request: NextRequest) {
             headers: {
                 Authorization: `Bearer ${session.accessToken}`,
             },
+            cache: 'no-store',
         });
         if (!evictRes.ok) {
             logger.warn({ status: evictRes.status }, 'profile-cache eviction returned non-OK');
