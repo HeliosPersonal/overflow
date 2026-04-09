@@ -158,7 +158,44 @@ vote-svc     ──► VoteCasted                       ──► question-svc (
 - **.NET Aspire for local dev** — one `dotnet run` starts the entire backend with all dependencies.
 - **On-premises Kubernetes** — K3s runs on a home server. Cloudflare proxies requests and hides the origin IP.
 
-## Git PR strategy
-git fetch origin
-git reset --hard origin/main
-git push --force-with-lease origin development
+## Git Branching Strategy
+
+**Environments:** `development` → staging · `main` → production
+
+### The Cycle
+
+```
+feature branch  ──squash──►  development  ──squash──►  main
+                                  ▲                      │
+                                  └──── merge commit ────┘
+                                         (back-sync)
+```
+
+### Step by Step
+
+**1. Feature work**
+```bash
+git checkout development
+git checkout -b feature/my-feature
+# ... commit ...
+# PR feature → development: squash merge ✅
+```
+
+**2. Release to production**
+- Open PR `development` → `main` on GitHub
+- Merge using **"Squash and merge"** → clean single commit on `main`
+
+**3. Back-sync (mandatory — do this immediately after every production merge)**
+```bash
+git checkout development
+git pull origin main        # creates a merge commit — reconnects histories
+git push origin development
+```
+Or open a PR `main` → `development` on GitHub and merge with **"Create a merge commit"**.
+
+### Why the back-sync can't be skipped
+
+Squash merge creates a brand-new SHA on `main` that git doesn't recognize as "already in development". The back-sync merge commit makes that SHA an ancestor of `development`, so the next `development` → `main` PR correctly shows only new commits.
+
+> **GitHub repo setting:** Settings → General → Pull Requests  
+> Keep all three options enabled so you can choose per PR.

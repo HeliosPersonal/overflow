@@ -59,6 +59,9 @@ export async function proxyEstimation(
 
     const nextResponse = NextResponse.json(data, {status: response.status});
 
+    // Prevent browser / CDN caching — estimation data is dynamic and must always be fresh.
+    nextResponse.headers.set("Cache-Control", "no-store");
+
     // Forward any Set-Cookie from backend (guest cookie issuance)
     const setCookieHeader = response.headers.get("set-cookie");
     if (setCookieHeader) {

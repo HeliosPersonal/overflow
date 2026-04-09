@@ -14,7 +14,7 @@ public class ProfileServiceClient(
     IFusionCache cache,
     ILogger<ProfileServiceClient> logger)
 {
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(10);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

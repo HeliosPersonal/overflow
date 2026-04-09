@@ -404,5 +404,5 @@ Route handlers in `src/app/api/` handle server-side operations that can't be ser
 - `editProfile` server action also calls `DELETE /estimation/profile-cache` server-side (via raw `fetch` with `auth()` token — avoids `fetchClient`'s `notFound()` throw in server-action context). This is best-effort — failures are logged but don't block the profile edit.
 - Questions/answers store only `askerId`/`userId` (not names) — display names are resolved at render time via `GET /profiles/batch`.
 - SearchService (Typesense) does not store author names.
-- EstimationService's `ProfileServiceClient` caches profiles for 60s. After a profile/avatar edit, the `editProfile` server action calls `DELETE /estimation/profile-cache` which evicts the stale cache so subsequent reads fetch fresh data from ProfileService. As a fallback, `JoinRoomAsync` also detects mismatches and updates lazily on next room open.
+- EstimationService's `ProfileServiceClient` caches profiles for 10s. After a profile/avatar edit, the `editProfile` server action calls `DELETE /estimation/profile-cache` which evicts the stale cache so subsequent reads fetch fresh data from ProfileService. As a fallback, `JoinRoomAsync` also detects mismatches and updates lazily on next room open.
 
