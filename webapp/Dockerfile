@@ -20,17 +20,10 @@ RUN \
 FROM base AS builder
 WORKDIR /app
 
-# Accept Infisical credentials as build arguments
-ARG INFISICAL_CLIENT_ID
-ARG INFISICAL_CLIENT_SECRET
-ARG INFISICAL_PROJECT_ID
+# Non-sensitive build args only — Infisical credentials are passed via BuildKit secrets
 ARG NODE_ENV=production
 ARG COMMIT_SHA
 
-# Set Infisical credentials as environment variables for the build
-ENV INFISICAL_CLIENT_ID=$INFISICAL_CLIENT_ID
-ENV INFISICAL_CLIENT_SECRET=$INFISICAL_CLIENT_SECRET
-ENV INFISICAL_PROJECT_ID=$INFISICAL_PROJECT_ID
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_PUBLIC_COMMIT_SHA=$COMMIT_SHA
 
@@ -42,13 +35,19 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build - next.config.ts will load secrets from Infisical using the credentials above
-RUN \
-  if [ -f yarn.lock ]; then yarn run build; \
-  elif [ -f package-lock.json ]; then npm run build; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Build - Infisical credentials are mounted as secrets (never baked into any layer)
+# next.config.ts reads them via process.env inside this RUN step only
+RUN --mount=type=secret,id=infisical_client_id \
+    --mount=type=secret,id=infisical_client_secret \
+    --mount=type=secret,id=infisical_project_id \
+    export INFISICAL_CLIENT_ID=$(cat /run/secrets/infisical_client_id) && \
+    export INFISICAL_CLIENT_SECRET=$(cat /run/secrets/infisical_client_secret) && \
+    export INFISICAL_PROJECT_ID=$(cat /run/secrets/infisical_project_id) && \
+    if [ -f yarn.lock ]; then yarn run build; \
+    elif [ -f package-lock.json ]; then npm run build; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
 
 # Production image, copy all the files and run next
 FROM base AS runner

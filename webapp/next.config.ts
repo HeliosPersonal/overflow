@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
     output: 'standalone',
+    allowedDevOrigins: [
+        "http://host.docker.internal:3000",
+        "host.docker.internal",
+    ],
     logging: {
         fetches: {
             fullUrl: true
