@@ -209,10 +209,10 @@ public class LlmService(
                               Rules:
                               - Respond with ONLY valid JSON — no markdown, no fences, no extra text
                               - Keep the ENTIRE response under 800 tokens
-                              - explanation: 1-2 sentences max
-                              - fix_steps: 1-3 short steps
-                              - code_snippet: under 15 lines, no boilerplate
-                              - notes: 1 sentence or empty string
+                              - explanation: 1-2 sentences max, directly answering the question
+                              - points: 2-4 key points, highlights, or steps relevant to the question; empty array [] if none needed
+                              - code_snippet: under 15 lines, no boilerplate; empty string if not applicable
+                              - language: programming language of code_snippet; empty string if no code
                               """;
 
         var tagsHint = tags.Count > 0 ? $"\nTags: {string.Join(", ", tags)}" : "";
@@ -224,11 +224,10 @@ public class LlmService(
 
                      Respond in this exact JSON format:
                      {
-                       "explanation": "Brief explanation of the issue",
-                       "fix_steps": ["Step 1", "Step 2"],
-                       "code_snippet": "short example code",
-                       "language": "language name",
-                       "notes": ""
+                       "explanation": "Direct answer or brief explanation",
+                       "points": ["Point 1", "Point 2"],
+                       "code_snippet": "",
+                       "language": ""
                      }
                      """;
 
