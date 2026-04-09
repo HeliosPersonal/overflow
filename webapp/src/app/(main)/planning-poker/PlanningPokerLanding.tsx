@@ -47,7 +47,7 @@ export default function PlanningPokerLanding({isAuthenticated}: {isAuthenticated
             await fetch('/api/estimation/claim-guest', {method: 'POST'}).catch(() => {});
             setSessionsLoading(true);
             try {
-                const res = await fetch('/api/estimation/rooms');
+                const res = await fetch('/api/estimation/rooms', {cache: 'no-store'});
                 const data: PlanningPokerRoomSummary[] = res.ok ? await res.json() : [];
                 setRecentSessions(data.slice(0, 10));
             } catch {

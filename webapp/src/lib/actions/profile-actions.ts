@@ -27,6 +27,7 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
     revalidatePath(`/profiles/${id}`);
     revalidatePath('/profiles');
     revalidatePath('/questions');
+    revalidatePath('/planning-poker');
     revalidatePath('/', 'layout');
 
     // Evict the cached profile in EstimationService so WebSocket broadcasts and
@@ -36,12 +37,15 @@ export async function editProfile(id: string, profile: EditProfileSchema) {
         const apiUrl = process.env.API_URL;
         const session = await auth();
         if (apiUrl && session?.accessToken) {
-            await fetch(`${apiUrl}/estimation/profile-cache`, {
+            const evictRes = await fetch(`${apiUrl}/estimation/profile-cache`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
                 },
             });
+            if (!evictRes.ok) {
+                logger.warn({ status: evictRes.status }, 'profile-cache eviction returned non-OK');
+            }
         }
     } catch (e) {
         logger.warn({ err: e }, 'profile-cache eviction threw');

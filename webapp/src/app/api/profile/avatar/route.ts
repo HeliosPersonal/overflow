@@ -48,13 +48,18 @@ export async function PUT(request: NextRequest) {
     // Invalidate the EstimationService profile cache so room joins and WebSocket
     // broadcasts fetch the fresh avatar from ProfileService.
     try {
-        await fetch(`${apiUrl}/estimation/profile-cache`, {
+        const evictRes = await fetch(`${apiUrl}/estimation/profile-cache`, {
             method: 'DELETE',
             headers: {
                 Authorization: `Bearer ${session.accessToken}`,
             },
         });
-    } catch { /* best-effort */ }
+        if (!evictRes.ok) {
+            logger.warn({ status: evictRes.status }, 'profile-cache eviction returned non-OK');
+        }
+    } catch (e) {
+        logger.warn({ err: e }, 'profile-cache eviction threw');
+    }
 
     return NextResponse.json({ ok: true });
 }
