@@ -174,10 +174,11 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.image_tags.outputs.value }}
+          secrets: |
+            infisical_client_id=${{ secrets.INFISICAL_CLIENT_ID }}
+            infisical_client_secret=${{ secrets.INFISICAL_CLIENT_SECRET }}
+            infisical_project_id=${{ secrets.INFISICAL_PROJECT_ID }}
           build-args: |
-            INFISICAL_CLIENT_ID=${{ secrets.INFISICAL_CLIENT_ID }}
-            INFISICAL_CLIENT_SECRET=${{ secrets.INFISICAL_CLIENT_SECRET }}
-            INFISICAL_PROJECT_ID=${{ secrets.INFISICAL_PROJECT_ID }}
             NODE_ENV=${{ steps.webapp_env.outputs.build_env }}
             COMMIT_SHA=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
