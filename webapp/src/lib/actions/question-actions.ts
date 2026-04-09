@@ -104,7 +104,9 @@ export async function updateQuestion(question: QuestionSchema, id: string) {
 }
 
 export async function deleteQuestion(id: string) {
-    return fetchClient(`/questions/${id}`, 'DELETE')
+    const result = await fetchClient(`/questions/${id}`, 'DELETE');
+    revalidatePath('/questions');
+    return result;
 }
 
 export async function postAnswer(data: AnswerSchema, questionId: string) {

@@ -6,7 +6,7 @@ namespace Overflow.DataSeederService.Services;
 
 public static class AnswerHtmlRenderer
 {
-    private const int MinHtmlLength = 150;
+    private const int MinHtmlLength = 50;
     private const int MaxCodeLines = 40;
 
     private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.OrdinalIgnoreCase)
@@ -42,11 +42,8 @@ public static class AnswerHtmlRenderer
             issues.Add("explanation is empty");
         }
 
-        if (string.IsNullOrWhiteSpace(dto.CodeSnippet))
-        {
-            issues.Add("code_snippet is empty");
-        }
-        else if (dto.CodeSnippet.Trim().Split('\n').Length > MaxCodeLines)
+        if (!string.IsNullOrWhiteSpace(dto.CodeSnippet) &&
+            dto.CodeSnippet.Trim().Split('\n').Length > MaxCodeLines)
         {
             issues.Add("code_snippet exceeds max lines");
         }
@@ -75,13 +72,13 @@ public static class AnswerHtmlRenderer
             sb.Append("<p>").Append(dto.Explanation.Trim()).Append("</p>");
         }
 
-        var steps = dto.FixSteps.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        if (steps.Count > 0)
+        var points = dto.Points.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        if (points.Count > 0)
         {
-            sb.Append("<h3>Fix</h3><ol>");
-            foreach (var step in steps)
-                sb.Append("<li>").Append(step.Trim()).Append("</li>");
-            sb.Append("</ol>");
+            sb.Append("<ul>");
+            foreach (var point in points)
+                sb.Append("<li>").Append(point.Trim()).Append("</li>");
+            sb.Append("</ul>");
         }
 
         if (!string.IsNullOrWhiteSpace(dto.CodeSnippet))
@@ -92,10 +89,6 @@ public static class AnswerHtmlRenderer
                 .Append("</code></pre>");
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.Notes) && !IsPlaceholder(dto.Notes))
-        {
-            sb.Append("<h3>Notes</h3><p>").Append(dto.Notes.Trim()).Append("</p>");
-        }
 
         return sb.ToString();
     }
@@ -105,14 +98,4 @@ public static class AnswerHtmlRenderer
         var key = raw?.Trim().ToLowerInvariant();
         return key != null && LanguageAliases.TryGetValue(key, out var lang) ? lang : "";
     }
-
-    private static readonly HashSet<string> KnownPlaceholders =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "empty string", "n/a", "none", "optional tip or empty string",
-            "no notes", "no additional notes"
-        };
-
-    private static bool IsPlaceholder(string value) =>
-        KnownPlaceholders.Contains(value.Trim());
 }

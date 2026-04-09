@@ -5,12 +5,18 @@ import AppPagination from "@/components/AppPagination";
 import {QuestionParams} from "@/lib/types";
 import {Suspense} from "react";
 import { createLogger } from "@/lib/logger";
+import {getCurrentUser} from "@/lib/actions/auth-actions";
 
 const logger = createLogger('questions-page');
 
 export default async function QuestionsPage({searchParams}: {searchParams?: Promise<QuestionParams>}) {
-    const params = await searchParams;
+    const [params, currentUser] = await Promise.all([
+        searchParams,
+        getCurrentUser(),
+    ]);
     const {data: questions, error} = await getQuestions(params);
+
+    const isAdmin = currentUser?.roles?.includes('admin') ?? false;
 
     // Don't hard-crash on backend unavailability — show empty state instead
     if (error) logger.warn({ err: error.message }, 'Failed to load questions');
@@ -30,7 +36,7 @@ export default async function QuestionsPage({searchParams}: {searchParams?: Prom
             <div className='flex flex-col gap-2 p-2 sm:p-4 flex-1'>
                 {questions?.items.map(question => (
                     <div key={question.id} className='w-full flex bg-content2 border border-content3 rounded-xl shadow-raise-sm hover:shadow-raise-lg transition-shadow duration-200'>
-                        <QuestionCard key={question.id} question={question} />
+                        <QuestionCard key={question.id} question={question} isAdmin={isAdmin} />
                     </div>
                 ))}
             </div>

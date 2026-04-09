@@ -1,5 +1,5 @@
 ﻿# Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 # Copy solution and project files
 COPY ["Directory.Build.props", "./"]
@@ -24,7 +24,7 @@ FROM build AS publish
 RUN dotnet publish "Overflow.DataSeederService.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 WORKDIR /app
 
 # Copy published files

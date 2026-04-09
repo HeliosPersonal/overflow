@@ -17,7 +17,7 @@ public class QuestionCreatedHandler(
         if (result.IsFailure)
         {
             throw new InvalidOperationException(
-                $"AI answer failed for {message.QuestionId}: {(string)result.Error}");
+                $"AI answer failed for {message.QuestionId}: {result.Error}");
         }
 
         logger.LogInformation("AI answer posted — {AnswerId} on {QuestionId}",

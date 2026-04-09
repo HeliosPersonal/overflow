@@ -8,9 +8,10 @@ import {handleError} from "@/lib/util";
 
 type Props = {
     questionId: string;
+    size?: 'sm' | 'md' | 'lg';
 }
 
-export default function DeleteQuestionButton({ questionId }: Props) {
+export default function DeleteQuestionButton({ questionId, size = 'sm' }: Props) {
     const [pending, startTransition] = useTransition();
     const router = useRouter();
     
@@ -24,7 +25,7 @@ export default function DeleteQuestionButton({ questionId }: Props) {
     
     return (
         <Button
-            size='sm'
+            size={size}
             variant='faded'
             color='danger'
             isLoading={pending}

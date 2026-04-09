@@ -35,7 +35,8 @@ var estimationDb = postgres.AddDatabase("estimationDb");
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
     .WithDataVolume("rabbitmq-data")
-    .WithManagementPlugin(port: 15672);
+    .WithManagementPlugin(port: 15672)
+    .WithBindMount("./rabbitmq/enabled_plugins", "/etc/rabbitmq/enabled_plugins", isReadOnly: true);
 
 #pragma warning disable ASPIRECERTIFICATES001
 var redis = builder
