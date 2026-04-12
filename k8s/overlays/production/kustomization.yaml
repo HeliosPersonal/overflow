@@ -80,14 +80,14 @@ replicas:
   - name: profile-svc
     count: 2
   - name: stats-svc
-    count: 2
+    count: 1
   - name: vote-svc
-    count: 2
+    count: 1
   - name: estimation-svc
     count: 2
   - name: notification-svc
-    count: 2
+    count: 1
   - name: overflow-webapp
-    count: 2
+    count: 3
   - name: data-seeder-svc
-    count: 2
+    count: 1
