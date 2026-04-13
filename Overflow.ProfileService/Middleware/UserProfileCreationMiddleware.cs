@@ -23,6 +23,9 @@ public class UserProfileCreationMiddleware(RequestDelegate next)
                        ?? context.User.FindFirstValue("preferred_username")
                        ?? "Unnamed";
 
+            var email = context.User.FindFirstValue(ClaimTypes.Email)
+                       ?? context.User.FindFirstValue("email");
+
             if (userId is not null)
             {
                 var profile = await db.UserProfiles.FindAsync(userId);
@@ -32,9 +35,16 @@ public class UserProfileCreationMiddleware(RequestDelegate next)
                     {
                         Id = userId,
                         DisplayName = name,
+                        Email = email,
                     };
 
                     db.UserProfiles.Add(newProfile);
+                    await db.SaveChangesAsync();
+                }
+                else if (profile.Email is null && email is not null)
+                {
+                    // Backfill email for existing profiles
+                    profile.Email = email;
                     await db.SaveChangesAsync();
                 }
             }

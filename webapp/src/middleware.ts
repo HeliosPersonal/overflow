@@ -30,7 +30,6 @@ export const config = {
         '/questions/ask',
         '/questions/:id/edit',
         '/session',
-        '/tags/manage',
-        '/profiles',
+        '/admin/:path*',
     ]
 }

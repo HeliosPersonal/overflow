@@ -1,5 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { KeycloakAdminClient, KeycloakAdminError } from '@/lib/keycloak-admin';
+import { apiConfig, authConfig } from '@/lib/config';
+import { createResetToken, EMAIL_VERIFICATION_EXPIRY_MS } from '@/lib/resetTokens';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('auth-signup');
@@ -9,6 +11,7 @@ const logger = createLogger('auth-signup');
  *
  * Creates a new Keycloak user account with the provided credentials.
  * Uses the Keycloak Admin API (service account) to create the user.
+ * Sends a verification email — user must verify before they can sign in.
  *
  * Request body: { email: string, firstName: string, lastName: string, password: string }
  */
@@ -36,11 +39,36 @@ export async function POST(request: NextRequest) {
             credentials: [{ type: 'password', value: password, temporary: false }],
         });
 
-        logger.info({ email }, 'User registered');
+        // Send verification email via NotificationService
+        try {
+            const token = createResetToken(email, EMAIL_VERIFICATION_EXPIRY_MS);
+            const verifyUrl = `${authConfig.authUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+            const appEnv = process.env.APP_ENV || 'production';
+            const appName = appEnv === 'staging' ? 'Overflow Staging' : 'Overflow';
+
+            await fetch(`${apiConfig.baseUrl}/notifications/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': apiConfig.notificationApiKey,
+                },
+                body: JSON.stringify({
+                    channel: 'Email',
+                    recipient: email,
+                    template: 'VerifyEmail',
+                    parameters: { verifyUrl, appName },
+                }),
+            });
+        } catch (emailError) {
+            logger.error({ err: emailError }, 'Failed to send verification email');
+        }
+
+        logger.info({ email }, 'User registered (pending email verification)');
 
         return NextResponse.json({
-            message: 'Account created successfully',
+            message: 'Account created successfully. Please check your email to verify your address.',
             email,
+            requiresVerification: true,
         }, { status: 201 });
     } catch (error) {
         if (error instanceof KeycloakAdminError) {

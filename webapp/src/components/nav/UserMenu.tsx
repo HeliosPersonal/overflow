@@ -23,10 +23,21 @@ type Props = {
   displayName: string;
 };
 
+type MenuItem = { key: string; label: string; href?: string; className?: string; onPress?: () => void };
+
 export default function UserMenu({ user, avatarUrl, displayName }: Props) {
   const router = useRouter();
   const openPreferences = useCookieConsentStore((s) => s.openPreferences);
   const isAnonymous = user.isAnonymous;
+
+  const profileItems: MenuItem[] = isAnonymous
+    ? [{ key: "register", label: "Complete Registration", onPress: () => router.push(`/profiles/${user.id}`) }]
+    : [
+        { key: "profile", label: "My Profile", href: `/profiles/${user.id}` },
+        ...(user.roles?.includes("admin")
+          ? [{ key: "admin", label: "Admin Panel", href: "/admin", className: "text-primary" }]
+          : []),
+      ];
 
   async function handleSignOut() {
     // If the user is in a planning-poker room, leave it *before* the session
@@ -64,23 +75,19 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
         </div>
       </DropdownTrigger>
       <DropdownMenu>
-        {isAnonymous ? (
-          <DropdownSection showDivider>
+        <DropdownSection showDivider items={profileItems}>
+          {(item) => (
             <DropdownItem
-              key="register"
-              description="Guest accounts expire after 30 days"
-              onPress={() => router.push(`/profiles/${user.id}`)}
+              key={item.key}
+              href={item.href}
+              className={item.className}
+              onPress={item.onPress}
+              {...(item.key === "register" ? { description: "Guest accounts expire after 30 days" } : {})}
             >
-              Complete Registration
+              {item.label}
             </DropdownItem>
-          </DropdownSection>
-        ) : (
-          <DropdownSection showDivider>
-            <DropdownItem href={`/profiles/${user.id}`} key="profile">
-              My Profile
-            </DropdownItem>
-          </DropdownSection>
-        )}
+          )}
+        </DropdownSection>
         <DropdownSection>
           <DropdownItem
             key="cookie-settings"

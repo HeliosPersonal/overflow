@@ -1,7 +1,7 @@
 'use client';
 
-import {Tag} from "@/lib/types";
-import {useState, useTransition} from "react";
+import {PaginatedResult, Tag} from "@/lib/types";
+import {useState, useRef, useTransition} from "react";
 import {createTag, deleteTag, updateTag} from "@/lib/actions/tag-actions";
 import {useForm} from "react-hook-form";
 import {zodResolver} from "@hookform/resolvers/zod";
@@ -13,17 +13,46 @@ import {Chip} from "@heroui/chip";
 import {
     Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, useDisclosure
 } from "@heroui/modal";
-import {Pencil, Trash2, Plus, Check, X} from "lucide-react";
-import {handleError} from "@/lib/util";
+import {Pencil, Trash2, Plus, Check, X, Search} from "lucide-react";
+import {handleError, successToast} from "@/lib/util";
+import {useRouter, useSearchParams} from "next/navigation";
+import AppPagination from "@/components/AppPagination";
 
-type Props = { tags: Tag[] }
+type Props = { data: PaginatedResult<Tag> }
 
-export default function TagsTable({tags: initialTags}: Props) {
-    const [tags, setTags] = useState<Tag[]>(initialTags);
+export default function TagsTable({data}: Props) {
+    const tags = data.items;
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
     const [isPending, startTransition] = useTransition();
     const {isOpen, onOpen, onClose} = useDisclosure();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // ── Search ──
+    const searchFormRef = useRef<HTMLFormElement>(null);
+
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const search = (formData.get('search') as string)?.trim() ?? '';
+        const params = new URLSearchParams(searchParams.toString());
+        if (search) {
+            params.set('search', search);
+        } else {
+            params.delete('search');
+        }
+        params.set('page', '1');
+        router.push(`?${params.toString()}`, {scroll: false});
+    };
+
+    const clearSearch = () => {
+        searchFormRef.current?.reset();
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('search');
+        params.set('page', '1');
+        router.push(`?${params.toString()}`, {scroll: false});
+    };
 
     // ── Add form ──
     const addForm = useForm<TagSchema>({
@@ -38,14 +67,13 @@ export default function TagsTable({tags: initialTags}: Props) {
         mode: 'onTouched',
     });
 
-    const handleAdd = (data: TagSchema) => {
+    const handleAdd = (formData: TagSchema) => {
         startTransition(async () => {
-            const {data: created, error} = await createTag(data);
+            const {error} = await createTag(formData);
             if (error) { handleError(error); return; }
-            if (created) {
-                setTags(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-                addForm.reset();
-            }
+            successToast('Tag created');
+            addForm.reset();
+            router.refresh();
         });
     };
 
@@ -56,14 +84,13 @@ export default function TagsTable({tags: initialTags}: Props) {
 
     const cancelEdit = () => setEditingId(null);
 
-    const handleUpdate = (data: UpdateTagSchema, tag: Tag) => {
+    const handleUpdate = (formData: UpdateTagSchema, tag: Tag) => {
         startTransition(async () => {
-            const {data: updated, error} = await updateTag(tag.id, data);
+            const {error} = await updateTag(tag.id, formData);
             if (error) { handleError(error); return; }
-            if (updated) {
-                setTags(prev => prev.map(t => t.id === tag.id ? updated : t));
-                setEditingId(null);
-            }
+            successToast('Tag updated');
+            setEditingId(null);
+            router.refresh();
         });
     };
 
@@ -77,9 +104,10 @@ export default function TagsTable({tags: initialTags}: Props) {
         startTransition(async () => {
             const {error} = await deleteTag(deletingTag.id);
             if (error) { handleError(error); return; }
-            setTags(prev => prev.filter(t => t.id !== deletingTag.id));
+            successToast('Tag deleted');
             onClose();
             setDeletingTag(null);
+            router.refresh();
         });
     };
 
@@ -129,6 +157,25 @@ export default function TagsTable({tags: initialTags}: Props) {
                 </div>
             </form>
 
+            {/* ── Search bar ── */}
+            <form ref={searchFormRef} onSubmit={handleSearch} className="flex items-center gap-2 max-w-md">
+                <Input
+                    name="search"
+                    placeholder="Search by name or slug..."
+                    size="sm"
+                    defaultValue={searchParams.get('search') ?? ''}
+                    startContent={<Search className="h-4 w-4 text-default-400"/>}
+                    isClearable
+                    onClear={clearSearch}
+                />
+                <Button type="submit" size="sm" color="primary">
+                    Search
+                </Button>
+            </form>
+
+            {/* ── Tags count ── */}
+            <p className="text-sm text-foreground-500">{data.totalCount} tag(s)</p>
+
             {/* ── Tags table ── */}
             <div className='rounded-xl border border-default-200 overflow-hidden'>
                 <table className='w-full text-sm'>
@@ -148,7 +195,7 @@ export default function TagsTable({tags: initialTags}: Props) {
                                     <td colSpan={4} className='px-4 py-3'>
                                         <form
                                             id={`edit-${tag.id}`}
-                                            onSubmit={editForm.handleSubmit(data => handleUpdate(data, tag))}
+                                            onSubmit={editForm.handleSubmit(formData => handleUpdate(formData, tag))}
                                             className='flex gap-3 items-start'
                                         >
                                             <Input
@@ -185,13 +232,12 @@ export default function TagsTable({tags: initialTags}: Props) {
                                         {editingId === tag.id ? (
                                             <>
                                                 <Button
-                                                    type='submit'
-                                                    form={`edit-${tag.id}`}
                                                     isIconOnly
                                                     size='sm'
                                                     color='success'
                                                     variant='flat'
                                                     isLoading={isPending}
+                                                    onPress={() => editForm.handleSubmit(formData => handleUpdate(formData, tag))()}
                                                 >
                                                     <Check className='h-4 w-4'/>
                                                 </Button>
@@ -225,13 +271,16 @@ export default function TagsTable({tags: initialTags}: Props) {
                         {tags.length === 0 && (
                             <tr>
                                 <td colSpan={5} className='px-4 py-8 text-center text-default-400'>
-                                    No tags yet. Add one above.
+                                    No tags found.
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* ── Pagination ── */}
+            <AppPagination totalCount={data.totalCount}/>
 
             {/* ── Delete confirmation modal ── */}
             <Modal isOpen={isOpen} onClose={onClose}>
@@ -250,5 +299,3 @@ export default function TagsTable({tags: initialTags}: Props) {
         </div>
     );
 }
-
-

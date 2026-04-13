@@ -22,6 +22,7 @@ export default function SignupPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [successEmail, setSuccessEmail] = useState('');
 
     const {
         register,
@@ -54,10 +55,11 @@ export default function SignupPage() {
             }
 
             setSuccess(true);
+            setSuccessEmail(data.email);
             
             setTimeout(() => {
                 router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-            }, 2000);
+            }, 5000);
 
         } catch (err) {
             log.error('Signup error', err instanceof Error ? err : String(err));
@@ -93,8 +95,12 @@ export default function SignupPage() {
                                 <path d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
-                        <h2 className="mb-2 text-xl font-bold">Account created successfully!</h2>
+                        <h2 className="mb-2 text-xl font-bold">Check your email</h2>
                         <p className="text-sm text-default-500">
+                            We&apos;ve sent a verification link to <strong>{successEmail}</strong>.
+                            Please verify your email before signing in.
+                        </p>
+                        <p className="mt-3 text-xs text-default-400">
                             Redirecting to login page...
                         </p>
                         </CardBody>

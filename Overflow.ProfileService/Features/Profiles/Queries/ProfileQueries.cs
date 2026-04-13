@@ -21,7 +21,7 @@ public class GetProfilesHandler(ProfileDbContext db) : IRequestHandler<GetProfil
             : query.OrderBy(x => x.DisplayName);
 
         return await query
-            .Select(x => new ProfileDto(x.Id, x.DisplayName, x.Description, x.AvatarUrl, x.Reputation, x.JoinedAt,
+            .Select(x => new ProfileDto(x.Id, x.DisplayName, x.Email, x.Description, x.AvatarUrl, x.Reputation, x.JoinedAt,
                 x.ThemePreference))
             .ToListAsync(cancellationToken);
     }
@@ -40,7 +40,7 @@ public class GetProfileByIdHandler(ProfileDbContext db) : IRequestHandler<GetPro
 
         return profile is null
             ? null
-            : new ProfileDto(profile.Id, profile.DisplayName, profile.Description, profile.AvatarUrl,
+            : new ProfileDto(profile.Id, profile.DisplayName, profile.Email, profile.Description, profile.AvatarUrl,
                 profile.Reputation, profile.JoinedAt, profile.ThemePreference);
     }
 }

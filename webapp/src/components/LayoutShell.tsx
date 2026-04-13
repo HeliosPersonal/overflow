@@ -17,12 +17,10 @@ export default function LayoutShell({
     topNav,
     rightSidebar,
     children,
-    isAdmin,
 }: {
     topNav: React.ReactNode;
     rightSidebar: React.ReactNode;
     children: React.ReactNode;
-    isAdmin: boolean;
 }) {
     const pathname = usePathname();
     const isPokerRoom = /^\/planning-poker\/[0-9a-f]{8}-/.test(pathname);
@@ -43,7 +41,6 @@ export default function LayoutShell({
                         ${sidebarCollapsed ? 'w-[68px] px-2' : 'w-56 px-4'}`}
                 >
                     <SideMenu
-                        isAdmin={isAdmin}
                         collapsed={sidebarCollapsed}
                         onToggle={isPokerRoom ? undefined : () => setCollapsed(c => !c)}
                     />
@@ -64,7 +61,7 @@ export default function LayoutShell({
 
             {/* ── Mobile bottom navigation ── */}
             <div className="md:hidden shrink-0">
-                <SideMenu isAdmin={isAdmin} collapsed={true} mobile={true} />
+                <SideMenu collapsed={true} mobile={true} />
             </div>
         </div>
     );
