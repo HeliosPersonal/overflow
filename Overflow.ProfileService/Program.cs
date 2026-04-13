@@ -37,7 +37,10 @@ builder.Services.AddHealthChecks()
     .AddDatabaseHealthCheck<ProfileDbContext>()
     .AddRabbitMqHealthCheck();
 
-await builder.UseWolverineWithRabbitMqAsync(opts => { opts.ApplicationAssembly = typeof(Program).Assembly; });
+await builder.UseWolverineWithRabbitMqAsync(opts =>
+{
+    opts.ApplicationAssembly = typeof(Program).Assembly;
+});
 
 var app = builder.Build();
 

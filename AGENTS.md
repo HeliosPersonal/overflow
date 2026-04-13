@@ -146,6 +146,8 @@ Handlers use `CSharpFunctionalExtensions.Result<T>` to signal business failures 
 | `AnswerAccepted` | QuestionService | SearchService (sets `HasAcceptedAnswer` in Typesense) |
 | `VoteCasted` | VoteService | QuestionService (updates vote count on question/answer) |
 | `UserReputationChanged` | VoteService (via `ReputationHelper.MakeEvent()`), QuestionService (on answer accepted) | ProfileService (updates user reputation), StatsService (top users projection) |
+| `UserDeleted` | ProfileService (admin panel) | ProfileService (deletes from Keycloak + DB), QuestionService (deletes user's questions/answers + publishes `QuestionDeleted` per question), VoteService (deletes user's votes), StatsService (invalidates top-users cache) |
+| `AdminUserUpdated` | ProfileService (admin panel) | ProfileService (updates displayName/description in DB) |
 | `SendNotification` | Webapp (via HTTP POST), any service | NotificationService (renders template, dispatches to email/Telegram/etc.) |
 
 ---
@@ -185,6 +187,60 @@ Handlers use `CSharpFunctionalExtensions.Result<T>` to signal business failures 
 4. Deletes the corresponding `UserProfile` record from ProfileService database.
 
 Requires `KeycloakOptions:AdminClientId` and `KeycloakOptions:AdminClientSecret` to be configured. If missing, the cleanup is disabled with a warning log.
+
+---
+
+## Admin Panel
+
+Admin-only section at `/admin` for user management and tag CRUD. Accessible via "Admin Panel" link in the `UserMenu` dropdown (visible only to users with `admin` Keycloak role).
+
+### Architecture
+
+The admin controller (`ProfileService/Controllers/AdminController.cs`) is **fire-and-forget**: all mutations publish messages to RabbitMQ and return `202 Accepted`. Actual work is done asynchronously by Wolverine message handlers.
+
+| Endpoint | Message Published | Handler(s) |
+|---|---|---|
+| `PUT /profiles/admin/{userId}` | `AdminUserUpdated` | ProfileService: updates displayName/description in DB |
+| `DELETE /profiles/admin/{userId}` | `UserDeleted` | ProfileService: deletes from Keycloak + DB; QuestionService: deletes questions/answers; VoteService: deletes votes; StatsService: invalidates cache |
+| `POST /profiles/admin/bulk-delete` | `UserDeleted` × N | Same as single delete, one message per user |
+
+All endpoints require `[Authorize(Roles = "admin")]`.
+
+### User Deletion Flow
+
+1. Admin clicks Delete in `/admin/users` → calls `DELETE /profiles/admin/{userId}`.
+2. `AdminController` publishes `UserDeleted(UserId)` to RabbitMQ → returns 202.
+3. Each service's `UserDeletedHandler` processes cleanup independently:
+   - **ProfileService**: authenticates with Keycloak Admin API → deletes user from Keycloak → deletes `UserProfile` row.
+   - **QuestionService**: deletes orphan answers on other users' questions → deletes all user's questions (cascade) → publishes `QuestionDeleted` per question (triggers SearchService/StatsService cleanup) → invalidates question cache.
+   - **VoteService**: deletes all votes by the user.
+   - **StatsService**: invalidates top-users cache tag.
+   - **EstimationService**: no handler (no Wolverine). Participant data auto-expires on room archive; profile cache expires in 10s.
+
+### Frontend Pages
+
+| Route | Component | Purpose |
+|---|---|---|
+| `/admin` | Redirects to `/admin/users` | — |
+| `/admin/users` | `UsersTable.tsx` | List all users, inline edit (name/desc), single delete, bulk delete with checkboxes |
+| `/admin/tags` | `TagsTable.tsx` | Full CRUD: add tag form, inline edit, delete with confirmation modal |
+
+Admin layout (`admin/layout.tsx`) checks `session.user.roles.includes('admin')` and redirects non-admins to `/questions`. Tab navigation (`AdminNav.tsx`) switches between Users and Tags.
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `Overflow.Contracts/UserDeleted.cs` | Message contract for user deletion |
+| `Overflow.Contracts/AdminUserUpdated.cs` | Message contract for admin profile update |
+| `Overflow.ProfileService/Controllers/AdminController.cs` | Admin endpoints (publish-only, no direct DB access) |
+| `Overflow.ProfileService/MessageHandlers/UserDeletedHandler.cs` | Keycloak + DB deletion |
+| `Overflow.ProfileService/MessageHandlers/AdminUserUpdatedHandler.cs` | Profile update in DB |
+| `Overflow.QuestionService/MessageHandlers/UserDeletedHandler.cs` | Question/answer cleanup |
+| `Overflow.VoteService/MessageHandlers/UserDeletedHandler.cs` | Vote cleanup |
+| `Overflow.StatsService/MessageHandlers/UserDeletedHandler.cs` | Cache invalidation |
+| `webapp/src/app/(main)/admin/` | Admin pages (layout, nav, users, tags) |
+| `webapp/src/lib/actions/admin-actions.ts` | Server actions for admin operations |
 
 ---
 
@@ -270,16 +326,16 @@ webapp/src/
   app/
     (auth)/          # Auth pages (login, signup, forgot-password, etc.) — no shell/sidebar
     (main)/          # Main app pages — wrapped in LayoutShell (TopNav + SideMenu + RightSidebar)
+      admin/           # Admin panel (users, tags) — admin role required
       planning-poker/  # Planning Poker feature pages
-      profiles/        # Profile pages
+      profiles/        # Profile pages (individual profile view/edit)
       questions/       # Q&A feature pages
-      tags/            # Tag management
       auth-gate/       # "Continue as Guest" page for protected routes
     api/             # Next.js Route Handlers (auth, estimation proxy, profile avatar)
   auth.ts            # NextAuth config (Keycloak + Credentials providers)
   middleware.ts      # Auth middleware for protected routes
   lib/
-    actions/         # Server Actions (one file per domain: question-actions, profile-actions, etc.)
+    actions/         # Server Actions (one file per domain: question-actions, profile-actions, admin-actions, etc.)
     auth/            # Client-side auth helpers (create-guest.ts)
     config.ts        # Typed env var access (authConfig, apiConfig)
     fetchClient.ts   # Server-side HTTP client — auto-attaches JWT, handles errors
@@ -296,7 +352,7 @@ webapp/src/
     validators/      # Auth validators
   components/
     AuthorBadge.tsx  # Shared author attribution badge (avatar + time + name + reputation)
-    nav/             # TopNav, UserMenu, SearchInput, ThemeToggle
+    nav/             # TopNav, UserMenu (includes Admin Panel link for admins), SearchInput, ThemeToggle
     rte/             # TipTap Rich Text Editor
     auth/            # Auth-related components (GoogleSignInButton)
     cookie/          # Cookie consent banner + preferences
@@ -334,7 +390,7 @@ const enriched = questions.items.map(q => ({ ...q, author: profileMap.get(q.aske
 - `(auth)` — minimal layout (no shell), used for login/signup/password-reset pages
 - `(main)` — full layout with `LayoutShell` (TopNav, SideMenu, RightSidebar)
 
-**Middleware** (`src/middleware.ts`) protects specific routes (e.g. `/questions/ask`, `/tags/manage`) by redirecting unauthenticated users to `/auth-gate`.
+**Middleware** (`src/middleware.ts`) protects specific routes (e.g. `/questions/ask`, `/admin/*`) by redirecting unauthenticated users to `/auth-gate`.
 
 ### Styling
 

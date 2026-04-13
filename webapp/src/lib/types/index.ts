@@ -60,6 +60,7 @@ export type ThemePreference = 'System' | 'Light' | 'Dark'
 export type Profile = {
     userId: string
     displayName: string
+    email?: string | null
     description?: string
     reputation: number
     avatarUrl?: string | null

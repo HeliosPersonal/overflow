@@ -79,6 +79,11 @@ export default function UserMenu({ user, avatarUrl, displayName }: Props) {
             <DropdownItem href={`/profiles/${user.id}`} key="profile">
               My Profile
             </DropdownItem>
+            {user.roles?.includes('admin') && (
+              <DropdownItem href="/admin" key="admin" className="text-primary">
+                Admin Panel
+              </DropdownItem>
+            )}
           </DropdownSection>
         )}
         <DropdownSection>
