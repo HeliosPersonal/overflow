@@ -3,6 +3,7 @@
 import {usePathname} from "next/navigation";
 import TrendingTags from "@/components/TrendingTags";
 import TopUsers from "@/components/TopUsers";
+import SupportMeButton from "@/components/SupportMeButton";
 
 /**
  * Right sidebar — only shows on questions, tags, and leaderboard list pages.
@@ -18,6 +19,7 @@ export default function RightSidebar() {
             <div className='flex flex-col gap-5'>
                 <TrendingTags/>
                 <TopUsers/>
+                <SupportMeButton variant="prominent" />
             </div>
         </aside>
     );

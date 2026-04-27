@@ -1,7 +1,7 @@
 const sha = process.env.NEXT_PUBLIC_COMMIT_SHA;
 
-export default function BuildVersion() {
-    if (!sha) return null;
+export default function BuildVersion({ isAdmin = false }: { isAdmin?: boolean }) {
+    if (!sha || !isAdmin) return null;
 
     const short = sha.slice(0, 7);
 
