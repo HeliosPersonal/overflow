@@ -7,6 +7,7 @@ import {fetchClient} from "@/lib/fetchClient";
 import {Profile} from "@/lib/types";
 import UserMenu from "@/components/nav/UserMenu";
 import RegisterButton from "@/components/nav/RegisterButton";
+import SupportMeButton from "@/components/SupportMeButton";
 
 export default async function TopNav() {
     const session = await auth();
@@ -35,6 +36,9 @@ export default async function TopNav() {
                 <div className='flex-1' />
                 
                 <div className='flex shrink-0 justify-end gap-2 sm:gap-3 items-center'>
+                    <span className="hidden sm:inline-flex">
+                        <SupportMeButton variant="compact" />
+                    </span>
                     <ThemeToggle />
                     {user ? (
                         <UserMenu user={user} avatarUrl={avatarUrl} displayName={displayName ?? user.displayName} />

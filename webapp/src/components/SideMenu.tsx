@@ -6,6 +6,7 @@ import {Tooltip} from "@heroui/react";
 import {usePathname} from "next/navigation";
 import Link from "next/link";
 import {useEffect, useState} from "react";
+import SupportMeButton from "@/components/SupportMeButton";
 
 export default function SideMenu({ collapsed = false, onToggle, mobile = false }: {
     collapsed?: boolean;
@@ -90,6 +91,9 @@ export default function SideMenu({ collapsed = false, onToggle, mobile = false }
             </nav>
 
             <div className="flex-1"/>
+
+            {/* Support button */}
+            <SupportMeButton variant="compact" collapsed={collapsed} />
 
             {/* Toggle button */}
             {onToggle && (
