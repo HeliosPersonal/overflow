@@ -6,6 +6,7 @@
     <ItemGroup>
         <PackageReference Include="CommandFlow"/>
         <PackageReference Include="CommandFlow.DependencyInjection"/>
+        <PackageReference Include="Marten"/>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
         <PackageReference Include="WolverineFx.Marten"/>
     </ItemGroup>
