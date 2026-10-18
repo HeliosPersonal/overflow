@@ -2,9 +2,13 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Lets a PackageVersion below override a vulnerable transitive dependency
-         (MessagePack) without adding a fake PackageReference to the consuming project. -->
-    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!-- Do NOT enable CentralPackageTransitivePinningEnabled here. Several PackageVersion
+         entries below have no matching PackageReference and are inert by design; the flag
+         turns every one of them into a hard pin on somebody else's transitive dependency.
+         Doing that split the Roslyn graph (Workspaces.MSBuild 5.9.0 against CodeAnalysis
+         5.0.0) and every Wolverine service crashed on startup unable to load
+         Microsoft.CodeAnalysis.Workspaces. To force a transitive version, add an explicit
+         PackageReference in the one project that needs it instead. -->
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="CommandFlow" Version="1.0.4" />
@@ -38,9 +42,9 @@
     <!-- Transitive via Aspire.Hosting.AppHost; 2.5.303+ fixes the deserialization DoS (CVE-2026-92707). -->
     <PackageVersion Include="MessagePack" Version="2.5.307" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
