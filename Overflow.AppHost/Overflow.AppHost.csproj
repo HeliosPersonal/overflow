@@ -13,6 +13,9 @@
         <PackageReference Include="Aspire.Hosting.RabbitMQ"/>
         <PackageReference Include="Aspire.Hosting.Redis"/>
         <PackageReference Include="Aspire.Hosting.Yarp"/>
+        <!-- Not used directly. Present only to lift the MessagePack that Aspire's dashboard
+             drags in past CVE-2026-92707; this project is local orchestration and never ships. -->
+        <PackageReference Include="MessagePack"/>
     </ItemGroup>
 
     <ItemGroup>
