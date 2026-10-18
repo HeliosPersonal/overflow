@@ -172,7 +172,13 @@ public class LlmService(
     {
         var chat = new Chat(ollama, prompt.System)
         {
-            Options = new RequestOptions { Temperature = 0.6f, NumPredict = maxTokens }
+            Options = new RequestOptions { Temperature = 0.6f, NumPredict = maxTokens },
+            // Reasoning models (qwen3.5, the current LlmModel) think by default and emit
+            // those tokens into a separate "thinking" field. Left on, the whole NumPredict
+            // budget is spent reasoning and the message content comes back EMPTY — every
+            // generation then fails CleanJson. Note format: "json" below does NOT suppress it.
+            // fully qualified: the OllamaSharp.Models.Chat namespace collides with the Chat type
+            Think = new OllamaSharp.Models.Chat.ThinkValue(false)
         };
 
         var sb = new StringBuilder();
