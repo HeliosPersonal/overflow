@@ -179,11 +179,11 @@ async function initializeOtelLogging(): Promise<void> {
                 'deployment.environment': appEnv,
             }),
             processors: [
-                new BatchLogRecordProcessor(
-                    new OTLPLogExporter({ url: `${endpoint}/v1/logs`, headers }),
-                    // Flush every 2 s (default is 5 s) so logs appear in Grafana quickly
-                    { scheduledDelayMillis: 2_000 },
-                ),
+                new BatchLogRecordProcessor({
+                    exporter: new OTLPLogExporter({ url: `${endpoint}/v1/logs`, headers }),
+                    // Flush every 2 s so logs appear in Grafana quickly
+                    scheduledDelayMillis: 2_000,
+                }),
             ],
         });
 
